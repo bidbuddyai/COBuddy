@@ -48,44 +48,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function fetchUserData(userId: string) {
+    console.log('Fetching user data for:', userId);
     try {
       const response = await fetch(`/api/users/${userId}`);
+      console.log('User fetch response:', response.status);
+      
       if (response.ok) {
         const userData = await response.json();
+        console.log('User data found:', userData);
         setUser(userData);
       } else if (response.status === 404) {
+        console.log('User not found in database, creating profile...');
         // User doesn't exist in our database yet (OAuth login)
         // Get the Supabase user data
         const { data: { user: supabaseUserData } } = await supabase.auth.getUser();
+        console.log('Supabase user data:', supabaseUserData);
         
         if (supabaseUserData) {
           // Create user in our database
+          const createPayload = {
+            id: supabaseUserData.id,
+            email: supabaseUserData.email,
+            firstName: supabaseUserData.user_metadata?.first_name || 
+                      supabaseUserData.user_metadata?.given_name ||
+                      supabaseUserData.user_metadata?.name?.split(' ')[0] ||
+                      '',
+            lastName: supabaseUserData.user_metadata?.last_name || 
+                     supabaseUserData.user_metadata?.family_name ||
+                     supabaseUserData.user_metadata?.name?.split(' ').slice(1).join(' ') ||
+                     '',
+          };
+          
+          console.log('Creating user with payload:', createPayload);
+          
           const createResponse = await fetch('/api/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: supabaseUserData.id,
-              email: supabaseUserData.email,
-              firstName: supabaseUserData.user_metadata?.first_name || 
-                        supabaseUserData.user_metadata?.given_name ||
-                        supabaseUserData.user_metadata?.name?.split(' ')[0] ||
-                        '',
-              lastName: supabaseUserData.user_metadata?.last_name || 
-                       supabaseUserData.user_metadata?.family_name ||
-                       supabaseUserData.user_metadata?.name?.split(' ').slice(1).join(' ') ||
-                       '',
-            }),
+            body: JSON.stringify(createPayload),
           });
 
+          const responseText = await createResponse.text();
+          console.log('Create user response:', createResponse.status, responseText);
+          
           if (createResponse.ok) {
-            const newUser = await createResponse.json();
+            const newUser = JSON.parse(responseText);
+            console.log('User created successfully:', newUser);
             setUser(newUser);
+          } else {
+            console.error('Failed to create user:', responseText);
+            toast({
+              title: "Error",
+              description: "Failed to create user profile",
+              variant: "destructive",
+            });
           }
         }
+      } else {
+        console.error('Unexpected response status:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load user profile",
+        variant: "destructive",
+      });
     } finally {
+      console.log('Setting isLoading to false');
       setIsLoading(false);
     }
   }
