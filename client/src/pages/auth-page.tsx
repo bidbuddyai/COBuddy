@@ -101,9 +101,16 @@ export default function AuthPage() {
     try {
       await signInWithProvider(provider);
     } catch (error: any) {
+      console.error(`${provider} login error:`, error);
+      
+      let errorMessage = error.message;
+      if (provider === 'azure' && error.message?.includes('tenant')) {
+        errorMessage = "Azure authentication is not properly configured. Please contact your administrator to set up the Azure tenant URL in Supabase.";
+      }
+      
       toast({
         title: "Login failed",
-        description: error.message || `Failed to sign in with ${provider === 'azure' ? 'Microsoft' : 'LinkedIn'}`,
+        description: errorMessage || `Failed to sign in with ${provider === 'azure' ? 'Microsoft' : 'LinkedIn'}`,
         variant: "destructive",
       });
     }
