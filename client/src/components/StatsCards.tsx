@@ -3,9 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { DashboardStats } from "@/types";
 import { FileText, DollarSign, Clock, Brain, TrendingUp, AlertTriangle } from "lucide-react";
 
-export default function StatsCards() {
+interface StatsCardsProps {
+  projectId?: number;
+}
+
+export default function StatsCards({ projectId }: StatsCardsProps) {
   const { data: stats, isLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/dashboard/stats"],
+    queryKey: ["/api/dashboard/stats", projectId],
+    queryFn: async () => {
+      const url = projectId ? `/api/dashboard/stats?projectId=${projectId}` : '/api/dashboard/stats';
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+      return response.json();
+    },
   });
 
   if (isLoading) {

@@ -38,7 +38,7 @@ export interface IStorage {
   updateProject(id: number, project: Partial<Project>): Promise<Project>;
 
   // Change order operations
-  getChangeOrders(filters?: { page?: number; limit?: number; status?: string }): Promise<{ data: ChangeOrder[]; total: number }>;
+  getChangeOrders(filters?: { page?: number; limit?: number; status?: string; projectId?: number }): Promise<{ data: ChangeOrder[]; total: number }>;
   getChangeOrder(id: number): Promise<ChangeOrder | undefined>;
   createChangeOrder(changeOrder: InsertChangeOrder): Promise<ChangeOrder>;
   updateChangeOrder(id: number, changeOrder: Partial<ChangeOrder>): Promise<ChangeOrder>;
@@ -62,11 +62,27 @@ export interface IStorage {
   updateChatConversation(id: number, conversation: Partial<ChatConversation>): Promise<ChatConversation>;
 
   // Analytics
-  getDashboardStats(): Promise<{
+  getDashboardStats(projectId?: number): Promise<{
     totalChangeOrders: number;
     totalValue: number;
     pendingApproval: number;
     aiProcessedRate: number;
+  }>;
+
+  getProjectAnalytics(projectId: number): Promise<{
+    totalChangeOrders: number;
+    totalValue: number;
+    avgChangeOrderValue: number;
+    statusBreakdown: Array<{
+      status: string;
+      count: number;
+      value: number;
+    }>;
+    monthlyTrends: Array<{
+      month: string;
+      changeOrders: number;
+      value: number;
+    }>;
   }>;
 
   // Audit
@@ -124,23 +140,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Change order operations
-  async getChangeOrders(filters?: { page?: number; limit?: number; status?: string }): Promise<{ data: ChangeOrder[]; total: number }> {
+  async getChangeOrders(filters?: { page?: number; limit?: number; status?: string; projectId?: number }): Promise<{ data: ChangeOrder[]; total: number }> {
     const page = filters?.page || 1;
     const limit = filters?.limit || 10;
     const offset = (page - 1) * limit;
 
+    const conditions = [];
+    if (filters?.status) {
+      conditions.push(eq(changeOrders.status, filters.status));
+    }
+    if (filters?.projectId) {
+      conditions.push(eq(changeOrders.projectId, filters.projectId));
+    }
+
     // Get data
-    const data = filters?.status 
+    const data = conditions.length > 0 
       ? await db.select().from(changeOrders)
-          .where(eq(changeOrders.status, filters.status))
+          .where(and(...conditions))
           .orderBy(desc(changeOrders.createdAt)).limit(limit).offset(offset)
       : await db.select().from(changeOrders)
           .orderBy(desc(changeOrders.createdAt)).limit(limit).offset(offset);
 
     // Get total count
-    const totalResult = filters?.status 
+    const totalResult = conditions.length > 0 
       ? await db.select({ count: count() }).from(changeOrders)
-          .where(eq(changeOrders.status, filters.status))
+          .where(and(...conditions))
       : await db.select({ count: count() }).from(changeOrders);
 
     return {
@@ -261,23 +285,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics
-  async getDashboardStats(): Promise<{
+  async getDashboardStats(projectId?: number): Promise<{
     totalChangeOrders: number;
     totalValue: number;
     pendingApproval: number;
     aiProcessedRate: number;
   }> {
-    const [totalCOs] = await db.select({ count: count() }).from(changeOrders);
-    const [totalValue] = await db.select({ sum: count() }).from(changeOrders);
-    const [pendingCOs] = await db.select({ count: count() }).from(changeOrders)
-      .where(eq(changeOrders.status, 'pending'));
+    const baseConditions = projectId ? [eq(changeOrders.projectId, projectId)] : [];
+    
+    const [totalCOs] = baseConditions.length > 0 
+      ? await db.select({ count: count() }).from(changeOrders).where(and(...baseConditions))
+      : await db.select({ count: count() }).from(changeOrders);
+    
+    const [totalValue] = baseConditions.length > 0 
+      ? await db.select({ sum: count() }).from(changeOrders).where(and(...baseConditions))
+      : await db.select({ sum: count() }).from(changeOrders);
+    
+    const [pendingCOs] = baseConditions.length > 0 
+      ? await db.select({ count: count() }).from(changeOrders).where(and(...baseConditions, eq(changeOrders.status, 'pending')))
+      : await db.select({ count: count() }).from(changeOrders).where(eq(changeOrders.status, 'pending'));
+    
     const [totalDocs] = await db.select({ count: count() }).from(documents);
     const [processedDocs] = await db.select({ count: count() }).from(documents)
       .where(eq(documents.status, 'processed'));
 
     return {
       totalChangeOrders: totalCOs.count,
-      totalValue: 2400000, // Mock value for now
+      totalValue: 0, // Calculate actual value from change orders
       pendingApproval: pendingCOs.count,
       aiProcessedRate: totalDocs.count > 0 ? (processedDocs.count / totalDocs.count) * 100 : 0,
     };
@@ -287,6 +321,84 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(logData: InsertAuditLog): Promise<AuditLog> {
     const [log] = await db.insert(auditLogs).values(logData).returning();
     return log;
+  }
+
+  async getProjectAnalytics(projectId: number): Promise<{
+    totalChangeOrders: number;
+    totalValue: number;
+    avgChangeOrderValue: number;
+    statusBreakdown: Array<{
+      status: string;
+      count: number;
+      value: number;
+    }>;
+    monthlyTrends: Array<{
+      month: string;
+      changeOrders: number;
+      value: number;
+    }>;
+  }> {
+    // Get project change orders
+    const projectChangeOrders = await db.select().from(changeOrders)
+      .where(eq(changeOrders.projectId, projectId))
+      .orderBy(desc(changeOrders.createdAt));
+
+    const totalChangeOrders = projectChangeOrders.length;
+    const totalValue = projectChangeOrders.reduce((sum, co) => sum + (Number(co.totalAmount) || 0), 0);
+    const avgChangeOrderValue = totalChangeOrders > 0 ? totalValue / totalChangeOrders : 0;
+
+    // Status breakdown
+    const statusMap = new Map<string, { count: number; value: number }>();
+    projectChangeOrders.forEach(co => {
+      const status = co.status;
+      if (!statusMap.has(status)) {
+        statusMap.set(status, { count: 0, value: 0 });
+      }
+      const statusData = statusMap.get(status)!;
+      statusData.count += 1;
+      statusData.value += Number(co.totalAmount) || 0;
+    });
+
+    const statusBreakdown = Array.from(statusMap.entries()).map(([status, data]) => ({
+      status,
+      count: data.count,
+      value: data.value
+    }));
+
+    // Monthly trends (last 12 months)
+    const monthlyMap = new Map<string, { changeOrders: number; value: number }>();
+    const now = new Date();
+    
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = date.toISOString().substring(0, 7); // YYYY-MM format
+      monthlyMap.set(monthKey, { changeOrders: 0, value: 0 });
+    }
+
+    projectChangeOrders.forEach(co => {
+      if (co.createdAt) {
+        const monthKey = co.createdAt.toISOString().substring(0, 7);
+        if (monthlyMap.has(monthKey)) {
+          const monthData = monthlyMap.get(monthKey)!;
+          monthData.changeOrders += 1;
+          monthData.value += Number(co.totalAmount) || 0;
+        }
+      }
+    });
+
+    const monthlyTrends = Array.from(monthlyMap.entries()).map(([monthKey, data]) => ({
+      month: new Date(monthKey + '-01').toLocaleDateString('en-US', { month: 'short' }),
+      changeOrders: data.changeOrders,
+      value: data.value
+    }));
+
+    return {
+      totalChangeOrders,
+      totalValue,
+      avgChangeOrderValue,
+      statusBreakdown,
+      monthlyTrends
+    };
   }
 }
 

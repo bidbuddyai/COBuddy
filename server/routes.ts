@@ -370,16 +370,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics routes
-  app.get('/api/analytics', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/analytics/:projectId', async (req: AuthenticatedRequest, res) => {
     try {
-      const { timeRange = '12m', category, projectId } = req.query;
+      const { projectId } = req.params;
       
-      const { analyticsService } = await import('./services/analyticsService');
-      const analytics = await analyticsService.generateAnalytics(
-        timeRange as string,
-        category as string,
-        projectId ? parseInt(projectId as string) : undefined
-      );
+      const analytics = await storage.getProjectAnalytics(parseInt(projectId));
       
       res.json(analytics);
     } catch (error) {

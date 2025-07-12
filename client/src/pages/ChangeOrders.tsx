@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import ChangeOrderTable from "@/components/ChangeOrderTable";
-import { Plus, FileText, Filter, Search, TrendingUp, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Plus, FileText, Filter, Search, TrendingUp, Clock, CheckCircle, XCircle, Building, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ChangeOrder, Project } from "@shared/schema";
 import { PaginatedResponse } from "@/types";
 
@@ -19,7 +20,7 @@ export default function ChangeOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [newCOOpen, setNewCOOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [selectedProject, setSelectedProject] = useState<number | null>(null);
 
   const { data: projects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -28,8 +29,10 @@ export default function ChangeOrders() {
   const { data: changeOrders } = useQuery<PaginatedResponse<ChangeOrder>>({
     queryKey: ["/api/change-orders", { 
       status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined, 
-      search: searchTerm 
+      search: searchTerm,
+      projectId: selectedProject
     }],
+    enabled: !!selectedProject, // Only fetch when project is selected
   });
 
   const stats = [
@@ -67,72 +70,91 @@ export default function ChangeOrders() {
     return sum + (parseFloat(co.totalAmount?.toString() || '0'));
   }, 0) || 0;
 
+  const selectedProjectData = projects?.find(p => p.id === selectedProject);
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Change Orders</h1>
+          {selectedProjectData && (
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Project: {selectedProjectData.name}
+            </p>
+          )}
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage and track all change orders across projects
+            Manage and track all change orders per project
           </p>
         </div>
-        <div className="flex items-center space-x-3">
-          <Dialog open={newCOOpen} onOpenChange={setNewCOOpen}>
-            <DialogTrigger asChild>
-              <Button className="fieldflo-primary fieldflo-primary-hover">
-                <Plus className="h-4 w-4 mr-2" />
-                New Change Order
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create New Change Order</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="project">Project</Label>
-                    <Select value={selectedProject} onValueChange={setSelectedProject}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects?.map((project) => (
-                          <SelectItem key={project.id} value={project.id.toString()}>
-                            {project.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+        <div className="flex items-center gap-3">
+          <Select value={selectedProject?.toString() || ''} onValueChange={(value) => setSelectedProject(value ? parseInt(value) : null)}>
+            <SelectTrigger className="w-64">
+              <Building className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Select Project" />
+            </SelectTrigger>
+            <SelectContent>
+              {projects?.map((project) => (
+                <SelectItem key={project.id} value={project.id.toString()}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedProject && (
+            <Dialog open={newCOOpen} onOpenChange={setNewCOOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Change Order
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Create New Change Order</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="title">Title</Label>
+                      <Input id="title" placeholder="Change order title" />
+                    </div>
+                    <div>
+                      <Label htmlFor="project">Project</Label>
+                      <Input value={selectedProjectData?.name || ''} disabled />
+                    </div>
                   </div>
                   <div>
-                    <Label htmlFor="title">Title</Label>
-                    <Input id="title" placeholder="Change order title" />
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea id="description" placeholder="Detailed description of the change" rows={4} />
+                  </div>
+                  <div className="flex items-center justify-end space-x-3">
+                    <Button variant="outline" onClick={() => setNewCOOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button>
+                      Create Change Order
+                    </Button>
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" placeholder="Detailed description of the change" rows={4} />
-                </div>
-                <div className="flex items-center justify-end space-x-3">
-                  <Button variant="outline" onClick={() => setNewCOOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button className="fieldflo-primary fieldflo-primary-hover">
-                    Create Change Order
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Button variant="outline">
-            Export All
-          </Button>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Project Selection Alert */}
+      {!selectedProject && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Please select a project above to view and manage change orders. Change orders are organized per project.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Stats Cards - Only show when project is selected */}
+      {selectedProject && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => {
           const Icon = stat.icon;
@@ -160,8 +182,10 @@ export default function ChangeOrders() {
           );
         })}
       </div>
+      )}
 
-      {/* Total Value Card */}
+      {/* Total Value Card - Only show when project is selected */}
+      {selectedProject && (
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
@@ -182,8 +206,10 @@ export default function ChangeOrders() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      {/* Filters and Search */}
+      {/* Filters and Search - Only show when project is selected */}
+      {selectedProject && (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -277,6 +303,7 @@ export default function ChangeOrders() {
           </Tabs>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
