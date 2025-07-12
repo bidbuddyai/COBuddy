@@ -53,7 +53,7 @@ export interface AnalyticsData {
 }
 
 export class AnalyticsService {
-  async generateAnalytics(timeRange: string = '12m', category?: string): Promise<AnalyticsData> {
+  async generateAnalytics(timeRange: string = '12m', category?: string, projectId?: number): Promise<AnalyticsData> {
     const endDate = new Date();
     const startDate = new Date();
     
@@ -73,11 +73,11 @@ export class AnalyticsService {
     }
 
     const [costTrends, anomalies, categoryBreakdown, efficiency, predictions] = await Promise.all([
-      this.generateCostTrends(startDate, endDate, category),
-      this.detectAnomalies(startDate, endDate, category),
-      this.generateCategoryBreakdown(startDate, endDate, category),
-      this.calculateEfficiency(startDate, endDate),
-      this.generatePredictions(startDate, endDate, category)
+      this.generateCostTrends(startDate, endDate, category, projectId),
+      this.detectAnomalies(startDate, endDate, category, projectId),
+      this.generateCategoryBreakdown(startDate, endDate, category, projectId),
+      this.calculateEfficiency(startDate, endDate, projectId),
+      this.generatePredictions(startDate, endDate, category, projectId)
     ]);
 
     return {
@@ -89,17 +89,21 @@ export class AnalyticsService {
     };
   }
 
-  private async generateCostTrends(startDate: Date, endDate: Date, category?: string) {
-    // Get change orders in date range
+  private async generateCostTrends(startDate: Date, endDate: Date, category?: string, projectId?: number) {
+    // Get change orders in date range, filtered by project if specified
+    const whereConditions = [
+      gte(changeOrders.createdAt, startDate),
+      lte(changeOrders.createdAt, endDate)
+    ];
+    
+    if (projectId) {
+      whereConditions.push(eq(changeOrders.projectId, projectId));
+    }
+    
     const changeOrdersData = await db
       .select()
       .from(changeOrders)
-      .where(
-        and(
-          gte(changeOrders.createdAt, startDate),
-          lte(changeOrders.createdAt, endDate)
-        )
-      )
+      .where(and(...whereConditions))
       .orderBy(desc(changeOrders.createdAt));
 
     // Group by month
@@ -176,16 +180,20 @@ export class AnalyticsService {
     return Array.from(quarterlyTotals.values());
   }
 
-  private async detectAnomalies(startDate: Date, endDate: Date, category?: string) {
+  private async detectAnomalies(startDate: Date, endDate: Date, category?: string, projectId?: number) {
+    const whereConditions = [
+      gte(changeOrders.createdAt, startDate),
+      lte(changeOrders.createdAt, endDate)
+    ];
+    
+    if (projectId) {
+      whereConditions.push(eq(changeOrders.projectId, projectId));
+    }
+    
     const changeOrdersData = await db
       .select()
       .from(changeOrders)
-      .where(
-        and(
-          gte(changeOrders.createdAt, startDate),
-          lte(changeOrders.createdAt, endDate)
-        )
-      );
+      .where(and(...whereConditions));
 
     const anomalies: any[] = [];
 
@@ -280,16 +288,20 @@ export class AnalyticsService {
     return anomalies;
   }
 
-  private async generateCategoryBreakdown(startDate: Date, endDate: Date, category?: string) {
+  private async generateCategoryBreakdown(startDate: Date, endDate: Date, category?: string, projectId?: number) {
+    const whereConditions = [
+      gte(changeOrders.createdAt, startDate),
+      lte(changeOrders.createdAt, endDate)
+    ];
+    
+    if (projectId) {
+      whereConditions.push(eq(changeOrders.projectId, projectId));
+    }
+    
     const changeOrdersData = await db
       .select()
       .from(changeOrders)
-      .where(
-        and(
-          gte(changeOrders.createdAt, startDate),
-          lte(changeOrders.createdAt, endDate)
-        )
-      );
+      .where(and(...whereConditions));
 
     const totals = {
       labor: 0,
@@ -318,16 +330,20 @@ export class AnalyticsService {
     }));
   }
 
-  private async calculateEfficiency(startDate: Date, endDate: Date) {
+  private async calculateEfficiency(startDate: Date, endDate: Date, projectId?: number) {
+    const whereConditions = [
+      gte(changeOrders.createdAt, startDate),
+      lte(changeOrders.createdAt, endDate)
+    ];
+    
+    if (projectId) {
+      whereConditions.push(eq(changeOrders.projectId, projectId));
+    }
+    
     const changeOrdersData = await db
       .select()
       .from(changeOrders)
-      .where(
-        and(
-          gte(changeOrders.createdAt, startDate),
-          lte(changeOrders.createdAt, endDate)
-        )
-      );
+      .where(and(...whereConditions));
 
     const documentsData = await db
       .select()
@@ -375,16 +391,20 @@ export class AnalyticsService {
     };
   }
 
-  private async generatePredictions(startDate: Date, endDate: Date, category?: string) {
+  private async generatePredictions(startDate: Date, endDate: Date, category?: string, projectId?: number) {
+    const whereConditions = [
+      gte(changeOrders.createdAt, startDate),
+      lte(changeOrders.createdAt, endDate)
+    ];
+    
+    if (projectId) {
+      whereConditions.push(eq(changeOrders.projectId, projectId));
+    }
+    
     const changeOrdersData = await db
       .select()
       .from(changeOrders)
-      .where(
-        and(
-          gte(changeOrders.createdAt, startDate),
-          lte(changeOrders.createdAt, endDate)
-        )
-      )
+      .where(and(...whereConditions))
       .orderBy(changeOrders.createdAt);
 
     if (changeOrdersData.length < 3) {
