@@ -9,6 +9,7 @@ import Upload from "@/pages/Upload";
 import ChangeOrders from "@/pages/ChangeOrders";
 import RateTables from "@/pages/RateTables";
 import Analytics from "@/pages/Analytics";
+import Projects from "@/pages/Projects";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/change-orders" component={ChangeOrders} />
         <Route path="/rate-tables" component={RateTables} />
         <Route path="/analytics" component={Analytics} />
+        <Route path="/projects" component={Projects} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>

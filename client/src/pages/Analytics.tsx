@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   LineChart, 
   Line, 
@@ -35,8 +36,11 @@ import {
   Activity,
   Target,
   Download,
-  Filter
+  Filter,
+  Building,
+  Info
 } from 'lucide-react';
+import type { Project } from '@shared/schema';
 
 interface AnalyticsData {
   costTrends: {
@@ -91,10 +95,17 @@ const COLORS = ['#03512A', '#0F7B3C', '#22C55E', '#86EFAC', '#DCFCE7'];
 export default function Analytics() {
   const [timeRange, setTimeRange] = useState('12m');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Fetch projects for selection
+  const { data: projects } = useQuery<Project[]>({
+    queryKey: ['/api/projects'],
+  });
+
   const { data: analytics, isLoading } = useQuery<AnalyticsData>({
-    queryKey: ['/api/analytics', { timeRange, category: selectedCategory }],
+    queryKey: ['/api/analytics', { timeRange, category: selectedCategory, projectId: selectedProject }],
+    enabled: !!selectedProject || selectedProject === null, // Allow null for all projects
   });
 
   if (isLoading) {
@@ -143,6 +154,20 @@ export default function Analytics() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Select value={selectedProject?.toString() || 'all'} onValueChange={(value) => setSelectedProject(value === 'all' ? null : parseInt(value))}>
+            <SelectTrigger className="w-48">
+              <Building className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Select Project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects?.map((project) => (
+                <SelectItem key={project.id} value={project.id.toString()}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Time Range" />
@@ -227,6 +252,16 @@ export default function Analytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Project Selection Alert */}
+      {!selectedProject && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Showing analytics for all projects. Select a specific project above to see project-specific analytics.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Main Analytics Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
