@@ -2,9 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,8 +28,9 @@ type RegisterForm = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [, navigate] = useLocation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signIn, signUp } = useSupabaseAuth();
 
   // Redirect if already logged in
   if (!isLoading && user) {
@@ -56,54 +55,45 @@ export default function AuthPage() {
     },
   });
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: LoginForm) => {
-      const res = await apiRequest("POST", "/api/login", data);
-      return await res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+  const handleLogin = async (data: LoginForm) => {
+    setIsSubmitting(true);
+    try {
+      await signIn(data.username, data.password);
       toast({
         title: "Success",
         description: "You have been logged in successfully",
       });
       navigate("/");
-    },
-    onError: (error: Error) => {
+    } catch (error: any) {
       toast({
         title: "Login failed",
         description: error.message || "Invalid email or password",
         variant: "destructive",
       });
-    },
-  });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-  const registerMutation = useMutation({
-    mutationFn: async (data: RegisterForm) => {
-      const res = await apiRequest("POST", "/api/register", {
-        email: data.username,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-      });
-      return await res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+  const handleRegister = async (data: RegisterForm) => {
+    setIsSubmitting(true);
+    try {
+      await signUp(data.username, data.password, data.firstName, data.lastName);
       toast({
         title: "Success",
-        description: "Your account has been created successfully",
+        description: "Your account has been created successfully. Please check your email to verify your account.",
       });
       navigate("/");
-    },
-    onError: (error: Error) => {
+    } catch (error: any) {
       toast({
         title: "Registration failed",
         description: error.message || "Failed to create account",
         variant: "destructive",
       });
-    },
-  });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -131,7 +121,7 @@ export default function AuthPage() {
               </TabsList>
               
               <TabsContent value="login">
-                <form onSubmit={loginForm.handleSubmit((data) => loginMutation.mutate(data))} className="space-y-4">
+                <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
                     <Input
@@ -155,8 +145,8 @@ export default function AuthPage() {
                       <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
                     )}
                   </div>
-                  <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-                    {loginMutation.isPending ? (
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Logging in...
@@ -169,7 +159,7 @@ export default function AuthPage() {
               </TabsContent>
               
               <TabsContent value="register">
-                <form onSubmit={registerForm.handleSubmit((data) => registerMutation.mutate(data))} className="space-y-4">
+                <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="register-firstname">First Name</Label>
@@ -215,8 +205,8 @@ export default function AuthPage() {
                       <p className="text-sm text-destructive">{registerForm.formState.errors.password.message}</p>
                     )}
                   </div>
-                  <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
-                    {registerMutation.isPending ? (
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Creating account...

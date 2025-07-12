@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Plus, BarChart3, MessageSquare, Users, LogOut } from "lucide-react";
@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import CompanySetupModal from "@/components/CompanySetupModal";
 
 export default function Home() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useSupabaseAuth();
   const [showSetupModal, setShowSetupModal] = useState(false);
 
   const { data: company } = useQuery({
@@ -60,7 +60,10 @@ export default function Home() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => window.location.href = '/api/logout'}
+                onClick={async () => {
+                  await signOut();
+                  window.location.href = '/';
+                }}
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
