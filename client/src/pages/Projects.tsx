@@ -34,12 +34,9 @@ export default function Projects() {
 
   const createProject = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('/api/projects', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...data,
-          budget: data.budget ? parseFloat(data.budget) : null
-        }),
+      return await apiRequest('POST', '/api/projects', {
+        ...data,
+        budget: data.budget ? parseFloat(data.budget) : null
       });
     },
     onSuccess: () => {
