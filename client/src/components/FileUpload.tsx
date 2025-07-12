@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { CloudUpload, FileText, Image, Eye, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { CloudUpload, FileText, Image, Eye, CheckCircle, AlertCircle, Clock, Sparkles, Upload, FileUp, Star } from "lucide-react";
 import { FileUploadResponse } from "@/types";
 import { DocumentProcessingIndicator, PulsingDot } from "@/components/LoadingIndicators";
 import { motion, AnimatePresence } from "framer-motion";
