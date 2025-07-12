@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Building2 } from "lucide-react";
 import { FaLinkedin, FaMicrosoft } from "react-icons/fa";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 const loginSchema = z.object({
   username: z.string().email("Please enter a valid email"),
@@ -31,6 +32,7 @@ export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [detectedCompany, setDetectedCompany] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, isLoading, signIn, signUp, signInWithProvider } = useSupabaseAuth();
 
@@ -56,6 +58,41 @@ export default function AuthPage() {
       lastName: "",
     },
   });
+
+  // Function to detect company from email domain
+  const detectCompanyFromEmail = (email: string) => {
+    if (!email || !email.includes('@')) {
+      setDetectedCompany(null);
+      return;
+    }
+    
+    const domain = email.split('@')[1];
+    if (domain && domain.includes('.')) {
+      const parts = domain.split('.');
+      // Skip common email providers
+      const commonProviders = ['gmail', 'yahoo', 'hotmail', 'outlook', 'aol', 'icloud', 'mail', 'proton', 'protonmail'];
+      const domainName = parts[0].toLowerCase();
+      
+      if (!commonProviders.includes(domainName) && parts.length >= 2) {
+        // Format company name from domain
+        const companyName = domainName
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        setDetectedCompany(companyName);
+      } else {
+        setDetectedCompany(null);
+      }
+    } else {
+      setDetectedCompany(null);
+    }
+  };
+
+  // Watch email field for changes
+  const watchedEmail = registerForm.watch('username');
+  useEffect(() => {
+    detectCompanyFromEmail(watchedEmail);
+  }, [watchedEmail]);
 
   const handleLogin = async (data: LoginForm) => {
     setIsSubmitting(true);
@@ -243,6 +280,15 @@ export default function AuthPage() {
                     />
                     {registerForm.formState.errors.username && (
                       <p className="text-sm text-destructive">{registerForm.formState.errors.username.message}</p>
+                    )}
+                    {detectedCompany && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in-50 duration-300">
+                        <Building2 className="h-4 w-4" />
+                        <span>Joining as part of</span>
+                        <Badge variant="secondary" className="font-normal">
+                          {detectedCompany}
+                        </Badge>
+                      </div>
                     )}
                   </div>
                   <div className="space-y-2">
