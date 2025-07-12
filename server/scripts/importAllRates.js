@@ -1,5 +1,5 @@
-import { db } from '../db';
-import { rateTables } from '../../shared/schema';
+import { db } from '../db.js';
+import { rateTables } from '../../shared/schema.js';
 
 // Parse the T&M Calculator PDF data
 const tmRatesData = `
