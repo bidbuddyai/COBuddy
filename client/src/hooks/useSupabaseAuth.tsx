@@ -137,10 +137,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithProvider = async (provider: 'azure' | 'linkedin_oidc') => {
+    // Get the correct redirect URL - use the current host, not localhost
+    const redirectUrl = window.location.hostname === 'localhost' 
+      ? `${window.location.origin}/auth/callback`
+      : `https://${window.location.host}/auth/callback`;
+    
+    console.log('OAuth redirect URL:', redirectUrl);
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectUrl,
         scopes: provider === 'azure' ? 'email openid profile' : 'email profile openid',
         queryParams: provider === 'azure' ? {
           prompt: 'select_account',
