@@ -1,259 +1,221 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import FileUpload from "@/components/FileUpload";
-import DocumentViewer from "@/components/DocumentViewer";
-import { Upload as UploadIcon, FileText, Image, CheckCircle, AlertCircle, Clock, Eye, Trash2 } from "lucide-react";
-import { Document } from "@shared/schema";
-import { FileUploadResponse } from "@/types";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Upload as UploadIcon, FileText, Eye, Download, Building, Camera } from 'lucide-react';
+import { Document } from '@shared/schema';
+import FileUpload from '@/components/FileUpload';
+import ProjectSelector from '@/components/ProjectSelector';
 
 export default function Upload() {
-  const [selectedType, setSelectedType] = useState("tm_sheet");
-  const [processingFiles, setProcessingFiles] = useState<FileUploadResponse[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
 
   const { data: documents, isLoading } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
+    queryKey: ['/api/documents', { projectId: selectedProjectId }],
+    enabled: !!selectedProjectId,
   });
-
-  const handleUploadComplete = (files: FileUploadResponse[]) => {
-    setProcessingFiles(prev => [...prev, ...files]);
-  };
-
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType?.startsWith('image/')) {
-      return <Image className="h-5 w-5 text-blue-600" />;
-    } else if (mimeType === 'application/pdf') {
-      return <FileText className="h-5 w-5 text-red-600" />;
-    }
-    return <FileText className="h-5 w-5 text-gray-600" />;
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'processed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'processing':
-        return <Clock className="h-4 w-4 text-blue-600 animate-pulse" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-600" />;
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'processed':
         return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
       case 'processing':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
       case 'failed':
         return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
+      case 'uploaded':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
       default:
         return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300';
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
-
-  const getProcessingProgress = (status: string) => {
-    switch (status) {
-      case 'uploaded':
-        return 25;
-      case 'processing':
-        return 50;
-      case 'processed':
-        return 100;
-      case 'failed':
-        return 0;
-      default:
-        return 0;
-    }
-  };
-
-  const documentTypes = [
-    { value: 'tm_sheet', label: 'T&M Sheet' },
-    { value: 'invoice', label: 'Invoice' },
-    { value: 'rate_table', label: 'Rate Table' },
-    { value: 'supporting_doc', label: 'Supporting Document' },
-  ];
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Upload & Process</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Upload Documents</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Upload and process T&M sheets, invoices, and rate tables with AI
+            Upload and process T&M sheets and other project documents
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select document type" />
-            </SelectTrigger>
-            <SelectContent>
-              {documentTypes.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Button className="fieldflo-primary fieldflo-primary-hover">
+            <Camera className="h-4 w-4 mr-2" />
+            Take Photo
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Upload Section */}
-        <div className="lg:col-span-2 space-y-6">
-          <FileUpload
-            documentType={selectedType}
-            onUploadComplete={handleUploadComplete}
-            acceptedTypes={['application/pdf', 'image/jpeg', 'image/png', 'image/heic', 'image/heif']}
-            maxFiles={10}
-          />
+      {/* Project Selection */}
+      <ProjectSelector
+        selectedProjectId={selectedProjectId}
+        onProjectSelect={setSelectedProjectId}
+      />
 
-          {/* Processing Queue */}
+      {!selectedProjectId ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Building className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Select a project</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Choose a project to upload documents for.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Upload Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Clock className="h-5 w-5" />
-                <span>Processing Queue</span>
+                <UploadIcon className="h-5 w-5" />
+                <span>Upload Documents</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {processingFiles.length > 0 ? (
-                <div className="space-y-4">
-                  {processingFiles.map((file) => (
-                    <div key={file.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-sm">
-                            {getFileIcon(file.mimeType || 'application/pdf')}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {file.originalName}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {file.filename}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getStatusColor(file.status)}>
-                            {getStatusIcon(file.status)}
-                            <span className="ml-1 capitalize">{file.status}</span>
-                          </Badge>
-                          {file.confidence && (
-                            <Badge variant="outline">
-                              {Math.round(file.confidence * 100)}% confidence
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                          <span>Processing Progress</span>
-                          <span>{getProcessingProgress(file.status)}%</span>
-                        </div>
-                        <Progress value={getProcessingProgress(file.status)} className="h-2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <UploadIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    No files in processing queue
-                  </p>
-                </div>
-              )}
+              <FileUpload projectId={selectedProjectId} />
             </CardContent>
           </Card>
-        </div>
 
-        {/* Document Library */}
-        <div className="space-y-6">
+          {/* Documents List */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <FileText className="h-5 w-5" />
-                <span>Document Library</span>
+                <span>Uploaded Documents</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="animate-pulse">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                        <div className="flex-1 space-y-1">
-                          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                        </div>
-                      </div>
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                     </div>
                   ))}
                 </div>
-              ) : documents && documents.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {documents.slice(0, 10).map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <div className="flex-shrink-0">
-                          {getFileIcon(doc.mimeType)}
+              ) : !documents || documents.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No documents uploaded</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Upload your first document to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {documents.map((document) => (
+                    <div
+                      key={document.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <FileText className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {doc.originalName}
+                        <div>
+                          <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                            {document.filename}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {document.fileType} • {Math.round((document.fileSize || 0) / 1024)} KB
                           </p>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                            <span>{formatFileSize(doc.size)}</span>
-                            <span>•</span>
-                            <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                          <div className="flex items-center space-x-4 mt-1">
+                            <span className="text-xs text-gray-500">
+                              {document.uploadedAt ? formatDate(document.uploadedAt) : 'N/A'}
+                            </span>
+                            {document.extractedData && (
+                              <span className="text-xs text-green-600">
+                                {Object.keys(document.extractedData).length} items extracted
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge className={getStatusColor(doc.status)}>
-                          {getStatusIcon(doc.status)}
+                      <div className="flex items-center space-x-3">
+                        <Badge className={getStatusColor(document.status)}>
+                          {document.status}
                         </Badge>
-                        <DocumentViewer document={doc}>
+                        <div className="flex items-center space-x-1">
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4" />
                           </Button>
-                        </DocumentViewer>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(`/api/documents/${document.id}`, '_blank')}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    No documents uploaded yet
-                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Processing Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Processing Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Uploaded</span>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">
+                    {documents?.filter(d => d.status === 'uploaded').length || 0}
+                  </p>
+                </div>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Processing</span>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">
+                    {documents?.filter(d => d.status === 'processing').length || 0}
+                  </p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-green-700 dark:text-green-300">Processed</span>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">
+                    {documents?.filter(d => d.status === 'processed').length || 0}
+                  </p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-red-700 dark:text-red-300">Failed</span>
+                  </div>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">
+                    {documents?.filter(d => d.status === 'failed').length || 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -44,7 +44,7 @@ export interface IStorage {
   updateChangeOrder(id: number, changeOrder: Partial<ChangeOrder>): Promise<ChangeOrder>;
 
   // Document operations
-  getDocuments(): Promise<Document[]>;
+  getDocuments(projectId?: number): Promise<Document[]>;
   getDocument(id: number): Promise<Document | undefined>;
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocument(id: number, document: Partial<Document>): Promise<Document>;
@@ -117,7 +117,7 @@ export class DatabaseStorage implements IStorage {
 
   // Project operations
   async getProjects(): Promise<Project[]> {
-    return await db.select().from(projects).orderBy(desc(projects.createdAt));
+    return await db.select().from(projects).orderBy(projects.createdAt);
   }
 
   async getProject(id: number): Promise<Project | undefined> {
@@ -202,8 +202,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Document operations
-  async getDocuments(): Promise<Document[]> {
-    return await db.select().from(documents).orderBy(desc(documents.uploadedAt));
+  async getDocuments(projectId?: number): Promise<Document[]> {
+    if (projectId) {
+      const result = await db.select().from(documents)
+        .where(eq(documents.projectId, projectId))
+        .orderBy(desc(documents.uploadedAt));
+      return result;
+    }
+    
+    const result = await db.select().from(documents).orderBy(desc(documents.uploadedAt));
+    return result;
   }
 
   async getDocument(id: number): Promise<Document | undefined> {

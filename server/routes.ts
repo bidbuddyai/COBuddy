@@ -57,7 +57,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats
   app.get('/api/dashboard/stats', async (req: AuthenticatedRequest, res) => {
     try {
-      const stats = await storage.getDashboardStats();
+      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
+      const stats = await storage.getDashboardStats(projectId);
       res.json(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -78,8 +79,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects', async (req: AuthenticatedRequest, res) => {
     try {
+      // Generate a unique project number
+      const projectNumber = `PROJ-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      
+      // Convert budget to string for Drizzle ORM
+      const processedBody = { ...req.body };
+      if (processedBody.budget) {
+        processedBody.budget = processedBody.budget.toString();
+      }
+      
       const projectData = insertProjectSchema.parse({
-        ...req.body,
+        ...processedBody,
+        number: projectNumber,
         createdBy: req.user?.id,
       });
       
@@ -97,8 +108,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const status = req.query.status as string;
+      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
       
-      const changeOrders = await storage.getChangeOrders({ page, limit, status });
+      const changeOrders = await storage.getChangeOrders({ page, limit, status, projectId });
       res.json(changeOrders);
     } catch (error) {
       console.error('Error fetching change orders:', error);
@@ -108,8 +120,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/change-orders', async (req: AuthenticatedRequest, res) => {
     try {
+      // Convert decimal amounts to strings for Drizzle ORM
+      const processedBody = { ...req.body };
+      if (processedBody.totalAmount) {
+        processedBody.totalAmount = processedBody.totalAmount.toString();
+      }
+      if (processedBody.laborAmount) {
+        processedBody.laborAmount = processedBody.laborAmount.toString();
+      }
+      if (processedBody.materialAmount) {
+        processedBody.materialAmount = processedBody.materialAmount.toString();
+      }
+      
       const changeOrderData = insertChangeOrderSchema.parse({
-        ...req.body,
+        ...processedBody,
         createdBy: req.user?.id,
       });
       
@@ -209,6 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mimeType: file.mimetype,
           size: file.size,
           type: req.body.type || 'tm_sheet',
+          projectId: req.body.projectId ? parseInt(req.body.projectId) : undefined,
           uploadedBy: req.user?.id,
         });
         
@@ -230,7 +255,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/documents', async (req: AuthenticatedRequest, res) => {
     try {
-      const documents = await storage.getDocuments();
+      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
+      const documents = await storage.getDocuments(projectId);
       res.json(documents);
     } catch (error) {
       console.error('Error fetching documents:', error);

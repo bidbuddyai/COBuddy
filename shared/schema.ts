@@ -55,10 +55,13 @@ export const rateTables = pgTable("rate_tables", {
 // Projects
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
-  name: varchar("name").notNull(),
   number: varchar("number").unique().notNull(),
-  client: varchar("client"),
-  location: varchar("location"),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  clientName: varchar("client_name"),
+  clientContact: varchar("client_contact"),
+  budget: decimal("budget", { precision: 10, scale: 2 }).default("0"),
+  status: varchar("status").notNull().default("active"), // active, on-hold, completed, cancelled
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -99,6 +102,7 @@ export const documents = pgTable("documents", {
   extractedData: jsonb("extracted_data"),
   confidence: decimal("confidence", { precision: 3, scale: 2 }),
   changeOrderId: integer("change_order_id").references(() => changeOrders.id),
+  projectId: integer("project_id").references(() => projects.id),
   uploadedBy: integer("uploaded_by").references(() => users.id),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   processedAt: timestamp("processed_at"),
@@ -149,6 +153,9 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   id: true,
   uploadedAt: true,
   processedAt: true,
+}).extend({
+  fileSize: z.number().optional(),
+  fileType: z.string().optional(),
 });
 
 export const insertRateTableSchema = createInsertSchema(rateTables).omit({

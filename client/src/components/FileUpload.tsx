@@ -15,13 +15,15 @@ interface FileUploadProps {
   acceptedTypes?: string[];
   maxFiles?: number;
   documentType?: string;
+  projectId?: number;
 }
 
 export default function FileUpload({ 
   onUploadComplete, 
   acceptedTypes = ['application/pdf', 'image/*'],
   maxFiles = 10,
-  documentType = 'tm_sheet'
+  documentType = 'tm_sheet',
+  projectId
 }: FileUploadProps) {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles] = useState<FileUploadResponse[]>([]);
@@ -35,6 +37,9 @@ export default function FileUpload({
         formData.append('files', file);
       });
       formData.append('type', documentType);
+      if (projectId) {
+        formData.append('projectId', projectId.toString());
+      }
 
       const response = await apiRequest('POST', '/api/documents/upload', formData);
       return response.json();
@@ -43,6 +48,9 @@ export default function FileUpload({
       setUploadedFiles(prev => [...prev, ...data]);
       onUploadComplete?.(data);
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/documents', { projectId }] });
+      }
       toast({
         title: "Upload successful",
         description: `${data.length} file(s) uploaded and processing started`,
