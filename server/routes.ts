@@ -369,6 +369,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics routes
+  app.get('/api/analytics', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { timeRange = '12m', category } = req.query;
+      
+      const { analyticsService } = await import('./services/analyticsService');
+      const analytics = await analyticsService.generateAnalytics(
+        timeRange as string,
+        category as string
+      );
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error('Analytics error:', error);
+      res.status(500).json({ message: 'Failed to generate analytics' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
