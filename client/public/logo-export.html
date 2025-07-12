@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CO Buddy AI Logo Export</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            display: block;
+        }
+        button {
+            background: #03512A;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #024020;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CO Buddy AI Logo</h1>
+        <canvas id="canvas" width="512" height="512"></canvas>
+        <button onclick="downloadPNG()">Download as PNG</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Draw gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+        gradient.addColorStop(0, '#03512A');
+        gradient.addColorStop(1, '#024020');
+        
+        // Rounded rectangle function
+        function roundRect(x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        // Draw background
+        ctx.fillStyle = gradient;
+        roundRect(0, 0, 512, 512, 80);
+        ctx.fill();
+
+        // Draw CO text
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 180px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('CO', 256, 240);
+
+        // Draw line
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fillRect(176, 320, 160, 6);
+
+        // Draw BUDDY AI text
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = '32px Arial';
+        ctx.fillText('BUDDY AI', 256, 360);
+
+        // Download function
+        function downloadPNG() {
+            const link = document.createElement('a');
+            link.download = 'co-buddy-ai-logo.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
