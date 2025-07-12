@@ -17,6 +17,8 @@ import Documents from "@/pages/Documents";
 import Settings from "@/pages/Settings";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
+import TermsPage from "@/pages/terms-page";
+import PrivacyPage from "@/pages/privacy-page";
 
 function Router() {
   const { user, isLoading } = useSupabaseAuth();
@@ -42,6 +44,8 @@ function Router() {
           <Route path="/settings" component={() => <Layout><Settings /></Layout>} />
         </>
       )}
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
       <Route component={NotFound} />
     </Switch>
   );

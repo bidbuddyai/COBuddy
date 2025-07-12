@@ -1,0 +1,46 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="#03512A"/>
+  
+  <!-- CO Letters -->
+  <g transform="translate(80, 180)">
+    <!-- Letter C -->
+    <path d="M40 50 Q20 50 20 70 L20 110 Q20 130 40 130 L70 130" 
+          stroke="white" stroke-width="16" fill="none" stroke-linecap="round"/>
+    
+    <!-- Letter O -->
+    <circle cx="130" cy="90" r="40" stroke="white" stroke-width="16" fill="none"/>
+  </g>
+  
+  <!-- AI Icon (Brain/Circuit Pattern) -->
+  <g transform="translate(260, 180)">
+    <!-- Circuit nodes -->
+    <circle cx="30" cy="30" r="8" fill="white"/>
+    <circle cx="90" cy="30" r="8" fill="white"/>
+    <circle cx="30" cy="90" r="8" fill="white"/>
+    <circle cx="90" cy="90" r="8" fill="white"/>
+    <circle cx="60" cy="60" r="12" fill="white"/>
+    
+    <!-- Circuit connections -->
+    <path d="M30 30 L60 60 M90 30 L60 60 M30 90 L60 60 M90 90 L60 60" 
+          stroke="white" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- Horizontal connections -->
+    <path d="M30 30 L90 30 M30 90 L90 90" 
+          stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  </g>
+  
+  <!-- Document Icon (Bottom) -->
+  <g transform="translate(156, 280)">
+    <rect x="0" y="0" width="200" height="60" rx="8" fill="white" opacity="0.9"/>
+    
+    <!-- Document lines -->
+    <rect x="20" y="15" width="160" height="4" rx="2" fill="#03512A"/>
+    <rect x="20" y="28" width="120" height="4" rx="2" fill="#03512A"/>
+    <rect x="20" y="41" width="140" height="4" rx="2" fill="#03512A"/>
+  </g>
+  
+  <!-- Decorative accent -->
+  <circle cx="420" cy="100" r="30" fill="white" opacity="0.2"/>
+  <circle cx="92" cy="380" r="20" fill="white" opacity="0.15"/>
+</svg>
