@@ -1,59 +1,59 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallback() {
   const [, navigate] = useLocation();
+  const [status, setStatus] = useState("Processing authentication...");
 
   useEffect(() => {
     // Handle the callback from OAuth providers
     const handleCallback = async () => {
       try {
-        // First, exchange the code for a session
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const searchParams = new URLSearchParams(window.location.search);
+        console.log("Auth callback started");
+        console.log("Current URL:", window.location.href);
         
-        // OAuth providers may return data in hash or search params
-        const access_token = hashParams.get('access_token') || searchParams.get('access_token');
-        const refresh_token = hashParams.get('refresh_token') || searchParams.get('refresh_token');
-        const code = searchParams.get('code');
-        const error = searchParams.get('error');
-        const error_description = searchParams.get('error_description');
+        // Use Supabase's built-in method to handle the OAuth callback
+        const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
         
         if (error) {
-          console.error("OAuth error:", error, error_description);
-          navigate(`/auth?error=${error}`);
+          console.error("Error exchanging code for session:", error);
+          setStatus("Authentication failed");
+          setTimeout(() => navigate(`/auth?error=${error.message}`), 2000);
           return;
         }
 
-        // If we have tokens in the URL, Supabase should handle them automatically
-        if (access_token || code) {
-          // Give Supabase a moment to process the tokens
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        console.log("Code exchanged successfully:", data);
         
-        // Now check if we have a session
+        // Double-check we have a session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.error("Error getting session:", sessionError);
-          navigate("/auth?error=session_failed");
+          console.error("Error verifying session:", sessionError);
+          setStatus("Session verification failed");
+          setTimeout(() => navigate("/auth?error=session_failed"), 2000);
           return;
         }
 
         if (session) {
-          console.log("Session established, redirecting to home");
-          // Session established successfully
-          navigate("/");
+          console.log("Session verified successfully:", session.user?.email);
+          setStatus("Success! Redirecting...");
+          
+          // Give the auth provider a moment to sync
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Force a page reload to ensure auth state is properly synced
+          window.location.href = "/";
         } else {
-          console.log("No session found after callback");
-          // No session found
-          navigate("/auth?error=no_session");
+          console.log("No session found after exchange");
+          setStatus("No session established");
+          setTimeout(() => navigate("/auth?error=no_session"), 2000);
         }
       } catch (error) {
         console.error("Unexpected error during auth callback:", error);
-        navigate("/auth?error=unexpected");
+        setStatus("An unexpected error occurred");
+        setTimeout(() => navigate("/auth?error=unexpected"), 2000);
       }
     };
 
