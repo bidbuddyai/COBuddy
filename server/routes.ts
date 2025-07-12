@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { uploadMultiple } from "./middleware/upload";
 import { processDocument, matchRatesToExtractedData } from "./services/documentProcessor";
 import { generateChangeOrderExcel } from "./services/excelGenerator";
@@ -12,13 +13,12 @@ import { Request, Response } from "express";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
-  await setupAuth(app);
+  setupAuth(app);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = req.user;
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -29,8 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Company routes
   app.get('/api/companies/current', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = req.user;
       
       if (!user || !user.companyId) {
         return res.status(404).json({ message: "Company not found" });
@@ -46,8 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/companies/setup', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = req.user;
       
       if (!user || !user.companyId) {
         return res.status(404).json({ message: "Company not found" });

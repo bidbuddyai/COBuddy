@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Zap, BarChart3, MessageSquare, Shield, Users } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Landing() {
   return (
@@ -14,13 +15,14 @@ export default function Landing() {
           <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
             Transform your T&M sheets into professional change orders with AI-powered document processing and intelligent rate matching.
           </p>
-          <Button 
-            size="lg" 
-            className="bg-[#03512A] hover:bg-[#024020] text-white px-8 py-3 text-lg"
-            onClick={() => window.location.href = '/api/login'}
-          >
-            Get Started
-          </Button>
+          <Link href="/auth">
+            <Button 
+              size="lg" 
+              className="bg-[#03512A] hover:bg-[#024020] text-white px-8 py-3 text-lg"
+            >
+              Get Started
+            </Button>
+          </Link>
         </div>
 
         {/* Features Grid */}
@@ -106,13 +108,14 @@ export default function Landing() {
           <p className="text-lg text-slate-600 dark:text-slate-400 mb-8">
             Join professionals who are already saving time and reducing errors with our AI-powered solution.
           </p>
-          <Button 
-            size="lg" 
-            className="bg-[#03512A] hover:bg-[#024020] text-white px-8 py-3 text-lg"
-            onClick={() => window.location.href = '/api/login'}
-          >
-            Sign In to Get Started
-          </Button>
+          <Link href="/auth">
+            <Button 
+              size="lg" 
+              className="bg-[#03512A] hover:bg-[#024020] text-white px-8 py-3 text-lg"
+            >
+              Sign In to Get Started
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
