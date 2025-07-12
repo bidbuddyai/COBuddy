@@ -162,6 +162,194 @@ export async function extractRateTableData(base64Image: string): Promise<Extract
   }
 }
 
+export interface ExtractedQuoteData {
+  quoteNumber: string;
+  date: string;
+  vendor: {
+    name: string;
+    contact?: string;
+    email?: string;
+    phone?: string;
+  };
+  client: {
+    name: string;
+    contact?: string;
+    projectName?: string;
+  };
+  lineItems: Array<{
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    totalPrice: number;
+    confidence: number;
+  }>;
+  subtotal: number;
+  tax?: number;
+  total: number;
+  terms?: string;
+  validUntil?: string;
+  totalConfidence: number;
+}
+
+export interface ExtractedInvoiceData {
+  invoiceNumber: string;
+  date: string;
+  dueDate?: string;
+  vendor: {
+    name: string;
+    contact?: string;
+    email?: string;
+    phone?: string;
+  };
+  billTo: {
+    name: string;
+    contact?: string;
+    projectName?: string;
+  };
+  lineItems: Array<{
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    totalPrice: number;
+    confidence: number;
+  }>;
+  subtotal: number;
+  tax?: number;
+  total: number;
+  paymentTerms?: string;
+  paidAmount?: number;
+  balanceDue?: number;
+  totalConfidence: number;
+}
+
+export async function extractQuoteData(base64Image: string): Promise<ExtractedQuoteData> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert at extracting quote data from construction documents. 
+          Extract all quote information including vendor details, line items, pricing, and terms.
+          Pay special attention to quantities, unit prices, and totals.
+          Return the data in the specified JSON format with confidence scores (0-1) for each entry.`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Please extract all quote data from this document. Include:
+              - Quote number and date
+              - Vendor information (name, contact details)
+              - Client/project information
+              - Line items with descriptions, quantities, units, and prices
+              - Subtotal, tax, and total amounts
+              - Terms and validity period
+              - Confidence scores for each extraction
+              
+              Return as JSON with this exact structure:
+              {
+                "quoteNumber": "string",
+                "date": "string",
+                "vendor": {"name": "string", "contact": "string", "email": "string", "phone": "string"},
+                "client": {"name": "string", "contact": "string", "projectName": "string"},
+                "lineItems": [{"description": "string", "quantity": number, "unit": "string", "unitPrice": number, "totalPrice": number, "confidence": number}],
+                "subtotal": number,
+                "tax": number,
+                "total": number,
+                "terms": "string",
+                "validUntil": "string",
+                "totalConfidence": number
+              }`
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ],
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    return result as ExtractedQuoteData;
+  } catch (error) {
+    console.error('OpenAI quote extraction error:', error);
+    throw new Error(`Failed to extract quote data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function extractInvoiceData(base64Image: string): Promise<ExtractedInvoiceData> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert at extracting invoice data from construction documents. 
+          Extract all invoice information including vendor details, line items, pricing, and payment information.
+          Pay special attention to quantities, unit prices, totals, and payment status.
+          Return the data in the specified JSON format with confidence scores (0-1) for each entry.`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Please extract all invoice data from this document. Include:
+              - Invoice number and dates (invoice date, due date)
+              - Vendor information (name, contact details)
+              - Bill-to information and project details
+              - Line items with descriptions, quantities, units, and prices
+              - Subtotal, tax, and total amounts
+              - Payment terms and status (paid amount, balance due)
+              - Confidence scores for each extraction
+              
+              Return as JSON with this exact structure:
+              {
+                "invoiceNumber": "string",
+                "date": "string",
+                "dueDate": "string",
+                "vendor": {"name": "string", "contact": "string", "email": "string", "phone": "string"},
+                "billTo": {"name": "string", "contact": "string", "projectName": "string"},
+                "lineItems": [{"description": "string", "quantity": number, "unit": "string", "unitPrice": number, "totalPrice": number, "confidence": number}],
+                "subtotal": number,
+                "tax": number,
+                "total": number,
+                "paymentTerms": "string",
+                "paidAmount": number,
+                "balanceDue": number,
+                "totalConfidence": number
+              }`
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ],
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    return result as ExtractedInvoiceData;
+  } catch (error) {
+    console.error('OpenAI invoice extraction error:', error);
+    throw new Error(`Failed to extract invoice data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export async function processAIChat(message: string, context?: any): Promise<string> {
   try {
     // Get all available rates from database for context

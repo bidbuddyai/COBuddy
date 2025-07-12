@@ -115,7 +115,7 @@ export const documents = pgTable("documents", {
   originalName: varchar("original_name").notNull(),
   mimeType: varchar("mime_type").notNull(),
   size: integer("size").notNull(),
-  type: varchar("type").notNull(), // tm_sheet, invoice, rate_table, supporting_doc
+  type: varchar("type").notNull(), // tm_sheet, invoice, rate_table, supporting_doc, quote
   status: varchar("status").notNull().default("uploaded"), // uploaded, processing, processed, failed
   extractedData: jsonb("extracted_data"),
   confidence: decimal("confidence", { precision: 3, scale: 2 }),

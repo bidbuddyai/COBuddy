@@ -1,4 +1,13 @@
-import { extractTMData, extractRateTableData, ExtractedTMData, ExtractedRateData } from './openai';
+import { 
+  extractTMData, 
+  extractRateTableData, 
+  extractQuoteData,
+  extractInvoiceData,
+  ExtractedTMData, 
+  ExtractedRateData,
+  ExtractedQuoteData,
+  ExtractedInvoiceData
+} from './openai';
 import { db } from '../db';
 import { documents, rateTables } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -27,7 +36,7 @@ export async function processDocument(documentId: number): Promise<void> {
     const fileBuffer = fs.readFileSync(filePath);
     const base64Data = fileBuffer.toString('base64');
 
-    let extractedData: ExtractedTMData | ExtractedRateData;
+    let extractedData: ExtractedTMData | ExtractedRateData | ExtractedQuoteData | ExtractedInvoiceData;
     let confidence: number;
 
     // Process based on document type
@@ -47,6 +56,12 @@ export async function processDocument(documentId: number): Promise<void> {
         sourceFile: document.filename,
         isApproved: false,
       });
+    } else if (document.type === 'quote') {
+      extractedData = await extractQuoteData(base64Data);
+      confidence = (extractedData as ExtractedQuoteData).totalConfidence;
+    } else if (document.type === 'invoice') {
+      extractedData = await extractInvoiceData(base64Data);
+      confidence = (extractedData as ExtractedInvoiceData).totalConfidence;
     } else {
       // For other document types, use general extraction
       extractedData = await extractTMData(base64Data);
