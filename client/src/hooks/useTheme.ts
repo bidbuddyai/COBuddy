@@ -17,7 +17,9 @@ export function useTheme() {
   useEffect(() => {
     // Apply theme to document
     document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(theme);
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    }
     localStorage.setItem("theme", theme);
   }, [theme]);
 
