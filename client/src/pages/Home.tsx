@@ -3,9 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Plus, BarChart3, MessageSquare, Users, LogOut } from "lucide-react";
 import { Link } from "wouter";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import CompanySetupModal from "@/components/CompanySetupModal";
 
 export default function Home() {
   const { user, isLoading } = useAuth();
+  const [showSetupModal, setShowSetupModal] = useState(false);
+
+  const { data: company } = useQuery({
+    queryKey: ["/api/companies/current"],
+    enabled: !!user,
+  });
+
+  useEffect(() => {
+    if (user && company && !company.hasCustomRates) {
+      // Show setup modal for companies without custom rates
+      setShowSetupModal(true);
+    }
+  }, [user, company]);
 
   if (isLoading) {
     return (
@@ -166,6 +182,14 @@ export default function Home() {
           </Card>
         </div>
       </div>
+
+      {/* Company Setup Modal */}
+      <CompanySetupModal 
+        isOpen={showSetupModal}
+        onClose={() => setShowSetupModal(false)}
+        companyName={company?.name || "Your Company"}
+        hasCustomRates={company?.hasCustomRates || false}
+      />
     </div>
   );
 }

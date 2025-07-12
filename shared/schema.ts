@@ -25,6 +25,17 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Companies table
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  domain: varchar("domain").unique().notNull(), // e.g., "resource-env.com"
+  isActive: boolean("is_active").default(true),
+  hasCustomRates: boolean("has_custom_rates").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
@@ -34,6 +45,9 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default("field"), // admin, pm, field, readonly
+  companyId: integer("company_id").references(() => companies.id),
+  invitedBy: varchar("invited_by"),
+  invitedAt: timestamp("invited_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -47,8 +61,9 @@ export const rateTables = pgTable("rate_tables", {
   region: varchar("region"),
   data: jsonb("data").notNull(), // Structured rate data
   sourceFile: varchar("source_file"),
+  companyId: integer("company_id").references(() => companies.id).notNull(),
   extractedAt: timestamp("extracted_at").defaultNow(),
-  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
   reviewedAt: timestamp("reviewed_at"),
   isApproved: boolean("is_approved").default(false),
 });
@@ -63,7 +78,8 @@ export const projects = pgTable("projects", {
   clientContact: varchar("client_contact"),
   budget: decimal("budget", { precision: 10, scale: 2 }).default("0"),
   status: varchar("status").notNull().default("active"), // active, on-hold, completed, cancelled
-  createdBy: integer("created_by").references(() => users.id),
+  companyId: integer("company_id").references(() => companies.id).notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -84,8 +100,8 @@ export const changeOrders = pgTable("change_orders", {
   importAmount: decimal("import_amount", { precision: 10, scale: 2 }),
   subcontractorAmount: decimal("subcontractor_amount", { precision: 10, scale: 2 }),
   data: jsonb("data"), // Detailed breakdown data
-  createdBy: integer("created_by").references(() => users.id),
-  approvedBy: integer("approved_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   approvedAt: timestamp("approved_at"),
@@ -104,7 +120,7 @@ export const documents = pgTable("documents", {
   confidence: decimal("confidence", { precision: 3, scale: 2 }),
   changeOrderId: integer("change_order_id").references(() => changeOrders.id),
   projectId: integer("project_id").references(() => projects.id),
-  uploadedBy: integer("uploaded_by").references(() => users.id),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   processedAt: timestamp("processed_at"),
 });
@@ -117,20 +133,26 @@ export const auditLogs = pgTable("audit_logs", {
   entityId: integer("entity_id").notNull(),
   oldData: jsonb("old_data"),
   newData: jsonb("new_data"),
-  userId: integer("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
 // Chat conversations
 export const chatConversations = pgTable("chat_conversations", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   messages: jsonb("messages").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Create insert schemas
+export const insertCompanySchema = createInsertSchema(companies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
@@ -176,6 +198,8 @@ export const insertChatConversationSchema = createInsertSchema(chatConversations
 });
 
 // Types
+export type Company = typeof companies.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

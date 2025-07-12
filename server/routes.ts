@@ -26,6 +26,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Company routes
+  app.get('/api/companies/current', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.companyId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      
+      const company = await storage.getCompany(user.companyId);
+      res.json(company);
+    } catch (error) {
+      console.error("Error fetching company:", error);
+      res.status(500).json({ message: "Failed to fetch company" });
+    }
+  });
+
+  app.post('/api/companies/setup', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.companyId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      
+      const { files, skipRates } = req.body;
+      
+      // Update company to mark as having custom rates
+      await storage.updateCompany(user.companyId, {
+        hasCustomRates: !skipRates,
+      });
+      
+      // If files were uploaded, process them
+      if (files && files.length > 0) {
+        // Here you would typically process the uploaded files
+        // For now, we'll just mark the company as having custom rates
+        console.log(`Processing ${files.length} files for company ${user.companyId}`);
+      }
+      
+      res.json({ 
+        message: "Company setup completed successfully",
+        hasCustomRates: !skipRates 
+      });
+    } catch (error) {
+      console.error("Error setting up company:", error);
+      res.status(500).json({ message: "Failed to set up company" });
+    }
+  });
+
   // Dashboard stats
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {

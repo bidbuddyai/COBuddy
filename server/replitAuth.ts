@@ -57,13 +57,77 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
-  await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
-  });
+  // Check if user exists first
+  const existingUser = await storage.getUser(claims["sub"]);
+  
+  if (existingUser) {
+    // Update existing user
+    await storage.updateUser(claims["sub"], {
+      email: claims["email"],
+      firstName: claims["first_name"],
+      lastName: claims["last_name"],
+      profileImageUrl: claims["profile_image_url"],
+    });
+  } else {
+    // Create new user with company assignment
+    const email = claims["email"];
+    let companyId = null;
+    let role = "field";
+    
+    if (email) {
+      const domain = email.split('@')[1];
+      
+      // Check if this is Resource Environmental domain
+      if (domain === "resource-env.com") {
+        let resourceEnvCompany = await storage.getCompanyByDomain("resource-env.com");
+        
+        if (!resourceEnvCompany) {
+          // Create Resource Environmental company with pre-loaded rates
+          resourceEnvCompany = await storage.createCompany({
+            name: "Resource Environmental",
+            domain: "resource-env.com",
+            hasCustomRates: true,
+            isActive: true,
+          });
+        }
+        
+        companyId = resourceEnvCompany.id;
+        // Set role based on email - chase@resource-env.com gets admin
+        if (email === "chase@resource-env.com") {
+          role = "admin";
+        } else {
+          role = "field"; // Default role for Resource Environmental users
+        }
+      } else {
+        // Check if company exists for this domain
+        let company = await storage.getCompanyByDomain(domain);
+        
+        if (!company) {
+          // Create new company for this domain
+          company = await storage.createCompany({
+            name: domain.split('.')[0], // Use domain prefix as company name
+            domain: domain,
+            hasCustomRates: false,
+            isActive: true,
+          });
+        }
+        
+        companyId = company.id;
+        // First user from a new company becomes admin
+        role = "admin";
+      }
+    }
+    
+    await storage.createUser({
+      id: claims["sub"],
+      email: claims["email"],
+      firstName: claims["first_name"],
+      lastName: claims["last_name"],
+      profileImageUrl: claims["profile_image_url"],
+      companyId: companyId,
+      role: role,
+    });
+  }
 }
 
 export async function setupAuth(app: Express) {

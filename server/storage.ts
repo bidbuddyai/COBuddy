@@ -1,5 +1,6 @@
 import {
   users,
+  companies,
   projects,
   changeOrders,
   documents,
@@ -9,6 +10,8 @@ import {
   type User,
   type InsertUser,
   type UpsertUser,
+  type Company,
+  type InsertCompany,
   type Project,
   type InsertProject,
   type ChangeOrder,
@@ -52,14 +55,21 @@ export interface IStorage {
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocument(id: number, document: Partial<Document>): Promise<Document>;
 
+  // Company operations
+  getCompanies(): Promise<Company[]>;
+  getCompany(id: number): Promise<Company | undefined>;
+  getCompanyByDomain(domain: string): Promise<Company | undefined>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  updateCompany(id: number, company: Partial<Company>): Promise<Company>;
+
   // Rate table operations
-  getRateTables(): Promise<RateTable[]>;
+  getRateTables(companyId?: number): Promise<RateTable[]>;
   getRateTable(id: number): Promise<RateTable | undefined>;
   createRateTable(rateTable: InsertRateTable): Promise<RateTable>;
-  approveRateTable(id: number, reviewedBy: number): Promise<RateTable>;
+  approveRateTable(id: number, reviewedBy: string): Promise<RateTable>;
 
   // Chat operations
-  getChatConversations(userId?: number): Promise<ChatConversation[]>;
+  getChatConversations(userId?: string): Promise<ChatConversation[]>;
   getChatConversation(id: number): Promise<ChatConversation | undefined>;
   createChatConversation(conversation: InsertChatConversation): Promise<ChatConversation>;
   updateChatConversation(id: number, conversation: Partial<ChatConversation>): Promise<ChatConversation>;
@@ -254,7 +264,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Rate table operations
-  async getRateTables(): Promise<RateTable[]> {
+  async getRateTables(companyId?: number): Promise<RateTable[]> {
+    if (companyId) {
+      return await db.select().from(rateTables)
+        .where(eq(rateTables.companyId, companyId))
+        .orderBy(desc(rateTables.extractedAt));
+    }
+    
     return await db.select().from(rateTables).orderBy(desc(rateTables.extractedAt));
   }
 
@@ -268,7 +284,7 @@ export class DatabaseStorage implements IStorage {
     return rateTable;
   }
 
-  async approveRateTable(id: number, reviewedBy: number): Promise<RateTable> {
+  async approveRateTable(id: number, reviewedBy: string): Promise<RateTable> {
     const [rateTable] = await db
       .update(rateTables)
       .set({
@@ -281,8 +297,37 @@ export class DatabaseStorage implements IStorage {
     return rateTable;
   }
 
+  // Company operations
+  async getCompanies(): Promise<Company[]> {
+    return await db.select().from(companies).orderBy(desc(companies.createdAt));
+  }
+
+  async getCompany(id: number): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company;
+  }
+
+  async getCompanyByDomain(domain: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.domain, domain));
+    return company;
+  }
+
+  async createCompany(companyData: InsertCompany): Promise<Company> {
+    const [company] = await db.insert(companies).values(companyData).returning();
+    return company;
+  }
+
+  async updateCompany(id: number, companyData: Partial<Company>): Promise<Company> {
+    const [company] = await db
+      .update(companies)
+      .set({ ...companyData, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
+    return company;
+  }
+
   // Chat operations
-  async getChatConversations(userId?: number): Promise<ChatConversation[]> {
+  async getChatConversations(userId?: string): Promise<ChatConversation[]> {
     if (userId) {
       return await db.select().from(chatConversations)
         .where(eq(chatConversations.userId, userId))
