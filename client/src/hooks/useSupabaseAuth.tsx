@@ -144,6 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         scopes: provider === 'azure' ? 'email openid profile' : 'email profile openid',
         queryParams: provider === 'azure' ? {
           prompt: 'select_account',
+          // Azure requires tenant configuration
+          // 'common' allows users from any Azure AD tenant and personal Microsoft accounts
+          domain_hint: 'common',
         } : undefined,
       },
     });
