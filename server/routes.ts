@@ -292,7 +292,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         context = conversation?.messages;
       }
       
-      const response = await processAIChat(message, context);
+      // Get rate context for AI
+      const rateTablesData = await storage.getRateTables();
+      const rateContext = {
+        availableRates: rateTablesData.map(rt => ({
+          name: rt.name,
+          type: rt.type,
+          entries: Array.isArray(rt.data) ? rt.data.length : 0
+        })),
+        totalRates: rateTablesData.reduce((sum, rt) => sum + (Array.isArray(rt.data) ? rt.data.length : 0), 0)
+      };
+      
+      const response = await processAIChat(message, Object.assign({}, context, { rateContext }));
       
       // Save conversation
       const conversationData = {
@@ -328,6 +339,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching conversations:', error);
       res.status(500).json({ message: 'Failed to fetch conversations' });
+    }
+  });
+
+  // Change order generation from T&M data
+  app.post('/api/change-orders/generate', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { documentId, projectInfo } = req.body;
+      
+      // Get document with extracted T&M data
+      const document = await storage.getDocument(documentId);
+      if (!document || !document.extractedData) {
+        return res.status(400).json({ message: 'Document not found or not processed' });
+      }
+      
+      // Import the generator function
+      const { generateChangeOrderFromTMData } = await import('./services/changeOrderGenerator');
+      
+      // Generate change order
+      const changeOrderData = await generateChangeOrderFromTMData(
+        document.extractedData as any,
+        projectInfo
+      );
+      
+      res.json(changeOrderData);
+    } catch (error) {
+      console.error('Change order generation error:', error);
+      res.status(500).json({ message: 'Failed to generate change order' });
     }
   });
 

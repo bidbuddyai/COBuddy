@@ -84,30 +84,38 @@ export default function RateTables() {
     return matchesType && matchesStatus && matchesSearch;
   });
 
+  // Calculate comprehensive statistics
+  const totalRates = rateTables?.reduce((sum, table) => 
+    sum + (Array.isArray(table.data) ? table.data.length : 0), 0) || 0;
+  const equipmentCount = rateTables?.filter(table => table.type === 'equipment')
+    .reduce((sum, table) => sum + (Array.isArray(table.data) ? table.data.length : 0), 0) || 0;
+  const materialCount = rateTables?.filter(table => table.type === 'material')
+    .reduce((sum, table) => sum + (Array.isArray(table.data) ? table.data.length : 0), 0) || 0;
+
   const stats = [
     {
-      label: "Total Rate Tables",
-      value: rateTables?.length || 0,
+      label: "Total Rates",
+      value: totalRates,
       icon: Database,
       color: "bg-blue-100 text-blue-600"
     },
     {
-      label: "Approved",
-      value: rateTables?.filter(rt => rt.isApproved).length || 0,
+      label: "Equipment Rates",
+      value: equipmentCount,
       icon: CheckCircle,
       color: "bg-green-100 text-green-600"
     },
     {
-      label: "Pending Review",
-      value: rateTables?.filter(rt => !rt.isApproved).length || 0,
+      label: "Material Rates",
+      value: materialCount,
       icon: Clock,
-      color: "bg-yellow-100 text-yellow-600"
+      color: "bg-purple-100 text-purple-600"
     },
     {
-      label: "Labor Tables",
-      value: rateTables?.filter(rt => rt.type === 'labor').length || 0,
-      icon: Database,
-      color: "bg-purple-100 text-purple-600"
+      label: "Approved Tables",
+      value: rateTables?.filter(rt => rt.isApproved).length || 0,
+      icon: CheckCircle,
+      color: "bg-emerald-100 text-emerald-600"
     }
   ];
 
@@ -118,7 +126,7 @@ export default function RateTables() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Rate Tables</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage and review extracted rate tables from PDF documents
+            Comprehensive rate database with {totalRates} approved rates across {rateTables?.length || 0} tables
           </p>
         </div>
         <div className="flex items-center space-x-3">

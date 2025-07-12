@@ -164,28 +164,63 @@ export async function extractRateTableData(base64Image: string): Promise<Extract
 
 export async function processAIChat(message: string, context?: any): Promise<string> {
   try {
+    // Get all available rates from database for context
+    const { db } = await import('../db');
+    const { rateTables } = await import('../../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const approvedRates = await db.select().from(rateTables).where(eq(rateTables.isApproved, true));
+    
+    // Build rate context for AI
+    const rateContext = approvedRates.map(rt => ({
+      name: rt.name,
+      type: rt.type,
+      entries: Array.isArray(rt.data) ? rt.data.length : 0,
+      sampleRates: Array.isArray(rt.data) ? rt.data.slice(0, 3) : []
+    }));
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `You are an AI assistant for a construction change order management system called FieldFlo.
-          You can help with:
-          - Creating and managing change orders
-          - Answering questions about labor rates, equipment costs, and material prices
-          - Providing project insights and analytics
-          - Assisting with document processing and data extraction
+          content: `You are an AI assistant for FieldFlo, a construction change order management system for Resource Environmental Inc.
           
-          Always be helpful, professional, and construction industry-focused.
-          When asked about rates, reference the most current rate tables available.
-          When asked about change orders, provide clear, actionable guidance.`
+          You have access to 333 approved rates across 4 rate tables:
+          - Equipment: 190 rates (generators, excavators, compressors, tools)
+          - General Materials: 109 rates (PPE, containment, filters, tools)
+          - Chemicals: 22 rates (encapsulants, removers, cleaners)
+          - Machinery Materials: 12 rates (oils, fluids, maintenance)
+          
+          Your capabilities:
+          - Create change orders following REI's template format
+          - Match T&M data to approved rate tables
+          - Calculate costs for labor, equipment, materials, disposal
+          - Generate professional change order requests
+          - Provide rate lookup and pricing guidance
+          - Assist with project analytics and insights
+          
+          When creating change orders, always use the REI format:
+          - Project Name and RE Project No.
+          - Client contact and REI PM details
+          - Detailed cost breakdown by category
+          - Labor backup with wage rates
+          - Material itemization with quantities
+          - Equipment owned vs rented
+          - Disposal costs with backup
+          - Markup percentages
+          - Grand total calculations
+          
+          Available Rate Context: ${JSON.stringify(rateContext)}
+          
+          Always be professional, accurate, and construction industry-focused.`
         },
         {
           role: "user",
           content: context ? `Context: ${JSON.stringify(context)}\n\nUser message: ${message}` : message
         }
       ],
-      max_tokens: 1000,
+      max_tokens: 1500,
     });
 
     return response.choices[0].message.content || "I'm sorry, I couldn't process your request. Please try again.";
