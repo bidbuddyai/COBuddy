@@ -4,14 +4,13 @@ export function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    // Check localStorage for saved theme
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark";
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else {
-      // Default to light mode
-      setTheme("light");
-    }
+    // Force light theme - clear any existing theme
+    localStorage.removeItem("theme");
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.className = document.documentElement.className.replace(/\b(light|dark)\b/g, '');
+    document.body.classList.remove("light", "dark");
+    document.documentElement.style.colorScheme = "light";
+    setTheme("light");
   }, []);
 
   useEffect(() => {
