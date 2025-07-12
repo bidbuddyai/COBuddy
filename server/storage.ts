@@ -8,6 +8,7 @@ import {
   chatConversations,
   type User,
   type InsertUser,
+  type UpsertUser,
   type Project,
   type InsertProject,
   type ChangeOrder,
@@ -26,10 +27,12 @@ import { eq, desc, and, count } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
-  getUser(id: number): Promise<User | undefined>;
+  // (IMPORTANT) these user operations are mandatory for Replit Auth.
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, user: Partial<User>): Promise<User>;
+  updateUser(id: string, user: Partial<User>): Promise<User>;
 
   // Project operations
   getProjects(): Promise<Project[]>;
@@ -91,8 +94,25 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  async getUser(id: number): Promise<User | undefined> {
+  // (IMPORTANT) these user operations are mandatory for Replit Auth.
+
+  async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return user;
   }
 
@@ -106,7 +126,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+  async updateUser(id: string, userData: Partial<User>): Promise<User> {
     const [user] = await db
       .update(users)
       .set({ ...userData, updatedAt: new Date() })

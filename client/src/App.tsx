@@ -3,7 +3,10 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
 import Layout from "@/components/Layout";
+import Landing from "@/pages/Landing";
+import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Upload from "@/pages/Upload";
 import ChangeOrders from "@/pages/ChangeOrders";
@@ -14,19 +17,26 @@ import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/upload" component={Upload} />
-        <Route path="/change-orders" component={ChangeOrders} />
-        <Route path="/rate-tables" component={RateTables} />
-        <Route path="/analytics" component={Analytics} />
-        <Route path="/projects" component={Projects} />
-        <Route path="/settings" component={Settings} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      {isLoading || !isAuthenticated ? (
+        <Route path="/" component={Landing} />
+      ) : (
+        <>
+          <Route path="/" component={Home} />
+          <Route path="/dashboard" component={() => <Layout><Dashboard /></Layout>} />
+          <Route path="/upload" component={() => <Layout><Upload /></Layout>} />
+          <Route path="/change-orders" component={() => <Layout><ChangeOrders /></Layout>} />
+          <Route path="/rate-tables" component={() => <Layout><RateTables /></Layout>} />
+          <Route path="/analytics" component={() => <Layout><Analytics /></Layout>} />
+          <Route path="/projects" component={() => <Layout><Projects /></Layout>} />
+          <Route path="/settings" component={() => <Layout><Settings /></Layout>} />
+        </>
+      )}
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 

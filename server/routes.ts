@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { authenticateUser, requireAdmin, requirePMOrAdmin, AuthenticatedRequest } from "./middleware/auth";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { uploadMultiple } from "./middleware/upload";
 import { processDocument, matchRatesToExtractedData } from "./services/documentProcessor";
 import { generateChangeOrderExcel } from "./services/excelGenerator";
@@ -11,51 +11,23 @@ import { insertDocumentSchema, insertChangeOrderSchema, insertProjectSchema } fr
 import { Request, Response } from "express";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Mock authentication for development - in production, use proper auth
-  app.use('/api', async (req: AuthenticatedRequest, res, next) => {
-    try {
-      // Check if mock user exists, create if not
-      let user = await storage.getUserByEmail('john.smith@resource-env.com');
-      if (!user) {
-        user = await storage.createUser({
-          email: 'john.smith@resource-env.com',
-          role: 'admin',
-          firstName: 'John',
-          lastName: 'Smith'
-        });
-      }
-      
-      req.user = {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        firstName: user.firstName || undefined,
-        lastName: user.lastName || undefined
-      };
-      next();
-    } catch (error) {
-      console.error('Auth error:', error);
-      res.status(500).json({ message: 'Authentication error' });
-    }
-  });
+  // Auth middleware
+  await setupAuth(app);
 
-  // User routes
-  app.get('/api/auth/user', async (req: AuthenticatedRequest, res) => {
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-      
-      const user = await storage.getUser(req.user.id);
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
-      console.error('Error fetching user:', error);
-      res.status(500).json({ message: 'Failed to fetch user' });
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
   // Dashboard stats
-  app.get('/api/dashboard/stats', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
       const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
       const stats = await storage.getDashboardStats(projectId);
@@ -67,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project routes
-  app.get('/api/projects', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       const projects = await storage.getProjects();
       res.json(projects);
@@ -77,7 +49,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', async (req: AuthenticatedRequest, res) => {
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       // Generate a unique project number
       const projectNumber = `PROJ-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -91,7 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectData = insertProjectSchema.parse({
         ...processedBody,
         number: projectNumber,
-        createdBy: req.user?.id,
+        createdBy: parseInt(req.user.claims.sub),
       });
       
       const project = await storage.createProject(projectData);
@@ -103,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Change order routes
-  app.get('/api/change-orders', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/change-orders', isAuthenticated, async (req: any, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
@@ -118,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/change-orders', async (req: AuthenticatedRequest, res) => {
+  app.post('/api/change-orders', isAuthenticated, async (req: any, res) => {
     try {
       // Convert decimal amounts to strings for Drizzle ORM
       const processedBody = { ...req.body };
@@ -134,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const changeOrderData = insertChangeOrderSchema.parse({
         ...processedBody,
-        createdBy: req.user?.id,
+        createdBy: parseInt(req.user.claims.sub),
       });
       
       const changeOrder = await storage.createChangeOrder(changeOrderData);
@@ -145,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/change-orders/:id', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/change-orders/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -161,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/change-orders/:id', async (req: AuthenticatedRequest, res) => {
+  app.put('/api/change-orders/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const updateData = req.body;
@@ -175,7 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate Excel for change order
-  app.get('/api/change-orders/:id/excel', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/change-orders/:id/excel', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -196,7 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate PDF for change order
-  app.get('/api/change-orders/:id/pdf', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/change-orders/:id/pdf', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -217,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload and processing
-  app.post('/api/documents/upload', uploadMultiple, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/documents/upload', isAuthenticated, uploadMultiple, async (req: any, res) => {
     try {
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
@@ -234,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           size: file.size,
           type: req.body.type || 'tm_sheet',
           projectId: req.body.projectId ? parseInt(req.body.projectId) : undefined,
-          uploadedBy: req.user?.id,
+          uploadedBy: parseInt(req.user.claims.sub),
         });
         
         const document = await storage.createDocument(documentData);
@@ -253,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/documents', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/documents', isAuthenticated, async (req: any, res) => {
     try {
       const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
       const documents = await storage.getDocuments(projectId);
@@ -264,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/documents/:id', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const document = await storage.getDocument(id);
@@ -281,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rate table routes
-  app.get('/api/rate-tables', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/rate-tables', isAuthenticated, async (req: any, res) => {
     try {
       const rateTables = await storage.getRateTables();
       res.json(rateTables);
@@ -291,10 +263,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/rate-tables/:id/approve', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  // Protected route - require admin role
+  app.put('/api/rate-tables/:id/approve', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
       const id = parseInt(req.params.id);
-      const rateTable = await storage.approveRateTable(id, req.user?.id || 0);
+      const rateTable = await storage.approveRateTable(id, parseInt(userId));
       res.json(rateTable);
     } catch (error) {
       console.error('Error approving rate table:', error);
@@ -303,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Chat routes
-  app.post('/api/chat', async (req: AuthenticatedRequest, res) => {
+  app.post('/api/chat', isAuthenticated, async (req: any, res) => {
     try {
       const { message, conversationId } = req.body;
       
@@ -358,9 +338,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/chat/conversations', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/chat/conversations', isAuthenticated, async (req: any, res) => {
     try {
-      const conversations = await storage.getChatConversations(req.user?.id);
+      const conversations = await storage.getChatConversations(parseInt(req.user.claims.sub));
       res.json(conversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -369,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Change order generation from T&M data
-  app.post('/api/change-orders/generate', async (req: AuthenticatedRequest, res) => {
+  app.post('/api/change-orders/generate', isAuthenticated, async (req: any, res) => {
     try {
       const { documentId, projectInfo } = req.body;
       
@@ -396,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics routes
-  app.get('/api/analytics/:projectId', async (req: AuthenticatedRequest, res) => {
+  app.get('/api/analytics/:projectId', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.params;
       
