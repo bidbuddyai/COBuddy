@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { FaLinkedin, FaMicrosoft } from "react-icons/fa";
+import { Separator } from "@/components/ui/separator";
 
 const loginSchema = z.object({
   username: z.string().email("Please enter a valid email"),
@@ -30,7 +32,7 @@ export default function AuthPage() {
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { user, isLoading, signIn, signUp } = useSupabaseAuth();
+  const { user, isLoading, signIn, signUp, signInWithProvider } = useSupabaseAuth();
 
   // Redirect if already logged in
   if (!isLoading && user) {
@@ -95,6 +97,18 @@ export default function AuthPage() {
     }
   };
 
+  const handleSocialLogin = async (provider: 'azure' | 'linkedin_oidc') => {
+    try {
+      await signInWithProvider(provider);
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.message || `Failed to sign in with ${provider === 'azure' ? 'Microsoft' : 'LinkedIn'}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -156,6 +170,36 @@ export default function AuthPage() {
                     )}
                   </Button>
                 </form>
+                
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('azure')}
+                    className="w-full"
+                  >
+                    <FaMicrosoft className="mr-2 h-4 w-4" />
+                    Microsoft
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('linkedin_oidc')}
+                    className="w-full"
+                  >
+                    <FaLinkedin className="mr-2 h-4 w-4" />
+                    LinkedIn
+                  </Button>
+                </div>
               </TabsContent>
               
               <TabsContent value="register">
@@ -216,6 +260,36 @@ export default function AuthPage() {
                     )}
                   </Button>
                 </form>
+                
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('azure')}
+                    className="w-full"
+                  >
+                    <FaMicrosoft className="mr-2 h-4 w-4" />
+                    Microsoft
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('linkedin_oidc')}
+                    className="w-full"
+                  >
+                    <FaLinkedin className="mr-2 h-4 w-4" />
+                    LinkedIn
+                  </Button>
+                </div>
               </TabsContent>
             </Tabs>
           </CardContent>

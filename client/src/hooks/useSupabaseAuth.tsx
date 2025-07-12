@@ -10,6 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signInWithProvider: (provider: 'azure' | 'linkedin_oidc') => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -52,6 +53,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+      } else if (response.status === 404) {
+        // User doesn't exist in our database yet (OAuth login)
+        // Get the Supabase user data
+        const { data: { user: supabaseUserData } } = await supabase.auth.getUser();
+        
+        if (supabaseUserData) {
+          // Create user in our database
+          const createResponse = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: supabaseUserData.id,
+              email: supabaseUserData.email,
+              firstName: supabaseUserData.user_metadata?.first_name || 
+                        supabaseUserData.user_metadata?.given_name ||
+                        supabaseUserData.user_metadata?.name?.split(' ')[0] ||
+                        '',
+              lastName: supabaseUserData.user_metadata?.last_name || 
+                       supabaseUserData.user_metadata?.family_name ||
+                       supabaseUserData.user_metadata?.name?.split(' ').slice(1).join(' ') ||
+                       '',
+            }),
+          });
+
+          if (createResponse.ok) {
+            const newUser = await createResponse.json();
+            setUser(newUser);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -106,6 +136,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithProvider = async (provider: 'azure' | 'linkedin_oidc') => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: provider === 'azure' ? 'email openid profile' : 'email profile openid',
+        queryParams: provider === 'azure' ? {
+          prompt: 'select_account',
+        } : undefined,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -120,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       signIn,
       signUp,
+      signInWithProvider,
       signOut,
     }}>
       {children}

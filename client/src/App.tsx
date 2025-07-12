@@ -16,6 +16,7 @@ import Projects from "@/pages/Projects";
 import Documents from "@/pages/Documents";
 import Settings from "@/pages/Settings";
 import AuthPage from "@/pages/auth-page";
+import AuthCallback from "@/pages/auth-callback";
 import NotFound from "@/pages/not-found";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
@@ -31,6 +32,7 @@ function Router() {
         <>
           <Route path="/" component={Landing} />
           <Route path="/auth" component={AuthPage} />
+          <Route path="/auth/callback" component={AuthCallback} />
         </>
       ) : (
         <>

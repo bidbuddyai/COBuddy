@@ -36,6 +36,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<User>): Promise<User>;
+  getUsersByCompanyId(companyId: number): Promise<User[]>;
 
   // Project operations
   getProjects(): Promise<Project[]>;
@@ -143,6 +144,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async getUsersByCompanyId(companyId: number): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.companyId, companyId));
   }
 
   // Project operations

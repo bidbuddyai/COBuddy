@@ -36,15 +36,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user email domain matches a company domain
       const emailDomain = email.split('@')[1];
-      const company = await storage.getCompanyByDomain(emailDomain);
+      let company = await storage.getCompanyByDomain(emailDomain);
+      
+      // If no company exists for this domain, create one
+      if (!company && emailDomain) {
+        const companyName = emailDomain.split('.')[0]
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        company = await storage.createCompany({
+          name: companyName,
+          domain: emailDomain,
+          hasCustomRates: false,
+        });
+      }
+      
+      // Extract name from email if not provided (common with OAuth)
+      const emailUsername = email.split('@')[0];
+      const defaultFirstName = firstName || emailUsername.split('.')[0] || emailUsername;
+      const defaultLastName = lastName || emailUsername.split('.')[1] || '';
+      
+      // Determine role based on email and company
+      let role = 'field';
+      if (email === 'chase@resource-env.com') {
+        role = 'admin';
+      } else if (company && !company.hasCustomRates) {
+        // First user in a new company gets admin role
+        const companyUsers = await storage.getUsersByCompanyId(company.id);
+        if (companyUsers.length === 0) {
+          role = 'admin';
+        }
+      }
       
       const userData = {
         id,
         email,
-        firstName,
-        lastName,
+        firstName: defaultFirstName,
+        lastName: defaultLastName,
         companyId: company?.id || null,
-        role: email === 'chase@resource-env.com' ? 'admin' : 'field',
+        role,
         createdAt: new Date(),
         updatedAt: new Date()
       };
