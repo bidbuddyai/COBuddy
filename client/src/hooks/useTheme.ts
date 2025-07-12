@@ -9,9 +9,8 @@ export function useTheme() {
     if (savedTheme) {
       setTheme(savedTheme);
     } else {
-      // Check system preference
-      const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setTheme(systemPrefersDark ? "dark" : "light");
+      // Default to light mode
+      setTheme("light");
     }
   }, []);
 
