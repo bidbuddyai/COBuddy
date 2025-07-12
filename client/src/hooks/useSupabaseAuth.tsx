@@ -137,10 +137,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithProvider = async (provider: 'azure' | 'linkedin_oidc') => {
-    // Get the correct redirect URL - use the current host, not localhost
-    const redirectUrl = window.location.hostname === 'localhost' 
-      ? `${window.location.origin}/auth/callback`
-      : `https://${window.location.host}/auth/callback`;
+    // Get the correct redirect URL based on current environment
+    let redirectUrl;
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // Handle different environments
+    if (hostname === 'localhost') {
+      redirectUrl = `${window.location.origin}/auth/callback`;
+    } else if (hostname.includes('replit.app')) {
+      // Replit preview URLs
+      redirectUrl = `https://${window.location.host}/auth/callback`;
+    } else if (hostname.includes('cobuddy.app')) {
+      // Production domain
+      redirectUrl = `https://${window.location.host}/auth/callback`;
+    } else {
+      // Default to current origin for any other domain
+      redirectUrl = `${protocol}//${window.location.host}/auth/callback`;
+    }
     
     console.log('OAuth redirect URL:', redirectUrl);
     
