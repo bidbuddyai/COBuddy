@@ -25,6 +25,7 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Projects', href: '/projects', icon: Building },
+  { name: 'Documents', href: '/documents', icon: FileText },
   { name: 'Upload & Process', href: '/upload', icon: Upload },
   { name: 'Change Orders', href: '/change-orders', icon: FileText },
   { name: 'Rate Tables', href: '/rate-tables', icon: Database },

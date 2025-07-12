@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { CloudUpload, FileText, Image, Eye, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { FileUploadResponse } from "@/types";
+import { DocumentProcessingIndicator, PulsingDot } from "@/components/LoadingIndicators";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface FileUploadProps {
   onUploadComplete?: (files: FileUploadResponse[]) => void;
@@ -26,12 +28,19 @@ export default function FileUpload({
   projectId
 }: FileUploadProps) {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [processingStages, setProcessingStages] = useState<Record<string, 'uploading' | 'analyzing' | 'extracting' | 'matching' | 'complete' | 'error'>>({});
   const [uploadedFiles, setUploadedFiles] = useState<FileUploadResponse[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
+      // Set initial uploading state for all files
+      files.forEach(file => {
+        setProcessingStages(prev => ({ ...prev, [file.name]: 'uploading' }));
+        setUploadProgress(prev => ({ ...prev, [file.name]: 10 }));
+      });
+
       const formData = new FormData();
       files.forEach((file) => {
         formData.append('files', file);
@@ -41,8 +50,56 @@ export default function FileUpload({
         formData.append('projectId', projectId.toString());
       }
 
-      const response = await apiRequest('POST', '/api/documents/upload', formData);
-      return response.json();
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        files.forEach(file => {
+          setUploadProgress(prev => {
+            const current = prev[file.name] || 10;
+            if (current < 90) {
+              return { ...prev, [file.name]: current + 10 };
+            }
+            return prev;
+          });
+        });
+      }, 500);
+
+      try {
+        const response = await apiRequest('POST', '/api/documents/upload', formData);
+        clearInterval(progressInterval);
+
+        // Update to analyzing stage
+        files.forEach(file => {
+          setProcessingStages(prev => ({ ...prev, [file.name]: 'analyzing' }));
+          setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+        });
+
+        // Simulate AI processing stages
+        setTimeout(() => {
+          files.forEach(file => {
+            setProcessingStages(prev => ({ ...prev, [file.name]: 'extracting' }));
+          });
+        }, 2000);
+
+        setTimeout(() => {
+          files.forEach(file => {
+            setProcessingStages(prev => ({ ...prev, [file.name]: 'matching' }));
+          });
+        }, 4000);
+
+        setTimeout(() => {
+          files.forEach(file => {
+            setProcessingStages(prev => ({ ...prev, [file.name]: 'complete' }));
+          });
+        }, 6000);
+
+        return response.json();
+      } catch (error) {
+        clearInterval(progressInterval);
+        files.forEach(file => {
+          setProcessingStages(prev => ({ ...prev, [file.name]: 'error' }));
+        });
+        throw error;
+      }
     },
     onSuccess: (data: FileUploadResponse[]) => {
       setUploadedFiles(prev => [...prev, ...data]);
@@ -176,16 +233,26 @@ export default function FileUpload({
           </div>
         </div>
 
-        {/* Upload Progress */}
-        {uploadMutation.isPending && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Uploading files...</span>
-              <span className="text-sm text-gray-500">Processing</span>
-            </div>
-            <Progress value={50} className="h-2" />
-          </div>
-        )}
+        {/* Processing Indicators */}
+        <AnimatePresence>
+          {Object.keys(processingStages).length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-3"
+            >
+              {Object.entries(processingStages).map(([fileName, stage]) => (
+                <DocumentProcessingIndicator
+                  key={fileName}
+                  stage={stage}
+                  progress={stage === 'uploading' ? uploadProgress[fileName] : 0}
+                  fileName={fileName}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Uploaded Files */}
         {uploadedFiles.length > 0 && (

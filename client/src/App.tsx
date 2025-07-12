@@ -13,6 +13,7 @@ import ChangeOrders from "@/pages/ChangeOrders";
 import RateTables from "@/pages/RateTables";
 import Analytics from "@/pages/Analytics";
 import Projects from "@/pages/Projects";
+import Documents from "@/pages/Documents";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
@@ -32,6 +33,7 @@ function Router() {
           <Route path="/rate-tables" component={() => <Layout><RateTables /></Layout>} />
           <Route path="/analytics" component={() => <Layout><Analytics /></Layout>} />
           <Route path="/projects" component={() => <Layout><Projects /></Layout>} />
+          <Route path="/documents" component={() => <Layout><Documents /></Layout>} />
           <Route path="/settings" component={() => <Layout><Settings /></Layout>} />
         </>
       )}

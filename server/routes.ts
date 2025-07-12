@@ -303,6 +303,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reprocess document
+  app.post('/api/documents/:id/reprocess', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      // Update status to processing and reprocess
+      await storage.updateDocument(id, { status: 'processing' });
+      
+      // Process document asynchronously
+      processDocument(id).catch(error => {
+        console.error(`Error reprocessing document ${id}:`, error);
+      });
+      
+      res.json({ message: 'Document queued for reprocessing' });
+    } catch (error) {
+      console.error('Error reprocessing document:', error);
+      res.status(500).json({ message: 'Failed to reprocess document' });
+    }
+  });
+
+  // Delete document
+  app.delete('/api/documents/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      // Delete document from database
+      await storage.updateDocument(id, { status: 'deleted' });
+      
+      res.json({ message: 'Document deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      res.status(500).json({ message: 'Failed to delete document' });
+    }
+  });
+
   // Rate table routes
   app.get('/api/rate-tables', isAuthenticated, async (req: any, res) => {
     try {
