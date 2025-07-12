@@ -45,6 +45,11 @@ The project uses a monorepo structure with shared types and schemas:
 - **Change Orders**: Core business entity with status tracking
 - **Documents**: File uploads with processing status
 - **Rate Tables**: Extracted rate data from PDFs with approval workflow
+  - 8 approved rate tables with 74 total rate entries
+  - Labor rates: REI wage calculator (4 entries - laborers, asbestos/lead workers)
+  - Equipment rates: Operating engineers (4 entries) + T&M equipment (12 entries)
+  - Material rates: Containment, PPE, chemicals, tools (44 entries total)
+  - Disposal rates: Hazardous waste disposal (5 entries)
 - **Audit Logs**: Complete audit trail for all operations
 - **Chat Conversations**: AI assistant chat history
 
