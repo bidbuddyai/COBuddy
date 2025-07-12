@@ -19,6 +19,7 @@ import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
+import LogoViewer from "@/pages/logo-viewer";
 
 function Router() {
   const { user, isLoading } = useSupabaseAuth();
@@ -46,6 +47,7 @@ function Router() {
       )}
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/logo" component={LogoViewer} />
       <Route component={NotFound} />
     </Switch>
   );
