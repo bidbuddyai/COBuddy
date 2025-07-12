@@ -148,8 +148,13 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
+  // Get all possible domains
+  const replitDomains = process.env.REPLIT_DOMAINS!.split(",");
+  const customDomains = ["cobuddy.app"]; // Add custom domains here
+  const allDomains = [...replitDomains, ...customDomains];
+
+  // Register strategies for all domains
+  for (const domain of allDomains) {
     const strategy = new Strategy(
       {
         name: `replitauth:${domain}`,
@@ -166,14 +171,32 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    // Try to authenticate with the current hostname
+    const strategyName = `replitauth:${req.hostname}`;
+    
+    // Check if strategy exists, otherwise use the default Replit domain
+    if (!passport._strategy(strategyName)) {
+      const defaultDomain = replitDomains[0];
+      res.redirect(`https://${defaultDomain}/api/login`);
+      return;
+    }
+    
+    passport.authenticate(strategyName, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    const strategyName = `replitauth:${req.hostname}`;
+    
+    // Check if strategy exists
+    if (!passport._strategy(strategyName)) {
+      res.redirect("/api/login");
+      return;
+    }
+    
+    passport.authenticate(strategyName, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
     })(req, res, next);
