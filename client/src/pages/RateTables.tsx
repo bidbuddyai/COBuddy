@@ -73,8 +73,8 @@ export default function RateTables() {
   };
 
   const filteredTables = rateTables?.filter(table => {
-    const matchesType = !typeFilter || table.type === typeFilter;
-    const matchesStatus = !statusFilter || 
+    const matchesType = !typeFilter || typeFilter === 'all' || table.type === typeFilter;
+    const matchesStatus = !statusFilter || statusFilter === 'all' || 
       (statusFilter === 'approved' && table.isApproved) ||
       (statusFilter === 'pending' && !table.isApproved);
     const matchesSearch = !searchTerm || 
@@ -179,7 +179,7 @@ export default function RateTables() {
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="labor">Labor</SelectItem>
                   <SelectItem value="equipment">Equipment</SelectItem>
                   <SelectItem value="material">Material</SelectItem>
@@ -192,7 +192,7 @@ export default function RateTables() {
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="pending">Pending Review</SelectItem>
                 </SelectContent>

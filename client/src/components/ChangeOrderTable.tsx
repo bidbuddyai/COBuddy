@@ -32,7 +32,7 @@ export default function ChangeOrderTable({
     queryKey: ["/api/change-orders", {
       page: currentPage,
       limit,
-      status: statusFilter || filters.status,
+      status: (statusFilter && statusFilter !== 'all') ? statusFilter : filters.status,
       search: searchTerm || filters.search,
     }],
   });
@@ -119,7 +119,7 @@ export default function ChangeOrderTable({
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>

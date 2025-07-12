@@ -26,7 +26,10 @@ export default function ChangeOrders() {
   });
 
   const { data: changeOrders } = useQuery<PaginatedResponse<ChangeOrder>>({
-    queryKey: ["/api/change-orders", { status: statusFilter, search: searchTerm }],
+    queryKey: ["/api/change-orders", { 
+      status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined, 
+      search: searchTerm 
+    }],
   });
 
   const stats = [
@@ -201,7 +204,7 @@ export default function ChangeOrders() {
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>

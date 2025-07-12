@@ -129,18 +129,19 @@ export class DatabaseStorage implements IStorage {
     const limit = filters?.limit || 10;
     const offset = (page - 1) * limit;
 
-    let baseQuery = db.select().from(changeOrders);
-    let baseCountQuery = db.select({ count: count() }).from(changeOrders);
+    // Get data
+    const data = filters?.status 
+      ? await db.select().from(changeOrders)
+          .where(eq(changeOrders.status, filters.status))
+          .orderBy(desc(changeOrders.createdAt)).limit(limit).offset(offset)
+      : await db.select().from(changeOrders)
+          .orderBy(desc(changeOrders.createdAt)).limit(limit).offset(offset);
 
-    if (filters?.status) {
-      baseQuery = baseQuery.where(eq(changeOrders.status, filters.status));
-      baseCountQuery = baseCountQuery.where(eq(changeOrders.status, filters.status));
-    }
-
-    const [data, totalResult] = await Promise.all([
-      baseQuery.orderBy(desc(changeOrders.createdAt)).limit(limit).offset(offset),
-      baseCountQuery
-    ]);
+    // Get total count
+    const totalResult = filters?.status 
+      ? await db.select({ count: count() }).from(changeOrders)
+          .where(eq(changeOrders.status, filters.status))
+      : await db.select({ count: count() }).from(changeOrders);
 
     return {
       data,

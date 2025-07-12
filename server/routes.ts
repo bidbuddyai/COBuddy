@@ -12,16 +12,31 @@ import { Request, Response } from "express";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Mock authentication for development - in production, use proper auth
-  app.use('/api', (req: AuthenticatedRequest, res, next) => {
-    // Mock user for development
-    req.user = {
-      id: 1,
-      email: 'john.smith@resource-env.com',
-      role: 'admin',
-      firstName: 'John',
-      lastName: 'Smith'
-    };
-    next();
+  app.use('/api', async (req: AuthenticatedRequest, res, next) => {
+    try {
+      // Check if mock user exists, create if not
+      let user = await storage.getUserByEmail('john.smith@resource-env.com');
+      if (!user) {
+        user = await storage.createUser({
+          email: 'john.smith@resource-env.com',
+          role: 'admin',
+          firstName: 'John',
+          lastName: 'Smith'
+        });
+      }
+      
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName || undefined,
+        lastName: user.lastName || undefined
+      };
+      next();
+    } catch (error) {
+      console.error('Auth error:', error);
+      res.status(500).json({ message: 'Authentication error' });
+    }
   });
 
   // User routes
