@@ -8,6 +8,14 @@ This is a next-generation, AI-powered Change Order Creator web application built
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Updates (January 2025)
+- **Fixed Analytics to be Project-Focused**: Analytics now supports project selection and filtering
+- **Added Project Management**: Created comprehensive Projects page with CRUD operations
+- **Integrated Project Selection**: Analytics dashboard includes project selector with "All Projects" option
+- **Updated Navigation**: Added Projects section to sidebar navigation
+- **Fixed SQL Query Issues**: Resolved analytics service database query errors
+- **Confirmed Rate Tables are Company-Wide**: Rate tables apply to all projects for same company
+
 ## System Architecture
 
 ### Full-Stack TypeScript Application
@@ -41,10 +49,10 @@ The project uses a monorepo structure with shared types and schemas:
 
 ### Database Schema
 - **Users**: Role-based authentication (admin, pm, field, readonly)
-- **Projects**: Project management and organization
-- **Change Orders**: Core business entity with status tracking
-- **Documents**: File uploads with processing status
-- **Rate Tables**: Extracted rate data from PDFs with approval workflow
+- **Projects**: Project management and organization with client info, budgets, and status tracking
+- **Change Orders**: Core business entity with status tracking (PROJECT-SPECIFIC)
+- **Documents**: File uploads with processing status (PROJECT-SPECIFIC)
+- **Rate Tables**: Extracted rate data from PDFs with approval workflow (COMPANY-WIDE)
   - 8 approved rate tables with 74 total rate entries
   - Labor rates: REI wage calculator (4 entries - laborers, asbestos/lead workers)
   - Equipment rates: Operating engineers (4 entries) + T&M equipment (12 entries)
@@ -56,9 +64,10 @@ The project uses a monorepo structure with shared types and schemas:
 ### AI Integration
 - **OpenAI GPT-4 Vision**: Document OCR and data extraction
 - **Document Processing**: Automatic extraction of labor, equipment, and material data
-- **Rate Matching**: AI-powered matching of extracted data to rate tables
+- **Rate Matching**: AI-powered matching of extracted data to company-wide rate tables
 - **Chat Assistant**: Context-aware AI helper for change order creation
 - **Confidence Scoring**: Quality assessment of extracted data
+- **Analytics AI**: Advanced anomaly detection and predictive modeling per project
 
 ## Data Flow
 
@@ -71,10 +80,11 @@ The project uses a monorepo structure with shared types and schemas:
 6. **Storage**: Structured data stored in PostgreSQL
 
 ### Change Order Generation
-1. **Data Compilation**: Combine T&M data with rate information
+1. **Data Compilation**: Combine project-specific T&M data with company-wide rate information
 2. **Excel Generation**: Professional Excel output matching PDF templates
 3. **PDF Generation**: Branded PDF documents with company styling
 4. **Status Tracking**: Full lifecycle management from draft to approved
+5. **Project Organization**: All change orders organized by project with proper filtering
 
 ## External Dependencies
 
