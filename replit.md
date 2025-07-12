@@ -19,7 +19,11 @@ Preferred communication style: Simple, everyday language.
 - **Implemented Animated Loading Indicators**: Added multi-stage document processing animations with visual feedback
 - **Created Documents Page**: New comprehensive document management page with processing states
 - **Switched to Replit Database**: Migrated from external database to Replit's integrated PostgreSQL
-- **Imported All Rate Tables**: Successfully imported 68 rate entries across 5 tables for Resource Environmental
+- **Massive Rate Database Expansion (Jan 12, 2025)**: Successfully imported 539 rate entries across 17 tables from FieldFlo T&M Calculator PDF
+  - Equipment rates: 347 entries (tools, heavy equipment, generators, compactors, excavators, loaders, forklifts)
+  - Material rates: 179 entries (chemicals, machinery materials, demolition materials, PPE, containment)
+  - Labor rates: 8 entries (REI wage calculator, operating engineers)
+  - Disposal rates: 5 entries (hazardous waste disposal)
 
 ## System Architecture
 
@@ -58,10 +62,22 @@ The project uses a monorepo structure with shared types and schemas:
 - **Change Orders**: Core business entity with status tracking (PROJECT-SPECIFIC)
 - **Documents**: File uploads with processing status (PROJECT-SPECIFIC)
 - **Rate Tables**: Extracted rate data from PDFs with approval workflow (COMPANY-WIDE)
-  - 8 approved rate tables with 74 total rate entries
-  - Labor rates: REI wage calculator (4 entries - laborers, asbestos/lead workers)
-  - Equipment rates: Operating engineers (4 entries) + T&M equipment (12 entries)
-  - Material rates: Containment, PPE, chemicals, tools (44 entries total)
+  - 17 approved rate tables with 539 total rate entries
+  - Labor rates: REI wage calculator + Operating engineers (8 entries total)
+  - Equipment rates: 347 entries across 9 tables
+    - Tools and small equipment (157 entries)
+    - Generators (10 entries)
+    - Heavy equipment, compactors, rollers (41 entries)
+    - Loaders and excavators (58 entries)
+    - Track loaders and forklifts (46 entries)
+    - Grinders and demolition equipment (24 entries)
+    - Original T&M equipment table (11 entries)
+  - Material rates: 179 entries across 5 tables
+    - Chemicals (22 entries)
+    - Machinery materials (19 entries)
+    - Additional materials (82 entries)
+    - Misc materials (12 entries)
+    - Original materials table (44 entries)
   - Disposal rates: Hazardous waste disposal (5 entries)
 - **Audit Logs**: Complete audit trail for all operations
 - **Chat Conversations**: AI assistant chat history
@@ -139,12 +155,13 @@ The project uses a monorepo structure with shared types and schemas:
 1. **Company-Based Authentication**: ✅ Resource Environmental gets pre-loaded rates, chase@resource-env.com gets admin role
 2. **Company Management System**: ✅ Automatic company assignment based on email domain
 3. **AI-Powered Setup Modal**: ✅ New companies can upload rates with AI assistance
-4. **Rate Tables Management**: ✅ Company-specific rate isolation with 333 authentic rates for Resource Environmental
+4. **Rate Tables Management**: ✅ Company-specific rate isolation with 539 authentic rates for Resource Environmental (expanded from 68)
 5. **Project Creation**: ✅ Fixed API calls, project creation now working properly
 6. **Analytics Dashboard**: ✅ Project-specific analytics with cost trends and anomaly detection
 7. **Database Schema**: ✅ Migrated to support company-based architecture
 8. **Authentication System**: ✅ Replit Auth with PostgreSQL sessions and string-based user IDs
 9. **API Infrastructure**: ✅ RESTful endpoints with proper error handling
+10. **Comprehensive Rate Database**: ✅ 17 rate tables with 539 entries covering all equipment, materials, labor, and disposal categories
 
 ### ✅ **COMPANY-SPECIFIC FEATURES:**
 - **Resource Environmental**: Pre-loaded with existing rate tables, chase@resource-env.com has admin access
