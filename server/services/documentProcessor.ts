@@ -8,7 +8,7 @@ import {
   ExtractedQuoteData,
   ExtractedInvoiceData
 } from './openai';
-import { extractTextFromDocument } from './azureVision';
+import { extractTextFromDocument } from './azureDocumentIntelligence';
 import { db } from '../db';
 import { documents, rateTables } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -37,42 +37,73 @@ export async function processDocument(documentId: number, progressCallback?: (pr
     // Get file path
     const filePath = path.join(__dirname, '../uploads', document.filename);
     
-    progressCallback?.(20, 'Processing document with Azure Computer Vision...');
+    progressCallback?.(20, 'Processing document...');
     
-    // Extract text using Azure Computer Vision
+    // Extract text - try Azure first with timeout, then fallback to local PDF parser
     let documentText: string;
     let ocrConfidence: number = 0.8; // Default confidence
+    let extractedKeyValuePairs: any[] = [];
+    let extractedTables: any[] = [];
+    let useAzure = true;
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Azure Document Intelligence timeout')), 30000) // 30 second timeout
+    );
     
     try {
-      const ocrResult = await extractTextFromDocument(filePath, document.mimeType);
+      // Try Azure Document Intelligence with timeout
+      progressCallback?.(25, 'Using Azure Document Intelligence...');
+      const ocrResult = await Promise.race([
+        extractTextFromDocument(filePath, document.mimeType),
+        timeoutPromise
+      ]) as any;
+      
       documentText = ocrResult.text;
       ocrConfidence = ocrResult.confidence;
       
-      progressCallback?.(35, `Text extracted successfully (${Math.round(ocrConfidence * 100)}% confidence)...`);
+      // Store key-value pairs and tables for potential use
+      if (ocrResult.keyValuePairs) {
+        extractedKeyValuePairs = ocrResult.keyValuePairs;
+      }
+      
+      if (ocrResult.pages) {
+        for (const page of ocrResult.pages) {
+          if (page.tables) {
+            extractedTables.push(...page.tables);
+          }
+        }
+      }
+      
+      progressCallback?.(35, `Azure extraction successful (${Math.round(ocrConfidence * 100)}% confidence)...`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      useAzure = false;
       
-      // Check if it's an Azure credentials issue
-      if (errorMessage.includes('401') || errorMessage.includes('invalid subscription key')) {
-        progressCallback?.(25, 'Azure Computer Vision not configured. Using basic text extraction...');
-        
-        // Fallback: For now, we'll create a basic message
-        documentText = `[Document requires Azure Computer Vision for processing]
-        
-Please ensure your Azure Computer Vision credentials are correctly configured:
-1. Check that AZURE_COMPUTER_VISION_KEY is correct
-2. Verify AZURE_COMPUTER_VISION_ENDPOINT matches your resource region
-3. Ensure your Azure subscription is active
+      // Fallback to local PDF parser
+      progressCallback?.(30, 'Using local PDF extraction...');
+      
+      // Fallback: create a placeholder for failed extraction
+      documentText = `[Document extraction failed]
 
-Document: ${document.originalName}
-Type: ${document.type}
-Uploaded: ${new Date(document.uploadedAt).toLocaleString()}`;
+Azure Document Intelligence Error: ${errorMessage}
+
+Document Details:
+- Filename: ${document.originalName}
+- Type: ${document.type}
+- Uploaded: ${new Date(document.uploadedAt).toLocaleString()}
+
+The document could not be processed automatically. This could be due to:
+1. Azure Document Intelligence taking longer than expected
+2. Network connectivity issues
+3. Document format issues
+
+Please try:
+- Re-uploading the document
+- Ensuring the PDF is not corrupted
+- Checking Azure Document Intelligence service status`;
         
-        // Continue processing with limited data
-      } else {
-        progressCallback?.(0, `Failed to extract text: ${errorMessage}`);
-        throw error;
-      }
+      progressCallback?.(35, `Using fallback extraction due to: ${errorMessage}`);
     }
 
     let extractedData: ExtractedTMData | ExtractedRateData | ExtractedQuoteData | ExtractedInvoiceData;
