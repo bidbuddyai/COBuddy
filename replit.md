@@ -32,6 +32,11 @@ Important features: Professional dashboard with sidebar navigation, not simplifi
   - Material rates: 179 entries (chemicals, machinery materials, demolition materials, PPE, containment)
   - Labor rates: 8 entries (REI wage calculator, operating engineers)
   - Disposal rates: 5 entries (hazardous waste disposal)
+- **Caltrans Public Rates Import (Jan 13, 2025)**: Successfully imported 2,164 Caltrans equipment rental rates
+  - 60 rate tables organized by equipment class (air compressors, pavers, excavators, etc.)
+  - All rates marked as public (companyId = null) and available to all companies
+  - Public rates display "Public" badge in the UI
+  - Only admin users can upload additional Caltrans rates via CSV upload
 
 ## System Architecture
 
@@ -69,24 +74,18 @@ The project uses a monorepo structure with shared types and schemas:
 - **Projects**: Project management and organization with client info, budgets, and status tracking
 - **Change Orders**: Core business entity with status tracking (PROJECT-SPECIFIC)
 - **Documents**: File uploads with processing status (PROJECT-SPECIFIC)
-- **Rate Tables**: Extracted rate data from PDFs with approval workflow (COMPANY-WIDE)
-  - 17 approved rate tables with 539 total rate entries
-  - Labor rates: REI wage calculator + Operating engineers (8 entries total)
-  - Equipment rates: 347 entries across 9 tables
-    - Tools and small equipment (157 entries)
-    - Generators (10 entries)
-    - Heavy equipment, compactors, rollers (41 entries)
-    - Loaders and excavators (58 entries)
-    - Track loaders and forklifts (46 entries)
-    - Grinders and demolition equipment (24 entries)
-    - Original T&M equipment table (11 entries)
-  - Material rates: 179 entries across 5 tables
-    - Chemicals (22 entries)
-    - Machinery materials (19 entries)
-    - Additional materials (82 entries)
-    - Misc materials (12 entries)
-    - Original materials table (44 entries)
-  - Disposal rates: Hazardous waste disposal (5 entries)
+- **Rate Tables**: Extracted rate data from PDFs with approval workflow (COMPANY-WIDE and PUBLIC)
+  - 77 approved rate tables with 2,703 total rate entries
+  - Company-specific rates (Resource Environmental): 17 tables with 539 entries
+    - Labor rates: REI wage calculator + Operating engineers (8 entries total)
+    - Equipment rates: 347 entries across 9 tables
+    - Material rates: 179 entries across 5 tables
+    - Disposal rates: Hazardous waste disposal (5 entries)
+  - Public Caltrans rates: 60 tables with 2,164 entries
+    - All equipment rental rates for California DOT projects
+    - Organized by equipment class (air compressors, pavers, excavators, etc.)
+    - Available to all companies in the system
+    - Displayed with "Public" badge in UI
 - **Audit Logs**: Complete audit trail for all operations
 - **Chat Conversations**: AI assistant chat history
 
@@ -169,8 +168,9 @@ The project uses a monorepo structure with shared types and schemas:
 7. **Database Schema**: ✅ Migrated to support company-based architecture
 8. **Authentication System**: ✅ Replit Auth with PostgreSQL sessions and string-based user IDs
 9. **API Infrastructure**: ✅ RESTful endpoints with proper error handling
-10. **Comprehensive Rate Database**: ✅ 17 rate tables with 539 entries covering all equipment, materials, labor, and disposal categories
+10. **Comprehensive Rate Database**: ✅ 77 rate tables with 2,703 entries covering all equipment, materials, labor, and disposal categories
 11. **Rate Table Editing**: ✅ Full edit functionality with inline editing for rates, descriptions, codes and units
+12. **Public Caltrans Rates**: ✅ 2,164 public equipment rental rates available to all companies
 
 ### ✅ **COMPANY-SPECIFIC FEATURES:**
 - **Resource Environmental**: Pre-loaded with existing rate tables, chase@resource-env.com has admin access

@@ -67,7 +67,6 @@ export const rateTables = pgTable("rate_tables", {
   reviewedBy: varchar("reviewed_by").references(() => users.id),
   reviewedAt: timestamp("reviewed_at"),
   isApproved: boolean("is_approved").default(false),
-  isPublic: boolean("is_public").default(false), // For Caltrans and other public rates
 });
 
 // Projects

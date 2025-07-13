@@ -315,10 +315,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPublicRateTables(): Promise<RateTable[]> {
     return await db.select().from(rateTables)
-      .where(or(
-        isNull(rateTables.companyId),
-        eq(rateTables.isPublic, true)
-      ))
+      .where(isNull(rateTables.companyId))
       .orderBy(desc(rateTables.extractedAt));
   }
 

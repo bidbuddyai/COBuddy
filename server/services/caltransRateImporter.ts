@@ -57,9 +57,9 @@ export async function importCaltransRates(csvData: string, effectiveDate: Date) 
         region: 'California',
         data: { entries: rateData },
         sourceFile: 'Caltrans_2025_2026.csv',
-        companyId: 0, // 0 indicates public/shared rate table
+        companyId: null, // null indicates public/shared rate table
         isApproved: true,
-        reviewedBy: 'system',
+        reviewedBy: null,
         reviewedAt: new Date()
       });
     }
@@ -84,10 +84,10 @@ export async function importCaltransRates(csvData: string, effectiveDate: Date) 
 }
 
 export async function getCaltransRates() {
-  // Get all Caltrans rate tables (companyId = 0)
+  // Get all Caltrans rate tables (companyId = null)
   const rateTables = await storage.getRateTables();
   return rateTables.filter(table => 
-    table.companyId === 0 && 
+    table.companyId === null && 
     table.name.includes('Caltrans')
   );
 }

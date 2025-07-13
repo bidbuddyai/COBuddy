@@ -453,7 +453,7 @@ export default function RateTables() {
                               {table.isApproved ? 'Approved' : 'Pending'}
                             </span>
                           </Badge>
-                          {table.companyId === 0 && (
+                          {table.companyId === null && (
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-700">
                               Public
                             </Badge>
