@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Using the credentials directly for now - in production these would come from environment variables
-const supabaseUrl = 'https://zjpswiomhhpvfphrlshy.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqcHN3aW9taGhwdmZwaHJsc2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyOTk2OTUsImV4cCI6MjA2Nzg3NTY5NX0.d0dNY1fe5E_MRH7igngAdMqQzJfH8LDutYfGxBeskaE';
+// Get credentials from environment variables for security
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
