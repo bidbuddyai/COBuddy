@@ -111,37 +111,46 @@ export function useDocumentProgress() {
     message: string;
   }>>({});
 
-  const { addMessageHandler } = useWebSocket();
+  const webSocket = useWebSocket();
 
   useEffect(() => {
-    if (!addMessageHandler) return;
+    if (!webSocket?.addMessageHandler) return;
     
-    const cleanup = addMessageHandler((data) => {
-      if (data.type === 'document_progress') {
-        setDocumentProgress(prev => ({
-          ...prev,
-          [data.documentId]: {
-            status: data.status,
-            progress: data.progress,
-            message: data.message
+    try {
+      const cleanup = webSocket.addMessageHandler((data) => {
+        try {
+          if (data.type === 'document_progress') {
+            setDocumentProgress(prev => ({
+              ...prev,
+              [data.documentId]: {
+                status: data.status,
+                progress: data.progress,
+                message: data.message
+              }
+            }));
+            
+            // Remove completed/failed documents after 5 seconds
+            if (data.status === 'completed' || data.status === 'failed') {
+              setTimeout(() => {
+                setDocumentProgress(prev => {
+                  const newProgress = { ...prev };
+                  delete newProgress[data.documentId];
+                  return newProgress;
+                });
+              }, 5000);
+            }
           }
-        }));
-        
-        // Remove completed/failed documents after 5 seconds
-        if (data.status === 'completed' || data.status === 'failed') {
-          setTimeout(() => {
-            setDocumentProgress(prev => {
-              const newProgress = { ...prev };
-              delete newProgress[data.documentId];
-              return newProgress;
-            });
-          }, 5000);
+        } catch (error) {
+          console.error('Error handling document progress message:', error);
         }
-      }
-    });
+      });
 
-    return cleanup;
-  }, [addMessageHandler]);
+      return cleanup;
+    } catch (error) {
+      console.error('Error setting up document progress handler:', error);
+      return () => {};
+    }
+  }, [webSocket]);
 
   return documentProgress;
 }

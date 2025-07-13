@@ -33,6 +33,11 @@ export default function Documents() {
   const documentProgress = useDocumentProgress();
   const [location] = useLocation();
   
+  const { data: documents, isLoading, isRefetching } = useQuery<Document[]>({
+    queryKey: ['/api/documents', { projectId: selectedProjectId }],
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
+  });
+
   // Auto-refresh documents when processing completes
   useEffect(() => {
     const hasCompletedDocuments = Object.values(documentProgress).some(
@@ -67,11 +72,6 @@ export default function Documents() {
       }
     }
   }, [documents]);
-
-  const { data: documents, isLoading, isRefetching } = useQuery<Document[]>({
-    queryKey: ['/api/documents', { projectId: selectedProjectId }],
-    refetchInterval: 5000, // Auto-refresh every 5 seconds
-  });
 
   const reprocessMutation = useMutation({
     mutationFn: async (documentId: number) => {
