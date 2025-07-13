@@ -372,7 +372,7 @@ export async function processAIChat(message: string, context?: any): Promise<str
       messages: [
         {
           role: "system",
-          content: `You are an AI assistant for FieldFlo, a construction change order management system for Resource Environmental Inc.
+          content: `You are an AI assistant for CO Buddy AI, a construction change order management system for Resource Environmental Inc.
           
           You have access to 333 approved rates across 4 rate tables:
           - Equipment: 190 rates (generators, excavators, compressors, tools)

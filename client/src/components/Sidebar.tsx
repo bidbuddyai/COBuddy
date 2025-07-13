@@ -63,7 +63,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <FileText className="text-white text-lg" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">FieldFlo</h1>
+            <h1 className="text-xl font-bold text-gray-900">CO Buddy AI</h1>
             <p className="text-xs text-gray-500">Change Order Creator</p>
           </div>
         </div>

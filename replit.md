@@ -22,7 +22,7 @@ Important features: Professional dashboard with sidebar navigation, not simplifi
 - **Implemented Animated Loading Indicators**: Added multi-stage document processing animations with visual feedback
 - **Created Documents Page**: New comprehensive document management page with processing states
 - **Switched to Replit Database**: Migrated from external database to Replit's integrated PostgreSQL
-- **Massive Rate Database Expansion (Jan 12, 2025)**: Successfully imported 539 rate entries across 17 tables from FieldFlo T&M Calculator PDF
+- **Massive Rate Database Expansion (Jan 12, 2025)**: Successfully imported 539 rate entries across 17 tables from T&M Calculator PDF
   - Equipment rates: 347 entries (tools, heavy equipment, generators, compactors, excavators, loaders, forklifts)
   - Material rates: 179 entries (chemicals, machinery materials, demolition materials, PPE, containment)
   - Labor rates: 8 entries (REI wage calculator, operating engineers)

@@ -63,7 +63,7 @@ export default function Layout({ children }: LayoutProps) {
             >
               <Menu className="h-6 w-6" />
             </Button>
-            <h1 className="text-xl font-bold text-gray-900">FieldFlo</h1>
+            <h1 className="text-xl font-bold text-gray-900">CO Buddy AI</h1>
             <div className="w-10" /> {/* Spacer */}
           </div>
         )}
