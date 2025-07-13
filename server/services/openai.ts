@@ -350,68 +350,107 @@ export async function extractInvoiceData(base64Image: string): Promise<Extracted
   }
 }
 
-export async function processAIChat(message: string, context?: any): Promise<string> {
+export async function processAIChat(message: string, context?: any): Promise<{ message: string; actions?: any[] }> {
   try {
-    // Get all available rates from database for context
-    const { db } = await import('../db');
-    const { rateTables } = await import('../../shared/schema');
-    const { eq } = await import('drizzle-orm');
-    
-    const approvedRates = await db.select().from(rateTables).where(eq(rateTables.isApproved, true));
-    
-    // Build rate context for AI
-    const rateContext = approvedRates.map(rt => ({
-      name: rt.name,
-      type: rt.type,
-      entries: Array.isArray(rt.data) ? rt.data.length : 0,
-      sampleRates: Array.isArray(rt.data) ? rt.data.slice(0, 3) : []
-    }));
+    const systemPrompt = `You are an AI assistant for CO Buddy AI, a powerful construction change order management system.
+
+CONTEXT AWARENESS:
+- Current page: ${context?.pageContext?.currentPage || 'unknown'}
+- User role: ${context?.user?.role || 'unknown'}
+- Company ID: ${context?.user?.companyId || 'unknown'}
+- Available rates: ${context?.rateContext?.totalRates || 0} total (${context?.rateContext?.companyRates?.length || 0} company, ${context?.rateContext?.publicRates?.length || 0} public Caltrans)
+- Projects: ${context?.projectContext?.projects?.length || 0}
+- Recent change orders: ${context?.projectContext?.recentChangeOrders?.length || 0}
+- Pending documents: ${context?.projectContext?.pendingDocuments || 0}
+
+YOUR CAPABILITIES:
+1. CREATE & EDIT DATA:
+   - Create projects: "I'll create a new project called [name]"
+   - Create change orders: "I'll create a change order for [project]"
+   - Edit rates: "I'll update the rate for [item] to [value]"
+   - Process documents: "I'll analyze this T&M sheet"
+
+2. NAVIGATION & SUGGESTIONS:
+   - Based on current page, offer contextual help
+   - Suggest next steps: "Since you're on the rates page, would you like to edit rates or import new ones?"
+   - Guide through workflows: "To create a change order, first select a project..."
+
+3. VALIDATION & VERIFICATION:
+   - Check imported data: "Let me verify your imported rates match the expected format"
+   - Validate T&M sheets: "I'll check if all labor rates match your approved rate tables"
+   - Compare rates: "The imported rate of $X differs from your standard rate of $Y"
+
+4. INTELLIGENT ASSISTANCE:
+   - Remember context from previous messages
+   - Understand T&M parsing needs
+   - Match extracted data to rates
+   - Calculate totals and markups
+   - Generate professional outputs
+
+RESPONSE FORMAT:
+When actions are requested (${context?.requestActions}), you can return actions in this format:
+{
+  "message": "Your response text",
+  "actions": [
+    {
+      "type": "navigate|create|update|refresh",
+      "endpoint": "/api/endpoint",
+      "data": {},
+      "url": "/page-to-navigate",
+      "successMessage": "Success message"
+    }
+  ]
+}
+
+CURRENT PAGE GUIDANCE:
+${context?.pageContext?.currentPage === '/rate-tables' ? 
+  "User is viewing rate tables. Offer to: edit rates, import new rates, search specific rates, or explain rate types." : 
+  context?.pageContext?.currentPage === '/projects' ?
+  "User is managing projects. Offer to: create new project, update project details, or view project analytics." :
+  context?.pageContext?.currentPage === '/change-orders' ?
+  "User is working with change orders. Offer to: create new CO, edit existing CO, or process T&M sheets." :
+  context?.pageContext?.currentPage === '/documents' ?
+  "User is managing documents. Offer to: process uploaded files, check extraction status, or re-process failed documents." :
+  context?.pageContext?.currentPage === '/analytics' ?
+  "User is viewing analytics. Offer to: explain trends, identify anomalies, or generate reports." :
+  "Offer general assistance based on user needs."
+}
+
+Remember: Everything is editable. You can help create, update, and manage all data in the system.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `You are an AI assistant for CO Buddy AI, a construction change order management system for Resource Environmental Inc.
-          
-          You have access to 333 approved rates across 4 rate tables:
-          - Equipment: 190 rates (generators, excavators, compressors, tools)
-          - General Materials: 109 rates (PPE, containment, filters, tools)
-          - Chemicals: 22 rates (encapsulants, removers, cleaners)
-          - Machinery Materials: 12 rates (oils, fluids, maintenance)
-          
-          Your capabilities:
-          - Create change orders following REI's template format
-          - Match T&M data to approved rate tables
-          - Calculate costs for labor, equipment, materials, disposal
-          - Generate professional change order requests
-          - Provide rate lookup and pricing guidance
-          - Assist with project analytics and insights
-          
-          When creating change orders, always use the REI format:
-          - Project Name and RE Project No.
-          - Client contact and REI PM details
-          - Detailed cost breakdown by category
-          - Labor backup with wage rates
-          - Material itemization with quantities
-          - Equipment owned vs rented
-          - Disposal costs with backup
-          - Markup percentages
-          - Grand total calculations
-          
-          Available Rate Context: ${JSON.stringify(rateContext)}
-          
-          Always be professional, accurate, and construction industry-focused.`
+          content: systemPrompt
         },
         {
           role: "user",
-          content: context ? `Context: ${JSON.stringify(context)}\n\nUser message: ${message}` : message
+          content: message
         }
       ],
-      max_tokens: 1500,
+      max_tokens: 2000,
+      response_format: context?.requestActions ? { type: "json_object" } : undefined
     });
 
-    return response.choices[0].message.content || "I'm sorry, I couldn't process your request. Please try again.";
+    const content = response.choices[0].message.content || "I'm sorry, I couldn't process your request. Please try again.";
+    
+    // If actions were requested, parse the JSON response
+    if (context?.requestActions) {
+      try {
+        const parsed = JSON.parse(content);
+        return {
+          message: parsed.message || content,
+          actions: parsed.actions || []
+        };
+      } catch (e) {
+        // If parsing fails, just return the message
+        return { message: content };
+      }
+    }
+
+    return { message: content };
   } catch (error) {
     console.error('OpenAI chat error:', error);
     throw new Error(`AI chat failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

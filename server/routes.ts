@@ -539,32 +539,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Assistant Chat endpoint (simplified version for bubble/page)
+  // AI Assistant Chat endpoint (enhanced version with actions)
   app.post('/api/ai/chat', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const { message } = req.body;
+      const { message, context, requestActions } = req.body;
       
       if (!message) {
         return res.status(400).json({ message: 'Message is required' });
       }
       
-      // Get rate context for AI
-      const rateTablesData = await storage.getRateTables();
-      const rateContext = {
-        availableRates: rateTablesData.map(rt => ({
-          name: rt.name,
-          type: rt.type,
-          entries: Array.isArray(rt.data) ? rt.data.length : 0
-        })),
-        totalRates: rateTablesData.reduce((sum, rt) => sum + (Array.isArray(rt.data) ? rt.data.length : 0), 0)
+      // Get comprehensive context for AI
+      const userId = req.user?.id;
+      const userCompanyId = req.user?.companyId;
+      
+      // Get rate context
+      const rateTablesData = await storage.getRateTables(userCompanyId);
+      const publicRates = await storage.getPublicRateTables();
+      const allRates = [...rateTablesData, ...publicRates];
+      
+      // Get project context
+      const projects = await storage.getProjects();
+      const changeOrders = await storage.getChangeOrders({ limit: 10 });
+      const documents = await storage.getDocuments();
+      
+      const enhancedContext = {
+        pageContext: context,
+        rateContext: {
+          companyRates: rateTablesData.map(rt => ({
+            id: rt.id,
+            name: rt.name,
+            type: rt.type,
+            entries: Array.isArray(rt.data) ? rt.data.length : (rt.data as any)?.entries?.length || 0,
+            effectiveDate: rt.effectiveDate
+          })),
+          publicRates: publicRates.map(rt => ({
+            id: rt.id,
+            name: rt.name,
+            type: rt.type,
+            entries: Array.isArray(rt.data) ? rt.data.length : (rt.data as any)?.entries?.length || 0,
+            effectiveDate: rt.effectiveDate
+          })),
+          totalRates: allRates.reduce((sum, rt) => {
+            const entries = Array.isArray(rt.data) ? rt.data.length : (rt.data as any)?.entries?.length || 0;
+            return sum + entries;
+          }, 0)
+        },
+        projectContext: {
+          projects: projects.map(p => ({ id: p.id, name: p.name, status: p.status })),
+          recentChangeOrders: changeOrders.data.map(co => ({
+            id: co.id,
+            projectId: co.projectId,
+            title: co.title,
+            status: co.status,
+            total: co.totalCost
+          })),
+          pendingDocuments: documents.filter(d => d.status === 'pending').length
+        },
+        user: {
+          id: userId,
+          companyId: userCompanyId,
+          role: req.user?.role
+        },
+        requestActions
       };
       
-      const response = await processAIChat(message, { rateContext });
+      const response = await processAIChat(message, enhancedContext);
       
-      res.json({
-        message: response,
-        timestamp: new Date()
-      });
+      res.json(response);
     } catch (error) {
       console.error('Error processing AI chat:', error);
       res.status(500).json({ message: 'Failed to process chat message' });

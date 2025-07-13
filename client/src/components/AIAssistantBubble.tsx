@@ -18,14 +18,8 @@ interface Message {
 
 export default function AIAssistantBubble() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      role: 'assistant',
-      content: 'Hi! I\'m CO Buddy AI. How can I help you with your change orders today?',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +32,43 @@ export default function AIAssistantBubble() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize with context-aware message when opened
+  useEffect(() => {
+    if (isOpen && !hasInitialized) {
+      const currentPath = window.location.pathname;
+      let initialMessage = "Hi! I'm CO Buddy AI, your intelligent assistant. ";
+      
+      // Add context-specific greeting based on current page
+      switch (currentPath) {
+        case '/rate-tables':
+          initialMessage += "I see you're viewing rate tables. I can help you edit rates, search for specific items, import new rates, or validate your existing rates. What would you like to do?";
+          break;
+        case '/projects':
+          initialMessage += "I notice you're on the projects page. I can help you create a new project, update project details, or analyze project data. How can I assist?";
+          break;
+        case '/change-orders':
+          initialMessage += "You're working with change orders. I can help create a new change order, process T&M sheets, calculate costs, or edit existing orders. What do you need?";
+          break;
+        case '/documents':
+          initialMessage += "I see you're managing documents. I can help process uploaded files, check extraction status, validate imported data, or re-process failed documents. How can I help?";
+          break;
+        case '/analytics':
+          initialMessage += "You're viewing analytics. I can explain trends, identify anomalies, help generate reports, or provide insights about your data. What would you like to know?";
+          break;
+        default:
+          initialMessage += "I can help you create projects, manage change orders, process T&M sheets, edit rates, and much more. Just tell me what you need!";
+      }
+      
+      setMessages([{
+        id: 1,
+        role: 'assistant',
+        content: initialMessage,
+        timestamp: new Date()
+      }]);
+      setHasInitialized(true);
+    }
+  }, [isOpen, hasInitialized]);
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -54,10 +85,29 @@ export default function AIAssistantBubble() {
     setIsLoading(true);
 
     try {
+      // Get current page context
+      const currentPath = window.location.pathname;
+      const pageContext = {
+        currentPage: currentPath,
+        pageTitle: document.title,
+        url: window.location.href
+      };
+
       const response = await apiRequest('/api/ai/chat', {
         method: 'POST',
-        body: JSON.stringify({ message: input })
+        body: JSON.stringify({ 
+          message: input,
+          context: pageContext,
+          requestActions: true // Enable AI to perform actions
+        })
       });
+
+      // Handle AI actions if any
+      if (response.actions && response.actions.length > 0) {
+        for (const action of response.actions) {
+          await handleAIAction(action);
+        }
+      }
 
       const assistantMessage: Message = {
         id: messages.length + 2,
@@ -75,6 +125,41 @@ export default function AIAssistantBubble() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAIAction = async (action: any) => {
+    try {
+      switch (action.type) {
+        case 'navigate':
+          window.location.href = action.url;
+          break;
+        case 'create':
+          await apiRequest(action.endpoint, {
+            method: 'POST',
+            body: JSON.stringify(action.data)
+          });
+          toast({
+            title: "Success",
+            description: action.successMessage || "Action completed successfully"
+          });
+          break;
+        case 'update':
+          await apiRequest(action.endpoint, {
+            method: 'PATCH',
+            body: JSON.stringify(action.data)
+          });
+          toast({
+            title: "Success",
+            description: action.successMessage || "Updated successfully"
+          });
+          break;
+        case 'refresh':
+          window.location.reload();
+          break;
+      }
+    } catch (error) {
+      console.error('Failed to execute AI action:', error);
     }
   };
 
