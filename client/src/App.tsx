@@ -53,6 +53,7 @@ function Router() {
           <Route path="/dashboard" component={() => <Layout><Dashboard /></Layout>} />
           <Route path="/upload" component={() => <Layout><Upload /></Layout>} />
           <Route path="/change-orders" component={() => <Layout><ChangeOrders /></Layout>} />
+          <Route path="/change-orders/:id" component={() => <Layout><ChangeOrders /></Layout>} />
           <Route path="/rate-tables" component={() => <Layout><RateTables /></Layout>} />
           <Route path="/analytics" component={() => <Layout><Analytics /></Layout>} />
           <Route path="/projects" component={() => <Layout><Projects /></Layout>} />

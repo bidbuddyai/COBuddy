@@ -8,11 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { ChangeOrder } from '@shared/schema';
-import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage, Folder } from 'lucide-react';
+import { ChangeOrder, Project } from '@shared/schema';
+import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage, Folder, ArrowLeft } from 'lucide-react';
 import ProjectSelector from '@/components/ProjectSelector';
 import ChangeOrderTemplates from '@/components/ChangeOrderTemplates';
 import ChangeOrderForm from '@/components/ChangeOrderForm';
+import { useLocation } from 'wouter';
 
 export default function ChangeOrders() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -22,9 +23,13 @@ export default function ChangeOrders() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
 
-  
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Extract change order ID from URL
+  const changeOrderId = location.match(/^\/change-orders\/(\d+)$/)?.[1];
+  const isViewingSpecificChangeOrder = !!changeOrderId;
 
   const { data: changeOrdersData, isLoading } = useQuery<{
     data: ChangeOrder[];
@@ -36,7 +41,19 @@ export default function ChangeOrders() {
       limit: 10,
       status: statusFilter !== 'all' ? statusFilter : undefined
     }],
-    enabled: !!selectedProjectId,
+    enabled: !!selectedProjectId && !isViewingSpecificChangeOrder,
+  });
+
+  // Query for specific change order when viewing individual ID
+  const { data: specificChangeOrder, isLoading: isLoadingSpecific } = useQuery<ChangeOrder>({
+    queryKey: ['/api/change-orders', changeOrderId],
+    enabled: isViewingSpecificChangeOrder,
+  });
+
+  // Query for project info when viewing specific change order
+  const { data: project } = useQuery<Project>({
+    queryKey: ['/api/projects', specificChangeOrder?.projectId],
+    enabled: !!specificChangeOrder?.projectId,
   });
 
   const changeOrders = changeOrdersData?.data || [];
@@ -125,6 +142,192 @@ export default function ChangeOrders() {
     co.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     co.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Handle individual change order view
+  if (isViewingSpecificChangeOrder) {
+    if (isLoadingSpecific) {
+      return (
+        <div className="p-6 space-y-6">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation('/change-orders')}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Change Orders
+            </Button>
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-64"></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!specificChangeOrder) {
+      return (
+        <div className="p-6 space-y-6">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation('/change-orders')}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Change Orders
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="p-8 text-center">
+              <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Change Order Not Found</h3>
+              <p className="text-gray-500">The change order you're looking for doesn't exist or has been deleted.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-6 space-y-6">
+        {/* Header with back button */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation('/change-orders')}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Change Orders
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {specificChangeOrder.title}
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400">
+                {project?.name || 'Loading project...'} • {specificChangeOrder.number || `CO-${specificChangeOrder.id}`}
+              </p>
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => handleExport(specificChangeOrder.id, 'excel')}
+              className="flex items-center"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export Excel
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => handleExport(specificChangeOrder.id, 'pdf')}
+              className="flex items-center"
+            >
+              <FileImage className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
+        </div>
+
+        {/* Change Order Details */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Order Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Status</label>
+                    <div className="mt-1">
+                      <Badge className={getStatusColor(specificChangeOrder.status)}>
+                        {specificChangeOrder.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Cost</label>
+                    <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      {formatCurrency(specificChangeOrder.totalCost || 0)}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Description</label>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">
+                    {specificChangeOrder.description || 'No description provided'}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Labor Cost</label>
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">
+                      {formatCurrency(specificChangeOrder.laborCost || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Material Cost</label>
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">
+                      {formatCurrency(specificChangeOrder.materialCost || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Equipment Cost</label>
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">
+                      {formatCurrency(specificChangeOrder.equipmentCost || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Disposal Cost</label>
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">
+                      {formatCurrency(specificChangeOrder.disposalCost || 0)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center"
+                  onClick={() => handleExport(specificChangeOrder.id, 'excel')}
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Download Excel
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center"
+                  onClick={() => handleExport(specificChangeOrder.id, 'pdf')}
+                >
+                  <FileImage className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+                {specificChangeOrder.status === 'draft' && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full flex items-center justify-center"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Change Order
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
