@@ -51,12 +51,11 @@ export default function ChangeOrders() {
 
   const createChangeOrder = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest('POST', '/api/change-orders', {
+      return await apiRequest('POST', '/api/change-orders', {
         ...data,
         projectId: selectedProjectId,
-        totalAmount: data.totalAmount ? parseFloat(data.totalAmount) : 0
+        totalAmount: data.totalAmount || '0'
       });
-      return response.json();
     },
     onSuccess: () => {
       toast({

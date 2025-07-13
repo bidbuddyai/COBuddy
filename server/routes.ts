@@ -473,6 +473,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (processedBody.materialAmount) {
         processedBody.materialAmount = processedBody.materialAmount.toString();
       }
+      if (processedBody.equipmentAmount) {
+        processedBody.equipmentAmount = processedBody.equipmentAmount.toString();
+      }
       
       // Generate a unique change order number
       const timestamp = Date.now();
