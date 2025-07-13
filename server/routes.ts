@@ -443,6 +443,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update rate table data
+  app.put('/api/rate-tables/:id', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || (user.role !== 'admin' && user.role !== 'pm')) {
+        return res.status(403).json({ message: 'Admin or PM access required' });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { data } = req.body;
+      
+      const rateTable = await storage.updateRateTable(id, { data });
+      res.json(rateTable);
+    } catch (error) {
+      console.error('Error updating rate table:', error);
+      res.status(500).json({ message: 'Failed to update rate table' });
+    }
+  });
+
   // AI Chat routes
   app.post('/api/chat', authenticateSupabaseUser, async (req: any, res) => {
     try {

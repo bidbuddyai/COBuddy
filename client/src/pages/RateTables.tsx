@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Database, Upload, CheckCircle, AlertCircle, Clock, Eye, Download, Filter, Search } from "lucide-react";
+import { Database, Upload, CheckCircle, AlertCircle, Clock, Eye, Download, Filter, Search, Edit, Save, X } from "lucide-react";
 import { RateTable } from "@shared/schema";
 
 export default function RateTables() {
@@ -18,6 +18,8 @@ export default function RateTables() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTable, setSelectedTable] = useState<RateTable | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedRates, setEditedRates] = useState<any[]>([]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -41,6 +43,28 @@ export default function RateTables() {
     onError: (error) => {
       toast({
         title: "Failed to approve rate table",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateRatesMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const response = await apiRequest('PUT', `/api/rate-tables/${id}`, { data });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rate-tables"] });
+      toast({
+        title: "Rates updated",
+        description: "The rate table has been updated successfully.",
+      });
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to update rates",
         description: error.message,
         variant: "destructive",
       });
@@ -83,6 +107,53 @@ export default function RateTables() {
     
     return matchesType && matchesStatus && matchesSearch;
   });
+
+  // Handle opening the view modal
+  const handleViewTable = (table: RateTable) => {
+    setSelectedTable(table);
+    
+    // Extract rates based on data structure
+    const data = table.data;
+    let entries: any[] = [];
+    
+    if (Array.isArray(data)) {
+      entries = data;
+    } else if (data && typeof data === 'object' && 'entries' in data) {
+      entries = (data as any).entries || [];
+    } else if (data && typeof data === 'object') {
+      entries = Object.values(data);
+    }
+    
+    setEditedRates(entries.map(entry => ({ ...entry })));
+    setViewModalOpen(true);
+    setIsEditing(false);
+  };
+
+  // Handle rate changes
+  const handleRateChange = (index: number, field: string, value: string) => {
+    const updatedRates = [...editedRates];
+    if (field === 'rate') {
+      const numValue = parseFloat(value);
+      updatedRates[index][field] = isNaN(numValue) ? 0 : numValue;
+    } else {
+      updatedRates[index][field] = value;
+    }
+    setEditedRates(updatedRates);
+  };
+
+  // Save edited rates
+  const handleSaveRates = () => {
+    if (!selectedTable) return;
+    
+    const updatedData = { ...selectedTable.data };
+    if (Array.isArray(updatedData)) {
+      updateRatesMutation.mutate({ id: selectedTable.id, data: editedRates });
+    } else if (updatedData && typeof updatedData === 'object' && 'entries' in updatedData) {
+      updateRatesMutation.mutate({ id: selectedTable.id, data: { ...updatedData, entries: editedRates } });
+    } else {
+      updateRatesMutation.mutate({ id: selectedTable.id, data: editedRates });
+    }
+  };
 
   // Calculate comprehensive statistics
   const totalRates = rateTables?.reduce((sum, table) => 
@@ -273,10 +344,7 @@ export default function RateTables() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setSelectedTable(table);
-                              setViewModalOpen(true);
-                            }}
+                            onClick={() => handleViewTable(table)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -312,84 +380,138 @@ export default function RateTables() {
       {/* View Modal */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between">
             <DialogTitle>Rate Table Details</DialogTitle>
+            <DialogDescription className="sr-only">View and edit rate table entries</DialogDescription>
           </DialogHeader>
           {selectedTable && (
             <div className="space-y-4 overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Name</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTable.name}</p>
+              <div className="flex items-center justify-between">
+                <div className="grid grid-cols-2 gap-4 flex-1">
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">Name</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTable.name}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">Type</h4>
+                    <Badge className={getTypeColor(selectedTable.type)}>
+                      {selectedTable.type}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">Region</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTable.region || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">Effective Date</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(selectedTable.effectiveDate).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Type</h4>
-                  <Badge className={getTypeColor(selectedTable.type)}>
-                    {selectedTable.type}
-                  </Badge>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Region</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTable.region || 'N/A'}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Effective Date</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {new Date(selectedTable.effectiveDate).toLocaleDateString()}
-                  </p>
+                <div className="flex items-center space-x-2">
+                  {!isEditing ? (
+                    <Button onClick={() => setIsEditing(true)} variant="outline">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Rates
+                    </Button>
+                  ) : (
+                    <>
+                      <Button onClick={handleSaveRates} disabled={updateRatesMutation.isPending}>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save
+                      </Button>
+                      <Button onClick={() => {
+                        setIsEditing(false);
+                        handleViewTable(selectedTable);
+                      }} variant="outline">
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
               
               <div>
                 <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Rate Entries</h4>
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 max-h-[400px] overflow-y-auto">
-                  {(() => {
-                    const data = selectedTable.data;
-                    let entries: any[] = [];
-                    
-                    // Handle different data structures
-                    if (Array.isArray(data)) {
-                      entries = data;
-                    } else if (data && typeof data === 'object' && 'entries' in data) {
-                      entries = (data as any).entries || [];
-                    } else if (data && typeof data === 'object') {
-                      // Convert object to array if it has numeric keys
-                      entries = Object.values(data);
-                    }
-                    
-                    if (entries.length === 0) {
-                      return <p className="text-sm text-gray-600 dark:text-gray-400">No rate entries available</p>;
-                    }
-                    
-                    return (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                          <thead className="bg-gray-100 dark:bg-gray-900">
-                            <tr>
-                              {entries[0].code && <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>}
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                              {entries[0].unit && <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>}
+                  {editedRates.length === 0 ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">No rate entries available</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-100 dark:bg-gray-900">
+                          <tr>
+                            {editedRates[0]?.code !== undefined && <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>}
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                            {editedRates[0]?.unit !== undefined && <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>}
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {editedRates.map((entry: any, index: number) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              {entry.code !== undefined && (
+                                <td className="px-3 py-2">
+                                  {isEditing ? (
+                                    <Input
+                                      value={entry.code || ''}
+                                      onChange={(e) => handleRateChange(index, 'code', e.target.value)}
+                                      className="w-24 h-8 text-sm"
+                                    />
+                                  ) : (
+                                    <span className="text-sm text-gray-900 dark:text-gray-100">{entry.code}</span>
+                                  )}
+                                </td>
+                              )}
+                              <td className="px-3 py-2">
+                                {isEditing ? (
+                                  <Input
+                                    value={entry.description || entry.item || entry.name || ''}
+                                    onChange={(e) => handleRateChange(index, 'description', e.target.value)}
+                                    className="w-full h-8 text-sm"
+                                  />
+                                ) : (
+                                  <span className="text-sm text-gray-900 dark:text-gray-100">
+                                    {entry.description || entry.item || entry.name || 'N/A'}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                {isEditing ? (
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={entry.rate || 0}
+                                    onChange={(e) => handleRateChange(index, 'rate', e.target.value)}
+                                    className="w-24 h-8 text-sm text-right"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    ${typeof entry.rate === 'number' ? entry.rate.toFixed(2) : entry.rate || '0.00'}
+                                  </span>
+                                )}
+                              </td>
+                              {entry.unit !== undefined && (
+                                <td className="px-3 py-2">
+                                  {isEditing ? (
+                                    <Input
+                                      value={entry.unit || ''}
+                                      onChange={(e) => handleRateChange(index, 'unit', e.target.value)}
+                                      className="w-20 h-8 text-sm"
+                                    />
+                                  ) : (
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">{entry.unit}</span>
+                                  )}
+                                </td>
+                              )}
                             </tr>
-                          </thead>
-                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {entries.map((entry: any, index: number) => (
-                              <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                {entry.code && <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">{entry.code}</td>}
-                                <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
-                                  {entry.description || entry.item || entry.name || 'N/A'}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
-                                  ${typeof entry.rate === 'number' ? entry.rate.toFixed(2) : entry.rate || '0.00'}
-                                </td>
-                                {entry.unit && <td className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">{entry.unit}</td>}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

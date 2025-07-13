@@ -68,6 +68,7 @@ export interface IStorage {
   getRateTable(id: number): Promise<RateTable | undefined>;
   createRateTable(rateTable: InsertRateTable): Promise<RateTable>;
   approveRateTable(id: number, reviewedBy: string): Promise<RateTable>;
+  updateRateTable(id: number, data: Partial<RateTable>): Promise<RateTable>;
 
   // Chat operations
   getChatConversations(userId?: string): Promise<ChatConversation[]>;
@@ -297,6 +298,15 @@ export class DatabaseStorage implements IStorage {
         reviewedBy: reviewedBy,
         reviewedAt: new Date(),
       })
+      .where(eq(rateTables.id, id))
+      .returning();
+    return rateTable;
+  }
+
+  async updateRateTable(id: number, data: Partial<RateTable>): Promise<RateTable> {
+    const [rateTable] = await db
+      .update(rateTables)
+      .set(data)
       .where(eq(rateTables.id, id))
       .returning();
     return rateTable;

@@ -11,6 +11,11 @@ App focus: Everything must be project-centric with project selection/filtering.
 Important features: Professional dashboard with sidebar navigation, not simplified views.
 
 ## Recent Updates (January 2025)
+- **Added Rate Table Editing (Jan 12, 2025)**: Implemented full edit functionality for rate tables with inline editing
+  - Click eye icon to view rates, then "Edit Rates" button to enable editing mode
+  - Edit rates, descriptions, codes and units directly in the table
+  - Save changes with immediate database updates
+  - Admin and PM roles can edit rates
 - **Added Quote and Invoice Processing**: Expanded AI vision to handle quotes and invoices in addition to T&M sheets
 - **Fixed Analytics to be Project-Focused**: Analytics now supports project selection and filtering
 - **Added Project Management**: Created comprehensive Projects page with CRUD operations
@@ -165,6 +170,7 @@ The project uses a monorepo structure with shared types and schemas:
 8. **Authentication System**: ✅ Replit Auth with PostgreSQL sessions and string-based user IDs
 9. **API Infrastructure**: ✅ RESTful endpoints with proper error handling
 10. **Comprehensive Rate Database**: ✅ 17 rate tables with 539 entries covering all equipment, materials, labor, and disposal categories
+11. **Rate Table Editing**: ✅ Full edit functionality with inline editing for rates, descriptions, codes and units
 
 ### ✅ **COMPANY-SPECIFIC FEATURES:**
 - **Resource Environmental**: Pre-loaded with existing rate tables, chase@resource-env.com has admin access
