@@ -133,12 +133,49 @@ export default function Settings() {
     updateProfileMutation.mutate(profile);
   };
 
-  const handleSaveSettings = () => {
-    // In a real app, this would save to the server
-    toast({
-      title: "Settings saved",
-      description: "Your preferences have been saved successfully.",
-    });
+  const saveNotificationsMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('PUT', '/api/users/settings/notifications', data);
+      return response.json();
+    }
+  });
+  
+  const savePreferencesMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('PUT', '/api/users/settings/preferences', data);
+      return response.json();
+    }
+  });
+  
+  const saveIntegrationsMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('PUT', '/api/users/settings/integrations', data);
+      return response.json();
+    }
+  });
+
+  const handleSaveSettings = async () => {
+    try {
+      // Save all settings in parallel
+      const promises = [
+        saveNotificationsMutation.mutateAsync(notifications),
+        savePreferencesMutation.mutateAsync(preferences),
+        saveIntegrationsMutation.mutateAsync(integrations)
+      ];
+      
+      await Promise.all(promises);
+      
+      toast({
+        title: "Settings saved",
+        description: "All your preferences have been saved successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Save failed",
+        description: error.message || "Failed to save settings",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

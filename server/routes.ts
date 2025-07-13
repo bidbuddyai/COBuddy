@@ -89,6 +89,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create user" });
     }
   });
+  
+  // User profile and settings routes
+  app.put('/api/users/profile', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { firstName, lastName, email, role } = req.body;
+      const userId = req.user.id;
+      
+      const updatedUser = await storage.updateUser(userId, {
+        firstName,
+        lastName,
+        email,
+        role
+      });
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+  
+  app.put('/api/users/settings/notifications', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      
+      // In a real app, you'd store these in a user_preferences table
+      // For now, we'll just acknowledge the update
+      console.log('Updating notifications for user:', userId, req.body);
+      
+      res.json({ 
+        message: "Notification preferences updated successfully",
+        settings: req.body 
+      });
+    } catch (error) {
+      console.error("Error updating notifications:", error);
+      res.status(500).json({ message: "Failed to update notification preferences" });
+    }
+  });
+  
+  app.put('/api/users/settings/preferences', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      
+      // In a real app, you'd store these in a user_preferences table
+      console.log('Updating preferences for user:', userId, req.body);
+      
+      res.json({ 
+        message: "Application preferences updated successfully",
+        settings: req.body 
+      });
+    } catch (error) {
+      console.error("Error updating preferences:", error);
+      res.status(500).json({ message: "Failed to update preferences" });
+    }
+  });
+  
+  app.put('/api/users/settings/integrations', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      
+      // In a real app, you'd store these in a user_preferences table
+      console.log('Updating integrations for user:', userId, req.body);
+      
+      res.json({ 
+        message: "Integration settings updated successfully",
+        settings: req.body 
+      });
+    } catch (error) {
+      console.error("Error updating integrations:", error);
+      res.status(500).json({ message: "Failed to update integration settings" });
+    }
+  });
 
   // Company routes
   app.get('/api/companies/current', authenticateSupabaseUser, async (req: any, res) => {

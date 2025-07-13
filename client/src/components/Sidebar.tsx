@@ -95,18 +95,20 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* User Profile */}
       <div className="px-4 py-4 border-t border-gray-200">
         <div className="flex items-center space-x-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.profileImageUrl} />
-            <AvatarFallback className="fieldflo-primary text-white">
-              {user?.firstName?.[0]}{user?.lastName?.[0]}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">
-              {user?.firstName} {user?.lastName}
-            </p>
-            <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
-          </div>
+          <Link href="/settings" onClick={handleLinkClick} className="flex items-center space-x-3 flex-1">
+            <Avatar className="h-8 w-8 cursor-pointer">
+              <AvatarImage src={user?.profileImageUrl} />
+              <AvatarFallback className="fieldflo-primary text-white">
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                {user?.firstName} {user?.lastName}
+              </p>
+              <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+            </div>
+          </Link>
           <div className="flex items-center space-x-1">
             <Button
               variant="ghost"
