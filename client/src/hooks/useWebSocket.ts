@@ -12,50 +12,55 @@ export function useWebSocket() {
   const connect = useCallback(() => {
     if (!user?.id || wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setIsConnected(true);
+    try {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
       
-      // Authenticate with user ID
-      ws.send(JSON.stringify({
-        type: 'auth',
-        userId: user.id
-      }));
-    };
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
         
-        // Call all registered message handlers
-        messageHandlersRef.current.forEach(handler => handler(data));
-      } catch (error) {
-        console.error('WebSocket message error:', error);
-      }
-    };
+        // Authenticate with user ID
+        ws.send(JSON.stringify({
+          type: 'auth',
+          userId: user.id
+        }));
+      };
 
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setIsConnected(false);
-      wsRef.current = null;
-      
-      // Attempt to reconnect after 3 seconds
-      setTimeout(() => {
-        if (user?.id) {
-          connect();
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Call all registered message handlers
+          messageHandlersRef.current.forEach(handler => handler(data));
+        } catch (error) {
+          console.error('WebSocket message error:', error);
         }
-      }, 3000);
-    };
+      };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setIsConnected(false);
+        wsRef.current = null;
+        
+        // Attempt to reconnect after 3 seconds
+        setTimeout(() => {
+          if (user?.id) {
+            connect();
+          }
+        }, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    } catch (error) {
+      console.error('Failed to establish WebSocket connection:', error);
+      setIsConnected(false);
+    }
   }, [user?.id]);
 
   const disconnect = useCallback(() => {
@@ -100,14 +105,17 @@ export function useWebSocket() {
 
 // Hook for document progress updates
 export function useDocumentProgress() {
-  const { addMessageHandler } = useWebSocket();
   const [documentProgress, setDocumentProgress] = useState<Record<number, {
     status: string;
     progress: number;
     message: string;
   }>>({});
 
+  const { addMessageHandler } = useWebSocket();
+
   useEffect(() => {
+    if (!addMessageHandler) return;
+    
     const cleanup = addMessageHandler((data) => {
       if (data.type === 'document_progress') {
         setDocumentProgress(prev => ({
