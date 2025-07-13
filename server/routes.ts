@@ -11,6 +11,7 @@ import { generateChangeOrderPDF } from "./services/pdfGenerator";
 import { processAIChat } from "./services/openai";
 import { insertDocumentSchema, insertChangeOrderSchema, insertProjectSchema } from "@shared/schema";
 import { Request, Response } from "express";
+import { aiAssistantService } from "./services/aiAssistant";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -304,6 +305,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export endpoints for AI assistant
+  app.post('/api/change-orders/:id/export/excel', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const changeOrder = await storage.getChangeOrder(id);
+      
+      if (!changeOrder) {
+        return res.status(404).json({ message: 'Change order not found' });
+      }
+      
+      const excelBuffer = await generateChangeOrderExcel(changeOrder);
+      
+      // Store the file path in the change order for later download
+      const fileName = `CO-${changeOrder.number}-${Date.now()}.xlsx`;
+      const filePath = `/exports/${fileName}`;
+      
+      // Update change order with export info
+      await storage.updateChangeOrder(id, {
+        lastExportedAt: new Date(),
+        exportedFiles: {
+          ...(changeOrder.exportedFiles as any || {}),
+          excel: { fileName, path: filePath, generatedAt: new Date() }
+        }
+      });
+      
+      res.json({ 
+        message: 'Excel file generated successfully',
+        fileName,
+        downloadUrl: `/api/change-orders/${id}/excel`
+      });
+    } catch (error) {
+      console.error('Error generating Excel:', error);
+      res.status(500).json({ message: 'Failed to generate Excel file' });
+    }
+  });
+
+  app.post('/api/change-orders/:id/export/pdf', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const changeOrder = await storage.getChangeOrder(id);
+      
+      if (!changeOrder) {
+        return res.status(404).json({ message: 'Change order not found' });
+      }
+      
+      const pdfBuffer = await generateChangeOrderPDF(changeOrder);
+      
+      // Store the file path in the change order for later download
+      const fileName = `CO-${changeOrder.number}-${Date.now()}.pdf`;
+      const filePath = `/exports/${fileName}`;
+      
+      // Update change order with export info
+      await storage.updateChangeOrder(id, {
+        lastExportedAt: new Date(),
+        exportedFiles: {
+          ...(changeOrder.exportedFiles as any || {}),
+          pdf: { fileName, path: filePath, generatedAt: new Date() }
+        }
+      });
+      
+      res.json({ 
+        message: 'PDF file generated successfully',
+        fileName,
+        downloadUrl: `/api/change-orders/${id}/pdf`
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      res.status(500).json({ message: 'Failed to generate PDF file' });
+    }
+  });
+
   // File upload and processing
   app.post('/api/documents/upload', authenticateSupabaseUser, uploadMultiple, async (req: any, res) => {
     try {
@@ -368,6 +440,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update document extracted data
+  app.patch('/api/documents/:id', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      const updatedDocument = await storage.updateDocument(id, updates);
+      res.json(updatedDocument);
+    } catch (error) {
+      console.error('Error updating document:', error);
+      res.status(500).json({ message: 'Failed to update document' });
+    }
+  });
+
   // Reprocess document
   app.post('/api/documents/:id/reprocess', authenticateSupabaseUser, async (req: any, res) => {
     try {
@@ -390,6 +481,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error reprocessing document:', error);
       res.status(500).json({ message: 'Failed to reprocess document' });
+    }
+  });
+
+  // Process document with AI vision
+  app.post('/api/documents/:id/process', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      // Update status to processing
+      await storage.updateDocument(id, { status: 'processing' });
+      
+      // Process document asynchronously
+      processDocument(id).catch(error => {
+        console.error(`Error processing document ${id}:`, error);
+      });
+      
+      res.json({ message: 'Document queued for processing' });
+    } catch (error) {
+      console.error('Error processing document:', error);
+      res.status(500).json({ message: 'Failed to process document' });
     }
   });
 
@@ -603,7 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requestActions
       };
       
-      const response = await processAIChat(message, enhancedContext);
+      const response = await aiAssistantService.processMessage(message, enhancedContext);
       
       res.json(response);
     } catch (error) {

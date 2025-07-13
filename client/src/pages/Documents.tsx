@@ -6,16 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { FileText, Download, Eye, Trash2, RefreshCw, CheckCircle, AlertCircle, Clock, Brain } from 'lucide-react';
+import { FileText, Download, Eye, Trash2, RefreshCw, CheckCircle, AlertCircle, Clock, Brain, Edit } from 'lucide-react';
 import { Document } from '@shared/schema';
 import { DocumentGridSkeleton, PulsingDot, AIThinkingIndicator } from '@/components/LoadingIndicators';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileUpload from '@/components/FileUpload';
 import ProjectSelector from '@/components/ProjectSelector';
+import DocumentEditor from '@/components/DocumentEditor';
 
 export default function Documents() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
   const [activeTab, setActiveTab] = useState('all');
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -261,6 +263,15 @@ export default function Documents() {
                                     <Eye className="h-3 w-3 mr-1" />
                                     View
                                   </Button>
+                                  {document.status === 'processed' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setEditingDocument(document)}
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                  )}
                                   {document.status === 'failed' && (
                                     <Button
                                       variant="outline"
@@ -303,6 +314,15 @@ export default function Documents() {
             </CardContent>
           </Card>
         </>
+      )}
+      
+      {/* Document Editor Modal */}
+      {editingDocument && (
+        <DocumentEditor
+          document={editingDocument}
+          isOpen={!!editingDocument}
+          onClose={() => setEditingDocument(null)}
+        />
       )}
     </div>
   );

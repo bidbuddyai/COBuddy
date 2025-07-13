@@ -257,23 +257,65 @@ export default function AIAssistantBubble() {
                     <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
-                <div className="border-t p-3">
-                  <div className="flex space-x-2">
-                    <Input
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type your message..."
-                      disabled={isLoading}
-                      className="flex-1 text-sm"
-                    />
-                    <Button 
-                      onClick={handleSendMessage} 
-                      disabled={isLoading || !input.trim()}
-                      size="sm"
-                    >
-                      <Send className="h-3 w-3" />
-                    </Button>
+                <div className="border-t">
+                  {/* Quick actions/suggestions */}
+                  {messages.length === 1 && (
+                    <div className="p-2 border-b">
+                      <p className="text-xs text-gray-500 mb-2">Try these actions:</p>
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setInput("Create a change order from the latest T&M sheet")}
+                        >
+                          Create Change Order
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setInput("Generate Excel and PDF for my latest change order")}
+                        >
+                          Export Files
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setInput("Edit the hourly rate for Operating Engineer to $125")}
+                        >
+                          Edit Rates
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setInput("Validate my recent imports against rate tables")}
+                        >
+                          Validate Data
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="flex space-x-2">
+                      <Input
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Type your message..."
+                        disabled={isLoading}
+                        className="flex-1 text-sm"
+                      />
+                      <Button 
+                        onClick={handleSendMessage} 
+                        disabled={isLoading || !input.trim()}
+                        size="sm"
+                      >
+                        <Send className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>

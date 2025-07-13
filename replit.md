@@ -37,6 +37,20 @@ Important features: Professional dashboard with sidebar navigation, not simplifi
   - All rates marked as public (companyId = null) and available to all companies
   - Public rates display "Public" badge in the UI
   - Only admin users can upload additional Caltrans rates via CSV upload
+- **Enhanced AI Assistant "CO Buddy AI" (Jan 13, 2025)**: Comprehensive AI assistant with full change order management capabilities
+  - Create/edit change orders from T&M sheets and documents
+  - Generate Excel and PDF exports with proper REI formatting
+  - Edit rate tables directly through conversational interface
+  - Validate imported documents against rate tables
+  - Context-aware suggestions based on current page
+  - Complete conversation logging for learning and reference
+  - Quick action buttons for common tasks
+- **Document Editor Feature (Jan 13, 2025)**: All uploaded and parsed documents can now be edited
+  - Edit extracted T&M data with inline editing
+  - Add/remove/modify labor, equipment, materials, and disposal items
+  - Automatic total recalculation when rates or quantities change
+  - Low confidence warnings for documents needing review
+  - Save changes directly to database
 
 ## System Architecture
 
@@ -89,12 +103,19 @@ The project uses a monorepo structure with shared types and schemas:
 - **Audit Logs**: Complete audit trail for all operations
 - **Chat Conversations**: AI assistant chat history
 
-### AI Integration
-- **OpenAI GPT-4 Vision**: Document OCR and data extraction
-- **Document Processing**: Automatic extraction of labor, equipment, and material data
-- **Rate Matching**: AI-powered matching of extracted data to company-wide rate tables
-- **Chat Assistant**: Context-aware AI helper for change order creation
-- **Confidence Scoring**: Quality assessment of extracted data
+### AI Integration  
+- **OpenAI GPT-4 Vision**: Document OCR and data extraction for T&M sheets, quotes, and invoices
+- **Document Processing**: Automatic extraction of labor, equipment, material, and disposal data
+- **Rate Matching**: AI-powered matching of extracted data to company-wide and public rate tables
+- **CO Buddy AI Assistant**: Full-featured AI assistant with comprehensive capabilities:
+  - Create and edit change orders from T&M documents
+  - Generate professional Excel and PDF exports
+  - Edit rate tables through natural language commands
+  - Validate imports against rate tables for accuracy
+  - Context-aware suggestions based on current page
+  - Complete action execution with API integration
+  - Conversation logging for continuous improvement
+- **Confidence Scoring**: Quality assessment of extracted data with visual indicators
 - **Analytics AI**: Advanced anomaly detection and predictive modeling per project
 
 ## Data Flow
@@ -156,7 +177,7 @@ The project uses a monorepo structure with shared types and schemas:
 - **SQL Injection Prevention**: Parameterized queries via Drizzle ORM
 - **Authentication**: Session-based authentication with role-based access
 
-## Current Application Status (January 12, 2025)
+## Current Application Status (January 13, 2025)
 
 ### ✅ **WORKING FEATURES:**
 1. **Company-Based Authentication**: ✅ Resource Environmental gets pre-loaded rates, chase@resource-env.com gets admin role
@@ -171,6 +192,10 @@ The project uses a monorepo structure with shared types and schemas:
 10. **Comprehensive Rate Database**: ✅ 77 rate tables with 2,703 entries covering all equipment, materials, labor, and disposal categories
 11. **Rate Table Editing**: ✅ Full edit functionality with inline editing for rates, descriptions, codes and units
 12. **Public Caltrans Rates**: ✅ 2,164 public equipment rental rates available to all companies
+13. **CO Buddy AI Assistant**: ✅ Comprehensive AI assistant that can create/edit change orders, generate Excel/PDF exports, edit rates, and validate imports
+14. **Document Editor**: ✅ All processed documents can be edited with inline editing for labor, equipment, materials, and disposal items
+15. **Change Order Export**: ✅ Generate professional Excel and PDF change orders with proper REI formatting
+16. **AI Conversation Logging**: ✅ Complete conversation history tracking for continuous improvement
 
 ### ✅ **COMPANY-SPECIFIC FEATURES:**
 - **Resource Environmental**: Pre-loaded with existing rate tables, chase@resource-env.com has admin access
