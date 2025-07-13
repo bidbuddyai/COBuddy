@@ -33,7 +33,15 @@ function Router() {
       {/* Auth callback route should always be available */}
       <Route path="/auth/callback" component={AuthCallback} />
       
-      {isLoading || !isAuthenticated ? (
+      {isLoading ? (
+        // Show a loading screen while checking auth status
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-[#03512A] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      ) : !isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
           <Route path="/auth" component={AuthPage} />

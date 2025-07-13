@@ -24,7 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('[Auth] Initial session check:', { 
+        hasSession: !!session, 
+        userId: session?.user?.id,
+        error: error?.message 
+      });
+      
+      if (error) {
+        console.error('[Auth] Session check error:', error);
+      }
+      
       setSupabaseUser(session?.user ?? null);
       if (session?.user) {
         fetchUserData(session.user.id);
@@ -34,7 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[Auth] Auth state change:', { 
+        event, 
+        hasSession: !!session,
+        userId: session?.user?.id 
+      });
+      
       setSupabaseUser(session?.user ?? null);
       if (session?.user) {
         fetchUserData(session.user.id);
