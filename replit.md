@@ -7,6 +7,8 @@ This is a next-generation, AI-powered Change Order Creator web application built
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+App focus: Everything must be project-centric with project selection/filtering.
+Important features: Professional dashboard with sidebar navigation, not simplified views.
 
 ## Recent Updates (January 2025)
 - **Added Quote and Invoice Processing**: Expanded AI vision to handle quotes and invoices in addition to T&M sheets

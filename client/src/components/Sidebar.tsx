@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { 
   LayoutDashboard, 
@@ -36,7 +36,7 @@ const navigation = [
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const { theme, toggleTheme } = useTheme();
 
   const handleLinkClick = () => {
