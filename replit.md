@@ -2,7 +2,15 @@
 
 ## Overview
 
-This is a next-generation, AI-powered Change Order Creator web application built with Express.js backend and React frontend. The application processes T&M (Time and Materials) sheets and rate tables from PDFs using OpenAI's Vision API, stores extracted data in a PostgreSQL database, and generates professional change orders in both Excel and PDF formats.
+This is a next-generation, AI-powered Change Order Creator web application built with Express.js backend and React frontend. The application follows a specific workflow:
+
+1. **Upload**: Users upload T&M (Time and Materials) sheets as PDFs through the Documents page
+2. **AI Processing**: Azure Document Intelligence + OpenAI Vision API extract labor, equipment, and material data from the PDFs
+3. **Rate Matching**: Extracted data is matched against company rate tables for accurate pricing
+4. **Change Order Creation**: Users click "Create CO" on processed documents to generate change orders with calculated amounts
+5. **Export**: Change orders can be exported as professional Excel and PDF documents
+
+The app processes T&M sheets, quotes, and invoices using AI, stores extracted data in PostgreSQL, and streamlines the change order creation process.
 
 ## User Preferences
 

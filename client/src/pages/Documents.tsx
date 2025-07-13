@@ -133,7 +133,89 @@ export default function Documents() {
       });
     },
   });
+  
+  const createChangeOrderMutation = useMutation({
+    mutationFn: async (document: Document) => {
+      // Calculate amounts from extracted data
+      const extractedData = document.extractedData as any;
+      let laborAmount = 0;
+      let equipmentAmount = 0; 
+      let materialAmount = 0;
+      
+      // Calculate labor amount
+      if (extractedData?.laborEntries) {
+        laborAmount = extractedData.laborEntries.reduce((total: number, entry: any) => {
+          const hours = entry.hours || 0;
+          const rate = entry.rate || 0;
+          return total + (hours * rate);
+        }, 0);
+      }
+      
+      // Calculate equipment amount
+      if (extractedData?.equipmentEntries) {
+        equipmentAmount = extractedData.equipmentEntries.reduce((total: number, entry: any) => {
+          const hours = entry.hours || 0;
+          const rate = entry.rate || 0;
+          return total + (hours * rate);
+        }, 0);
+      }
+      
+      // Calculate material amount
+      if (extractedData?.materialEntries) {
+        materialAmount = extractedData.materialEntries.reduce((total: number, entry: any) => {
+          const quantity = entry.quantity || 0;
+          const rate = entry.rate || 0;
+          return total + (quantity * rate);
+        }, 0);
+      }
+      
+      const totalAmount = laborAmount + equipmentAmount + materialAmount;
+      
+      // Create change order from the document's extracted data
+      const changeOrderData = {
+        projectId: document.projectId,
+        name: `CO from ${document.originalName}`,
+        description: `Change order created from T&M sheet: ${document.originalName}`,
+        documentIds: [document.id],
+        data: document.extractedData,
+        totalAmount: totalAmount.toFixed(2),
+        laborAmount: laborAmount.toFixed(2),
+        equipmentAmount: equipmentAmount.toFixed(2),
+        materialAmount: materialAmount.toFixed(2),
+      };
+      
+      return await apiRequest('POST', '/api/change-orders', changeOrderData);
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Change Order Created',
+        description: 'Successfully created change order from T&M sheet.',
+      });
+      // Navigate to the change order page
+      window.location.href = `/change-orders/${data.id}`;
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to create change order',
+        description: error.message || 'An error occurred while creating the change order.',
+        variant: 'destructive',
+      });
+    },
+  });
 
+  const handleCreateChangeOrder = (document: Document) => {
+    if (!document.projectId) {
+      toast({
+        title: 'Project Required',
+        description: 'Please assign this document to a project before creating a change order.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    createChangeOrderMutation.mutate(document);
+  };
+  
   const filteredDocuments = documents?.filter(doc => {
     if (activeTab === 'all') return true;
     if (activeTab === 'processed') return doc.status === 'processed';
@@ -426,10 +508,20 @@ export default function Documents() {
                                 </div>
 
                                 <div className="flex gap-2">
+                                  {document.status === 'processed' && document.type === 'tm_sheet' && (
+                                    <Button
+                                      size="sm"
+                                      className="flex-1"
+                                      onClick={() => handleCreateChangeOrder(document)}
+                                    >
+                                      <Rocket className="h-3 w-3 mr-1" />
+                                      Create CO
+                                    </Button>
+                                  )}
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="flex-1"
+                                    className={document.status === 'processed' && document.type === 'tm_sheet' ? '' : 'flex-1'}
                                     disabled={document.status === 'processing'}
                                   >
                                     <Eye className="h-3 w-3 mr-1" />

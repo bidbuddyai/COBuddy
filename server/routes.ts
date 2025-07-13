@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const changeOrderData = insertChangeOrderSchema.parse({
         ...processedBody,
         number: changeOrderNumber,
-        createdBy: parseInt(req.user.id),
+        createdBy: req.user.id, // user.id is already a string (UUID)
       });
       
       const changeOrder = await storage.createChangeOrder(changeOrderData);
