@@ -389,6 +389,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/projects/:id', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const user = req.user;
+      
+      const project = await storage.getProject(projectId);
+      
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      
+      // Ensure user can only access projects from their company
+      if (project.companyId !== user.companyId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      
+      res.json(project);
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      res.status(500).json({ message: 'Failed to fetch project' });
+    }
+  });
+
   app.post('/api/projects', authenticateSupabaseUser, async (req: any, res) => {
     try {
       const user = req.user;
