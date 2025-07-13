@@ -147,7 +147,12 @@ export default function ChangeOrders() {
           </Button>
           <Button 
             disabled={!selectedProjectId}
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              console.log('New Change Order button clicked');
+              console.log('Selected Project ID:', selectedProjectId);
+              console.log('Setting isCreateModalOpen to true');
+              setIsCreateModalOpen(true);
+            }}
           >
             <Plus className="h-4 w-4 mr-2" />
             New Change Order
@@ -371,6 +376,7 @@ export default function ChangeOrders() {
       />
       
       {/* Change Order Form Modal */}
+      {console.log('Modal state - isCreateModalOpen:', isCreateModalOpen)}
       <ChangeOrderForm
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
