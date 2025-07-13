@@ -95,6 +95,7 @@ export default function ChangeOrderForm({
       let materialEntries: EntryRow[] = [];
       let equipmentEntries: EntryRow[] = [];
       let disposalEntries: EntryRow[] = [];
+      let subcontractorEntries: EntryRow[] = [];
       
       selectedDocuments.forEach(doc => {
         const extractedData = doc.extractedData as any;
@@ -138,6 +139,16 @@ export default function ChangeOrderForm({
             amount: (entry.quantity || 0) * (entry.rate || 0)
           })));
         }
+        
+        if (extractedData?.subcontractorEntries) {
+          subcontractorEntries.push(...extractedData.subcontractorEntries.map((entry: any) => ({
+            description: `${entry.company || 'Subcontractor'}: ${entry.description || 'Services'}`,
+            unit: 'LS', // Lump Sum for subcontractor work
+            quantity: 1,
+            rate: entry.amount || 0,
+            amount: entry.amount || 0
+          })));
+        }
       });
       
       setFormData(prev => ({
@@ -149,7 +160,8 @@ export default function ChangeOrderForm({
         laborEntries,
         materialEntries,
         equipmentOwnedEntries: equipmentEntries, // Split equipment if needed
-        disposalEntries
+        disposalEntries,
+        subcontractorEntries
       }));
     }
   }, [selectedDocuments]);

@@ -17,6 +17,7 @@ The app processes T&M sheets, quotes, and invoices using AI, stores extracted da
 Preferred communication style: Simple, everyday language.
 App focus: Everything must be project-centric with project selection/filtering.
 Important features: Professional dashboard with sidebar navigation, not simplified views.
+Document categorization: Invoices from companies like Incompli are subcontractor entries, not labor. Invoices are typically for subcontractors, equipment rentals, or operated equipment.
 
 ## Recent Updates (January 2025)
 - **Added Project-Specific Markup Percentages (Jan 13, 2025)**: Major enhancement

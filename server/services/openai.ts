@@ -28,6 +28,21 @@ export interface ExtractedTMData {
     rate?: number;
     confidence: number;
   }[];
+  subcontractorEntries: {
+    company: string;
+    description: string;
+    amount: number;
+    invoiceNumber?: string;
+    confidence: number;
+  }[];
+  disposalEntries: {
+    type: string;
+    description: string;
+    quantity: number;
+    unit: string;
+    rate?: number;
+    confidence: number;
+  }[];
   date: string;
   projectInfo: {
     name?: string;
@@ -63,17 +78,21 @@ export async function extractTMData(documentText: string): Promise<ExtractedTMDa
       messages: [
         {
           role: "system",
-          content: `You are an expert at extracting Time and Material (T&M) data from construction documents. 
-          Extract all labor, equipment, and material entries with their quantities, hours, and rates.
+          content: `You are an expert at extracting Time and Material (T&M) data from construction documents, invoices, and quotes. 
+          Extract all labor, equipment, material, subcontractor, and disposal entries with their quantities, hours, amounts, and rates.
+          IMPORTANT: Invoices from companies like Incompli are SUBCONTRACTOR entries, not labor.
+          Invoices are typically for subcontractors, equipment rentals, or operated equipment.
           Pay special attention to all entries and ensure accuracy.
           Return the data in the specified JSON format with confidence scores (0-1) for each entry.`
         },
         {
           role: "user",
           content: `Please extract all T&M data from this document text. Include:
-              - Labor entries (name, role, hours worked)
+              - Labor entries (direct employees only - name, role, hours worked)
               - Equipment entries (type, description, hours used)
               - Material entries (type, description, quantity, unit)
+              - Subcontractor entries (company invoices like Incompli, description, total amount)
+              - Disposal entries (waste type, description, quantity, unit)
               - Project information (name, location, date)
               - Confidence scores for each extraction
               
@@ -85,6 +104,8 @@ export async function extractTMData(documentText: string): Promise<ExtractedTMDa
                 "laborEntries": [{"name": "string", "role": "string", "hours": number, "rate": number, "confidence": number}],
                 "equipmentEntries": [{"type": "string", "description": "string", "hours": number, "rate": number, "confidence": number}],
                 "materialEntries": [{"type": "string", "description": "string", "quantity": number, "unit": "string", "rate": number, "confidence": number}],
+                "subcontractorEntries": [{"company": "string", "description": "string", "amount": number, "invoiceNumber": "string", "confidence": number}],
+                "disposalEntries": [{"type": "string", "description": "string", "quantity": number, "unit": "string", "rate": number, "confidence": number}],
                 "date": "string",
                 "projectInfo": {"name": "string", "location": "string", "confidence": number},
                 "totalConfidence": number

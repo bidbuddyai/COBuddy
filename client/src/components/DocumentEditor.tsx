@@ -35,7 +35,8 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
     labor: [],
     equipment: [],
     materials: [],
-    disposal: []
+    disposal: [],
+    subcontractors: []
   });
   const { toast } = useToast();
 
@@ -94,9 +95,14 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
     const newData = { ...extractedData };
     if (!newData[category]) newData[category] = [];
     
-    const newItem: ExtractedItem = category === 'labor' 
-      ? { name: '', classification: '', rate: 0, hours: 0, total: 0 }
-      : { description: '', quantity: 0, unit: '', rate: 0, total: 0 };
+    let newItem: ExtractedItem;
+    if (category === 'labor') {
+      newItem = { name: '', classification: '', rate: 0, hours: 0, total: 0 };
+    } else if (category === 'subcontractors') {
+      newItem = { company: '', description: '', amount: 0, invoiceNumber: '' };
+    } else {
+      newItem = { description: '', quantity: 0, unit: '', rate: 0, total: 0 };
+    }
     
     newData[category].push(newItem);
     setExtractedData(newData);
@@ -149,6 +155,45 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
         </div>
       );
     }
+    
+    if (category === 'subcontractors') {
+      return (
+        <div className="grid grid-cols-5 gap-2 items-center p-2 border rounded">
+          <Input
+            value={item.company || ''}
+            onChange={(e) => updateCategory(category, index, 'company', e.target.value)}
+            placeholder="Company Name"
+          />
+          <Input
+            value={item.description || ''}
+            onChange={(e) => updateCategory(category, index, 'description', e.target.value)}
+            placeholder="Description"
+            className="col-span-2"
+          />
+          <Input
+            type="number"
+            value={item.amount || 0}
+            onChange={(e) => updateCategory(category, index, 'amount', parseFloat(e.target.value))}
+            placeholder="Amount"
+          />
+          <div className="flex items-center justify-between">
+            <Input
+              value={item.invoiceNumber || ''}
+              onChange={(e) => updateCategory(category, index, 'invoiceNumber', e.target.value)}
+              placeholder="Invoice #"
+              className="mr-2"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => removeItem(category, index)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="grid grid-cols-6 gap-2 items-center p-2 border rounded">
@@ -194,6 +239,9 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
   const calculateCategoryTotal = (category: string) => {
     if (!extractedData[category]) return 0;
     return extractedData[category].reduce((sum: number, item: ExtractedItem) => {
+      if (category === 'subcontractors') {
+        return sum + (item.amount || 0);
+      }
       return sum + (item.total || 0);
     }, 0);
   };
@@ -215,7 +263,7 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
         )}
 
         <Tabs defaultValue="labor" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="labor">
               Labor <Badge className="ml-2">{extractedData.labor?.length || 0}</Badge>
             </TabsTrigger>
@@ -228,9 +276,12 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
             <TabsTrigger value="disposal">
               Disposal <Badge className="ml-2">{extractedData.disposal?.length || 0}</Badge>
             </TabsTrigger>
+            <TabsTrigger value="subcontractors">
+              Subcontractors <Badge className="ml-2">{extractedData.subcontractors?.length || 0}</Badge>
+            </TabsTrigger>
           </TabsList>
 
-          {['labor', 'equipment', 'materials', 'disposal'].map((category) => (
+          {['labor', 'equipment', 'materials', 'disposal', 'subcontractors'].map((category) => (
             <TabsContent key={category} value={category} className="space-y-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
