@@ -26,7 +26,7 @@ import {
   type InsertChatConversation,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count, or, isNull } from "drizzle-orm";
+import { eq, desc, and, count, or, isNull, ne } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -247,12 +247,17 @@ export class DatabaseStorage implements IStorage {
   async getDocuments(projectId?: number): Promise<Document[]> {
     if (projectId) {
       const result = await db.select().from(documents)
-        .where(eq(documents.projectId, projectId))
+        .where(and(
+          eq(documents.projectId, projectId),
+          ne(documents.status, 'deleted')
+        ))
         .orderBy(desc(documents.uploadedAt));
       return result;
     }
     
-    const result = await db.select().from(documents).orderBy(desc(documents.uploadedAt));
+    const result = await db.select().from(documents)
+      .where(ne(documents.status, 'deleted'))
+      .orderBy(desc(documents.uploadedAt));
     return result;
   }
 

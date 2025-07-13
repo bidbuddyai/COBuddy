@@ -202,6 +202,103 @@ export default function Documents() {
       });
     },
   });
+  
+  const createMultiDocumentChangeOrderMutation = useMutation({
+    mutationFn: async (documentIds: number[]) => {
+      // Get selected documents
+      const selectedDocs = documents?.filter(d => documentIds.includes(d.id)) || [];
+      
+      // Calculate total amounts from all selected documents
+      let totalLaborAmount = 0;
+      let totalEquipmentAmount = 0;
+      let totalMaterialAmount = 0;
+      let combinedData: any = {
+        laborEntries: [],
+        equipmentEntries: [],
+        materialEntries: [],
+        disposalEntries: []
+      };
+      
+      selectedDocs.forEach(doc => {
+        const extractedData = doc.extractedData as any;
+        
+        // Combine labor entries
+        if (extractedData?.laborEntries) {
+          combinedData.laborEntries.push(...extractedData.laborEntries);
+          totalLaborAmount += extractedData.laborEntries.reduce((total: number, entry: any) => {
+            const hours = entry.hours || 0;
+            const rate = entry.rate || 0;
+            return total + (hours * rate);
+          }, 0);
+        }
+        
+        // Combine equipment entries
+        if (extractedData?.equipmentEntries) {
+          combinedData.equipmentEntries.push(...extractedData.equipmentEntries);
+          totalEquipmentAmount += extractedData.equipmentEntries.reduce((total: number, entry: any) => {
+            const hours = entry.hours || 0;
+            const rate = entry.rate || 0;
+            return total + (hours * rate);
+          }, 0);
+        }
+        
+        // Combine material entries
+        if (extractedData?.materialEntries) {
+          combinedData.materialEntries.push(...extractedData.materialEntries);
+          totalMaterialAmount += extractedData.materialEntries.reduce((total: number, entry: any) => {
+            const quantity = entry.quantity || 0;
+            const rate = entry.rate || 0;
+            return total + (quantity * rate);
+          }, 0);
+        }
+        
+        // Combine disposal entries if present
+        if (extractedData?.disposalEntries) {
+          combinedData.disposalEntries.push(...extractedData.disposalEntries);
+        }
+      });
+      
+      const totalAmount = totalLaborAmount + totalEquipmentAmount + totalMaterialAmount;
+      
+      // Get project ID from the first document (they should all be from the same project)
+      const projectId = selectedDocs[0]?.projectId;
+      
+      if (!projectId) {
+        throw new Error('Selected documents must be assigned to a project');
+      }
+      
+      // Create change order from combined data
+      const changeOrderData = {
+        projectId: projectId,
+        name: `CO from ${selectedDocs.length} T&M Sheets`,
+        description: `Change order created from documents: ${selectedDocs.map(d => d.originalName).join(', ')}`,
+        documentIds: documentIds,
+        data: combinedData,
+        totalAmount: totalAmount.toFixed(2),
+        laborAmount: totalLaborAmount.toFixed(2),
+        equipmentAmount: totalEquipmentAmount.toFixed(2),
+        materialAmount: totalMaterialAmount.toFixed(2),
+      };
+      
+      return await apiRequest('POST', '/api/change-orders', changeOrderData);
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Change Order Created',
+        description: `Successfully created change order from ${selectedDocuments.size} documents.`,
+      });
+      setSelectedDocuments(new Set());
+      // Navigate to the change order page
+      window.location.href = `/change-orders/${data.id}`;
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to create change order',
+        description: error.message || 'An error occurred while creating the change order.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   const handleCreateChangeOrder = (document: Document) => {
     if (!document.projectId) {
@@ -216,6 +313,58 @@ export default function Documents() {
     createChangeOrderMutation.mutate(document);
   };
   
+  const handleCreateMultiDocumentCO = () => {
+    const selectedDocIds = Array.from(selectedDocuments);
+    createMultiDocumentChangeOrderMutation.mutate(selectedDocIds);
+  };
+  
+  const canCreateCOFromSelected = () => {
+    if (selectedDocuments.size === 0) return false;
+    
+    const selectedDocs = documents?.filter(d => selectedDocuments.has(d.id)) || [];
+    
+    // All documents must be processed T&M sheets
+    const allProcessedTMSheets = selectedDocs.every(d => 
+      d.status === 'processed' && d.type === 'tm_sheet'
+    );
+    
+    if (!allProcessedTMSheets) return false;
+    
+    // All documents must be from the same project
+    const projectIds = selectedDocs.map(d => d.projectId);
+    const sameProject = projectIds.every(id => id === projectIds[0] && id !== null);
+    
+    return sameProject;
+  };
+  
+  const handleBulkProcess = () => {
+    const selectedDocIds = Array.from(selectedDocuments);
+    bulkProcessMutation.mutate(selectedDocIds);
+  };
+  
+  const handleBulkDelete = () => {
+    const selectedDocIds = Array.from(selectedDocuments);
+    bulkDeleteMutation.mutate(selectedDocIds);
+  };
+  
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked && filteredDocuments) {
+      setSelectedDocuments(new Set(filteredDocuments.map(d => d.id)));
+    } else {
+      setSelectedDocuments(new Set());
+    }
+  };
+  
+  const handleSelectDocument = (documentId: number) => {
+    const newSelection = new Set(selectedDocuments);
+    if (newSelection.has(documentId)) {
+      newSelection.delete(documentId);
+    } else {
+      newSelection.add(documentId);
+    }
+    setSelectedDocuments(newSelection);
+  };
+  
   const filteredDocuments = documents?.filter(doc => {
     if (activeTab === 'all') return true;
     if (activeTab === 'processed') return doc.status === 'processed';
@@ -223,36 +372,6 @@ export default function Documents() {
     if (activeTab === 'failed') return doc.status === 'failed';
     return true;
   });
-  
-  const handleSelectDocument = (documentId: number) => {
-    const newSelected = new Set(selectedDocuments);
-    if (newSelected.has(documentId)) {
-      newSelected.delete(documentId);
-    } else {
-      newSelected.add(documentId);
-    }
-    setSelectedDocuments(newSelected);
-  };
-  
-  const handleSelectAll = () => {
-    if (selectedDocuments.size === filteredDocuments?.length) {
-      setSelectedDocuments(new Set());
-    } else {
-      setSelectedDocuments(new Set(filteredDocuments?.map(doc => doc.id)));
-    }
-  };
-  
-  const handleBulkProcess = () => {
-    const ids = Array.from(selectedDocuments);
-    bulkProcessMutation.mutate(ids);
-  };
-  
-  const handleBulkDelete = () => {
-    if (confirm(`Are you sure you want to delete ${selectedDocuments.size} documents?`)) {
-      const ids = Array.from(selectedDocuments);
-      bulkDeleteMutation.mutate(ids);
-    }
-  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -392,6 +511,15 @@ export default function Documents() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleCreateMultiDocumentCO}
+                        disabled={!canCreateCOFromSelected()}
+                        className="inline-flex items-center gap-2"
+                      >
+                        <Rocket className="h-4 w-4" />
+                        Create CO from Selected
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
