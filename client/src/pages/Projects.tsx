@@ -24,13 +24,13 @@ export default function Projects() {
     clientContact: '',
     status: 'active' as const,
     budget: '',
-    markupLabor: '15',
-    markupMaterials: '25',
+    markupLabor: '20',
+    markupMaterials: '20',
     markupEquipmentOwned: '20',
-    markupEquipmentRented: '15',
+    markupEquipmentRented: '20',
     markupDisposal: '15',
     markupImport: '15',
-    markupSubcontractors: '10'
+    markupSubcontractors: '5'
   });
 
   const { toast } = useToast();
@@ -67,13 +67,13 @@ export default function Projects() {
         clientContact: '',
         status: 'active',
         budget: '',
-        markupLabor: '15',
-        markupMaterials: '25',
+        markupLabor: '20',
+        markupMaterials: '20',
         markupEquipmentOwned: '20',
-        markupEquipmentRented: '15',
+        markupEquipmentRented: '20',
         markupDisposal: '15',
         markupImport: '15',
-        markupSubcontractors: '10'
+        markupSubcontractors: '5'
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
     },
@@ -232,7 +232,7 @@ export default function Projects() {
                       max="100"
                       value={formData.markupLabor}
                       onChange={(e) => setFormData({ ...formData, markupLabor: e.target.value })}
-                      placeholder="15"
+                      placeholder="20"
                       className="h-8"
                     />
                   </div>
@@ -246,7 +246,7 @@ export default function Projects() {
                       max="100"
                       value={formData.markupMaterials}
                       onChange={(e) => setFormData({ ...formData, markupMaterials: e.target.value })}
-                      placeholder="25"
+                      placeholder="20"
                       className="h-8"
                     />
                   </div>
@@ -274,7 +274,7 @@ export default function Projects() {
                       max="100"
                       value={formData.markupEquipmentRented}
                       onChange={(e) => setFormData({ ...formData, markupEquipmentRented: e.target.value })}
-                      placeholder="15"
+                      placeholder="20"
                       className="h-8"
                     />
                   </div>
@@ -316,7 +316,7 @@ export default function Projects() {
                       max="100"
                       value={formData.markupSubcontractors}
                       onChange={(e) => setFormData({ ...formData, markupSubcontractors: e.target.value })}
-                      placeholder="10"
+                      placeholder="5"
                       className="h-8"
                     />
                   </div>

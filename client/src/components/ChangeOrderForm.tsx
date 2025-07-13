@@ -70,13 +70,13 @@ export default function ChangeOrderForm({
     
     // Markups (percentages) - use project defaults if available
     markups: {
-      labor: currentProject?.markupLabor || 15,
-      materials: currentProject?.markupMaterials || 25,
+      labor: currentProject?.markupLabor || 20,
+      materials: currentProject?.markupMaterials || 20,
       equipmentOwned: currentProject?.markupEquipmentOwned || 20,
-      equipmentRented: currentProject?.markupEquipmentRented || 15,
+      equipmentRented: currentProject?.markupEquipmentRented || 20,
       disposal: currentProject?.markupDisposal || 15,
       import: currentProject?.markupImport || 15,
-      subcontractors: currentProject?.markupSubcontractors || 10
+      subcontractors: currentProject?.markupSubcontractors || 5
     },
     
     // Contract Info
@@ -176,13 +176,13 @@ export default function ChangeOrderForm({
         toName: currentProject.clientContact || '',
         toCompany: currentProject.clientName || '',
         markups: {
-          labor: currentProject.markupLabor || 15,
-          materials: currentProject.markupMaterials || 25,
+          labor: currentProject.markupLabor || 20,
+          materials: currentProject.markupMaterials || 20,
           equipmentOwned: currentProject.markupEquipmentOwned || 20,
-          equipmentRented: currentProject.markupEquipmentRented || 15,
+          equipmentRented: currentProject.markupEquipmentRented || 20,
           disposal: currentProject.markupDisposal || 15,
           import: currentProject.markupImport || 15,
-          subcontractors: currentProject.markupSubcontractors || 10
+          subcontractors: currentProject.markupSubcontractors || 5
         }
       }));
     }

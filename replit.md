@@ -23,7 +23,7 @@ Document categorization: Invoices from companies like Incompli are subcontractor
 - **Added Project-Specific Markup Percentages (Jan 13, 2025)**: Major enhancement
   - Added markup percentage fields to project schema for each category
   - Project creation form now includes markup configuration section
-  - Default markups: Labor 15%, Materials 25%, Equipment Owned 20%, Equipment Rented 15%, Disposal 15%, Import 15%, Subcontractors 10%
+  - Default markups: Labor 20%, Materials 20%, Equipment Owned 20%, Equipment Rented 20%, Disposal 15%, Import 15%, Subcontractors 5%
   - Change Order Form automatically uses project-specific markups
   - Each project can have different markup percentages
   - Database migration completed to add markup columns
