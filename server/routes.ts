@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 // import { setupAuth, authenticateSupabaseUser } from "./replitAuth";
 // import { setupAuth, authenticateSupabaseUser } from "./auth";
@@ -400,9 +401,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const document = await storage.createDocument(documentData);
         uploadedDocuments.push(document);
         
-        // Process document asynchronously
-        processDocument(document.id).catch(error => {
+        // Send initial progress update
+        const userId = req.user.id;
+        (app as any).sendProgressUpdate?.(userId, {
+          type: 'document_progress',
+          documentId: document.id,
+          status: 'processing',
+          progress: 0,
+          message: 'Starting document processing...'
+        });
+        
+        // Process document asynchronously with progress updates
+        processDocument(document.id, (progress, message) => {
+          // Send progress updates via WebSocket
+          (app as any).sendProgressUpdate?.(userId, {
+            type: 'document_progress',
+            documentId: document.id,
+            status: 'processing',
+            progress,
+            message
+          });
+        }).then(() => {
+          // Send completion update
+          (app as any).sendProgressUpdate?.(userId, {
+            type: 'document_progress',
+            documentId: document.id,
+            status: 'completed',
+            progress: 100,
+            message: 'Document processing completed!'
+          });
+        }).catch(error => {
           console.error(`Error processing document ${document.id}:`, error);
+          // Send error update
+          (app as any).sendProgressUpdate?.(userId, {
+            type: 'document_progress',
+            documentId: document.id,
+            status: 'failed',
+            progress: 0,
+            message: `Processing failed: ${error.message}`
+          });
         });
       }
       
@@ -806,5 +843,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // WebSocket server for real-time updates
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store client connections by user ID
+  const userConnections = new Map<string, WebSocket>();
+  
+  wss.on('connection', (ws, req) => {
+    console.log('WebSocket client connected');
+    
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        
+        if (data.type === 'auth' && data.userId) {
+          // Store the connection with the user ID
+          userConnections.set(data.userId, ws);
+          ws.send(JSON.stringify({ type: 'auth_success' }));
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      // Remove the connection when closed
+      for (const [userId, connection] of userConnections) {
+        if (connection === ws) {
+          userConnections.delete(userId);
+          break;
+        }
+      }
+    });
+  });
+  
+  // Export function to send updates to specific users
+  (app as any).sendProgressUpdate = (userId: string, update: any) => {
+    const ws = userConnections.get(userId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(update));
+    }
+  };
+  
   return httpServer;
 }

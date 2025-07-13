@@ -193,11 +193,39 @@ export default function RateTables() {
     const matchesStatus = !statusFilter || statusFilter === 'all' || 
       (statusFilter === 'approved' && table.isApproved) ||
       (statusFilter === 'pending' && !table.isApproved);
-    const matchesSearch = !searchTerm || 
-      table.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      table.region?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesType && matchesStatus && matchesSearch;
+    // Enhanced search: search in table name, region, and rate entries
+    if (!searchTerm) return matchesType && matchesStatus;
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Search in table name and region
+    if (table.name.toLowerCase().includes(searchLower) ||
+        table.region?.toLowerCase().includes(searchLower)) {
+      return matchesType && matchesStatus;
+    }
+    
+    // Search within rate entries
+    const data = table.data;
+    let entries: any[] = [];
+    
+    if (Array.isArray(data)) {
+      entries = data;
+    } else if (data && typeof data === 'object' && 'entries' in data) {
+      entries = (data as any).entries || [];
+    }
+    
+    // Search in rate descriptions, codes, units
+    const matchesRateEntry = entries.some(entry => {
+      return (
+        entry.description?.toLowerCase().includes(searchLower) ||
+        entry.code?.toLowerCase().includes(searchLower) ||
+        entry.unit?.toLowerCase().includes(searchLower) ||
+        entry.rate?.toString().includes(searchTerm)
+      );
+    });
+    
+    return matchesType && matchesStatus && matchesRateEntry;
   });
 
   // Handle opening the view modal

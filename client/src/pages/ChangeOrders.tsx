@@ -12,8 +12,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { ChangeOrder } from '@shared/schema';
-import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage } from 'lucide-react';
+import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage, Folder } from 'lucide-react';
 import ProjectSelector from '@/components/ProjectSelector';
+import ChangeOrderTemplates from '@/components/ChangeOrderTemplates';
 
 export default function ChangeOrders() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -21,6 +22,7 @@ export default function ChangeOrders() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -149,6 +151,14 @@ export default function ChangeOrders() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            onClick={() => setIsTemplatesModalOpen(true)}
+            disabled={!selectedProjectId}
+          >
+            <Folder className="h-4 w-4 mr-2" />
+            Templates
+          </Button>
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
               <Button disabled={!selectedProjectId}>
@@ -432,6 +442,21 @@ export default function ChangeOrders() {
           </Card>
         </div>
       )}
+      
+      {/* Change Order Templates Modal */}
+      <ChangeOrderTemplates
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        onSelectTemplate={(template) => {
+          setFormData({
+            title: template.defaultTitle,
+            description: template.defaultDescription,
+            status: 'draft',
+            totalAmount: ''
+          });
+          setIsCreateModalOpen(true);
+        }}
+      />
     </div>
   );
 }

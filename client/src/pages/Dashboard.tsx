@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,25 @@ import AIChat from "@/components/AIChat";
 import ChangeOrderTable from "@/components/ChangeOrderTable";
 import DocumentViewer from "@/components/DocumentViewer";
 import ProjectSelector from "@/components/ProjectSelector";
+import QuickStartWizard from "@/components/QuickStartWizard";
 import { Plus, Download, Camera, Table, FileSpreadsheet, Settings, Activity, Building } from "lucide-react";
 import { Document } from "@shared/schema";
 
 export default function Dashboard() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
+  const [showQuickStart, setShowQuickStart] = useState(false);
 
   const { data: recentDocuments } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
+
+  useEffect(() => {
+    // Show Quick Start Wizard for new users
+    const quickStartCompleted = localStorage.getItem('quickStartCompleted');
+    if (!quickStartCompleted) {
+      setShowQuickStart(true);
+    }
+  }, []);
 
   const recentActivities = [
     {
@@ -198,6 +208,12 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      
+      {/* Quick Start Wizard */}
+      <QuickStartWizard 
+        isOpen={showQuickStart} 
+        onClose={() => setShowQuickStart(false)} 
+      />
     </div>
   );
 }

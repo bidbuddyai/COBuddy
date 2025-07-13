@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export async function processDocument(documentId: number): Promise<void> {
+export async function processDocument(documentId: number, progressCallback?: (progress: number, message: string) => void): Promise<void> {
   try {
     // Get document from database
     const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
@@ -30,23 +30,31 @@ export async function processDocument(documentId: number): Promise<void> {
     await db.update(documents)
       .set({ status: 'processing' })
       .where(eq(documents.id, documentId));
+    
+    progressCallback?.(10, 'Document found, starting processing...');
 
     // Read file and convert to base64
     const filePath = path.join(__dirname, '../uploads', document.filename);
     const fileBuffer = fs.readFileSync(filePath);
     const base64Data = fileBuffer.toString('base64');
+    
+    progressCallback?.(25, 'File loaded, analyzing content...');
 
     let extractedData: ExtractedTMData | ExtractedRateData | ExtractedQuoteData | ExtractedInvoiceData;
     let confidence: number;
 
     // Process based on document type
     if (document.type === 'tm_sheet') {
+      progressCallback?.(40, 'Extracting T&M data using AI vision...');
       extractedData = await extractTMData(base64Data);
       confidence = (extractedData as ExtractedTMData).totalConfidence;
+      progressCallback?.(70, 'T&M data extracted successfully!');
     } else if (document.type === 'rate_table') {
+      progressCallback?.(40, 'Extracting rate table data...');
       extractedData = await extractRateTableData(base64Data);
       confidence = (extractedData as ExtractedRateData).metadata.confidence;
       
+      progressCallback?.(60, 'Storing rate table entries...');
       // Store rate table data separately
       await db.insert(rateTables).values({
         name: document.originalName,
@@ -56,18 +64,27 @@ export async function processDocument(documentId: number): Promise<void> {
         sourceFile: document.filename,
         isApproved: false,
       });
+      progressCallback?.(70, 'Rate table stored successfully!');
     } else if (document.type === 'quote') {
+      progressCallback?.(40, 'Extracting quote data...');
       extractedData = await extractQuoteData(base64Data);
       confidence = (extractedData as ExtractedQuoteData).totalConfidence;
+      progressCallback?.(70, 'Quote data extracted successfully!');
     } else if (document.type === 'invoice') {
+      progressCallback?.(40, 'Extracting invoice data...');
       extractedData = await extractInvoiceData(base64Data);
       confidence = (extractedData as ExtractedInvoiceData).totalConfidence;
+      progressCallback?.(70, 'Invoice data extracted successfully!');
     } else {
       // For other document types, use general extraction
+      progressCallback?.(40, 'Extracting document data...');
       extractedData = await extractTMData(base64Data);
       confidence = (extractedData as ExtractedTMData).totalConfidence;
+      progressCallback?.(70, 'Data extracted successfully!');
     }
 
+    progressCallback?.(85, 'Saving extracted data...');
+    
     // Update document with extracted data
     await db.update(documents)
       .set({
@@ -77,6 +94,8 @@ export async function processDocument(documentId: number): Promise<void> {
         processedAt: new Date(),
       })
       .where(eq(documents.id, documentId));
+      
+    progressCallback?.(100, 'Processing completed successfully!');
 
   } catch (error) {
     console.error('Document processing error:', error);
