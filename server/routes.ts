@@ -643,7 +643,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const uploadedDocuments = [];
+      const userId = req.user.id;
       
+      // First, create all document records
       for (const file of files) {
         const documentData = insertDocumentSchema.parse({
           filename: file.filename,
@@ -657,48 +659,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const document = await storage.createDocument(documentData);
         uploadedDocuments.push(document);
-        
-        // Send initial progress update
-        const userId = req.user.id;
-        (app as any).sendProgressUpdate?.(userId, {
-          type: 'document_progress',
-          documentId: document.id,
-          status: 'processing',
-          progress: 0,
-          message: 'Starting document processing...'
-        });
-        
-        // Process document asynchronously with progress updates
-        processDocument(document.id, (progress, message) => {
-          // Send progress updates via WebSocket
+      }
+      
+      // Process documents sequentially with 3-second delay to avoid Azure rate limits
+      const processDocumentsSequentially = async () => {
+        for (let i = 0; i < uploadedDocuments.length; i++) {
+          const document = uploadedDocuments[i];
+          
+          // Add 3-second delay between documents (except for the first one)
+          if (i > 0) {
+            console.log(`Waiting 3 seconds before processing next document to avoid Azure rate limits...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+          
+          // Send initial progress update
           (app as any).sendProgressUpdate?.(userId, {
             type: 'document_progress',
             documentId: document.id,
             status: 'processing',
-            progress,
-            message
-          });
-        }).then(() => {
-          // Send completion update
-          (app as any).sendProgressUpdate?.(userId, {
-            type: 'document_progress',
-            documentId: document.id,
-            status: 'completed',
-            progress: 100,
-            message: 'Document processing completed!'
-          });
-        }).catch(error => {
-          console.error(`Error processing document ${document.id}:`, error);
-          // Send error update
-          (app as any).sendProgressUpdate?.(userId, {
-            type: 'document_progress',
-            documentId: document.id,
-            status: 'failed',
             progress: 0,
-            message: `Processing failed: ${error.message}`
+            message: 'Starting document processing...'
           });
-        });
-      }
+          
+          try {
+            await processDocument(document.id, (progress, message) => {
+              // Send progress updates via WebSocket
+              (app as any).sendProgressUpdate?.(userId, {
+                type: 'document_progress',
+                documentId: document.id,
+                status: 'processing',
+                progress,
+                message
+              });
+            });
+            
+            // Send completion update
+            (app as any).sendProgressUpdate?.(userId, {
+              type: 'document_progress',
+              documentId: document.id,
+              status: 'completed',
+              progress: 100,
+              message: 'Document processing completed!'
+            });
+          } catch (error: any) {
+            console.error(`Error processing document ${document.id}:`, error);
+            // Send error update
+            (app as any).sendProgressUpdate?.(userId, {
+              type: 'document_progress',
+              documentId: document.id,
+              status: 'failed',
+              progress: 0,
+              message: `Processing failed: ${error.message}`
+            });
+          }
+        }
+      };
+      
+      // Start processing documents in the background
+      processDocumentsSequentially().catch(error => {
+        console.error('Error in sequential document processing:', error);
+      });
       
       res.status(201).json(uploadedDocuments);
     } catch (error) {
