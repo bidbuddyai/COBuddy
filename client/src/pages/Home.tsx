@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import CompanySetupModal from "@/components/CompanySetupModal";
+import COBuddyIcon from "@assets/icon_1752387185212.png";
 
 export default function Home() {
   const { user, isLoading, signOut } = useSupabaseAuth();
@@ -40,13 +41,20 @@ export default function Home() {
       <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                Change Order Creator
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">
-                Welcome back, {user?.firstName || user?.email}
-              </p>
+            <div className="flex items-center space-x-4">
+              <img 
+                src={COBuddyIcon} 
+                alt="CO Buddy AI" 
+                className="w-12 h-12 rounded-xl"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  CO Buddy AI
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Welcome back, {user?.firstName || user?.email}
+                </p>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">

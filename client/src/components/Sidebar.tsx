@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useTheme } from "@/hooks/useTheme";
+import COBuddyIcon from "@assets/icon_1752387185212.png";
 import { 
   LayoutDashboard, 
   Upload, 
@@ -61,9 +62,11 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* Logo Section */}
       <div className="flex items-center px-6 py-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 fieldflo-primary rounded-xl flex items-center justify-center">
-            <FileText className="text-white text-lg" />
-          </div>
+          <img 
+            src={COBuddyIcon} 
+            alt="CO Buddy AI" 
+            className="w-10 h-10 rounded-xl object-cover"
+          />
           <div>
             <h1 className="text-xl font-bold text-gray-900">CO Buddy AI</h1>
             <p className="text-xs text-gray-500">Change Order Creator</p>

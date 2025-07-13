@@ -14,6 +14,7 @@ import { Loader2, Building2 } from "lucide-react";
 import { FaLinkedin, FaMicrosoft } from "react-icons/fa";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import COBuddyIcon from "@assets/icon_1752387185212.png";
 
 const loginSchema = z.object({
   username: z.string().email("Please enter a valid email"),
@@ -172,7 +173,14 @@ export default function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Welcome to Change Order Creator</CardTitle>
+            <div className="flex items-center justify-center mb-4">
+              <img 
+                src={COBuddyIcon} 
+                alt="CO Buddy AI" 
+                className="w-16 h-16 rounded-xl"
+              />
+            </div>
+            <CardTitle>Welcome to CO Buddy AI</CardTitle>
             <CardDescription>
               Sign in to your account or create a new one
             </CardDescription>
@@ -357,7 +365,12 @@ export default function AuthPage() {
       
       <div className="hidden lg:flex flex-1 bg-primary/5 items-center justify-center p-8">
         <div className="max-w-md space-y-4 text-center">
-          <h2 className="text-3xl font-bold text-primary">AI-Powered Change Order Creator</h2>
+          <img 
+            src={COBuddyIcon} 
+            alt="CO Buddy AI" 
+            className="w-32 h-32 rounded-2xl mx-auto mb-6 shadow-lg"
+          />
+          <h2 className="text-3xl font-bold text-primary">CO Buddy AI</h2>
           <p className="text-muted-foreground">
             Transform your Time & Materials data into professional change orders with our advanced AI processing.
           </p>

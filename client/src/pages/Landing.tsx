@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Zap, BarChart3, MessageSquare, Shield, Users } from "lucide-react";
 import { Link } from "wouter";
+import COBuddyIcon from "@assets/icon_1752387185212.png";
 
 export default function Landing() {
   return (
@@ -9,8 +10,15 @@ export default function Landing() {
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-16">
+          <div className="flex justify-center mb-6">
+            <img 
+              src={COBuddyIcon} 
+              alt="CO Buddy AI" 
+              className="w-24 h-24 rounded-2xl shadow-lg"
+            />
+          </div>
           <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-            AI-Powered Change Order Creator
+            CO Buddy AI
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
             Transform your T&M sheets into professional change orders with AI-powered document processing and intelligent rate matching.
