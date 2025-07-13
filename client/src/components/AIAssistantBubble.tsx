@@ -93,18 +93,17 @@ export default function AIAssistantBubble() {
         url: window.location.href
       };
 
-      const response = await apiRequest('/api/ai/chat', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          message: input,
-          context: pageContext,
-          requestActions: true // Enable AI to perform actions
-        })
+      const response = await apiRequest('POST', '/api/ai/chat', { 
+        message: input,
+        context: pageContext,
+        requestActions: true // Enable AI to perform actions
       });
 
+      const responseData = await response.json();
+
       // Handle AI actions if any
-      if (response.actions && response.actions.length > 0) {
-        for (const action of response.actions) {
+      if (responseData.actions && responseData.actions.length > 0) {
+        for (const action of responseData.actions) {
           await handleAIAction(action);
         }
       }
@@ -112,7 +111,7 @@ export default function AIAssistantBubble() {
       const assistantMessage: Message = {
         id: messages.length + 2,
         role: 'assistant',
-        content: response.message,
+        content: responseData.message,
         timestamp: new Date()
       };
 
@@ -135,20 +134,14 @@ export default function AIAssistantBubble() {
           window.location.href = action.url;
           break;
         case 'create':
-          await apiRequest(action.endpoint, {
-            method: 'POST',
-            body: JSON.stringify(action.data)
-          });
+          await apiRequest('POST', action.endpoint, action.data);
           toast({
             title: "Success",
             description: action.successMessage || "Action completed successfully"
           });
           break;
         case 'update':
-          await apiRequest(action.endpoint, {
-            method: 'PATCH',
-            body: JSON.stringify(action.data)
-          });
+          await apiRequest('PATCH', action.endpoint, action.data);
           toast({
             title: "Success",
             description: action.successMessage || "Updated successfully"
