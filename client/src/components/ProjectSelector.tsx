@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building, Plus } from 'lucide-react';
 import { Project } from '@shared/schema';
+import { useLocation } from 'wouter';
 
 interface ProjectSelectorProps {
   selectedProjectId?: number;
@@ -11,6 +12,7 @@ interface ProjectSelectorProps {
 }
 
 export default function ProjectSelector({ selectedProjectId, onProjectSelect }: ProjectSelectorProps) {
+  const [, navigate] = useLocation();
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
   });
@@ -38,7 +40,10 @@ export default function ProjectSelector({ selectedProjectId, onProjectSelect }: 
             <p className="mt-1 text-sm text-gray-500">
               Create your first project to get started.
             </p>
-            <Button className="mt-4 fieldflo-primary fieldflo-primary-hover">
+            <Button 
+              className="mt-4 fieldflo-primary fieldflo-primary-hover"
+              onClick={() => navigate('/projects')}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create Project
             </Button>
@@ -81,7 +86,11 @@ export default function ProjectSelector({ selectedProjectId, onProjectSelect }: 
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => navigate('/projects')}
+          >
             <Plus className="h-4 w-4 mr-2" />
             New Project
           </Button>
