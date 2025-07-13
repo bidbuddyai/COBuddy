@@ -34,7 +34,9 @@ const fileFilter = (req: any, file: any, cb: any) => {
     'image/heic',
     'image/heif',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel'
+    'application/vnd.ms-excel',
+    'text/csv',
+    'application/csv'
   ];
   
   if (allowedTypes.includes(file.mimetype)) {

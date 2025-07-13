@@ -26,7 +26,7 @@ import {
   type InsertChatConversation,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count } from "drizzle-orm";
+import { eq, desc, and, count, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -69,6 +69,7 @@ export interface IStorage {
   createRateTable(rateTable: InsertRateTable): Promise<RateTable>;
   approveRateTable(id: number, reviewedBy: string): Promise<RateTable>;
   updateRateTable(id: number, data: Partial<RateTable>): Promise<RateTable>;
+  getPublicRateTables(): Promise<RateTable[]>;
 
   // Chat operations
   getChatConversations(userId?: string): Promise<ChatConversation[]>;
@@ -310,6 +311,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(rateTables.id, id))
       .returning();
     return rateTable;
+  }
+
+  async getPublicRateTables(): Promise<RateTable[]> {
+    return await db.select().from(rateTables)
+      .where(or(
+        isNull(rateTables.companyId),
+        eq(rateTables.isPublic, true)
+      ))
+      .orderBy(desc(rateTables.extractedAt));
   }
 
   // Company operations

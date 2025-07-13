@@ -62,11 +62,12 @@ export const rateTables = pgTable("rate_tables", {
   region: varchar("region"),
   data: jsonb("data").notNull(), // Structured rate data
   sourceFile: varchar("source_file"),
-  companyId: integer("company_id").references(() => companies.id).notNull(),
+  companyId: integer("company_id").references(() => companies.id), // Nullable for public rates (Caltrans)
   extractedAt: timestamp("extracted_at").defaultNow(),
   reviewedBy: varchar("reviewed_by").references(() => users.id),
   reviewedAt: timestamp("reviewed_at"),
   isApproved: boolean("is_approved").default(false),
+  isPublic: boolean("is_public").default(false), // For Caltrans and other public rates
 });
 
 // Projects

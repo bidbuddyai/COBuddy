@@ -4,7 +4,7 @@ import { storage } from "./storage";
 // import { setupAuth, authenticateSupabaseUser } from "./replitAuth";
 // import { setupAuth, authenticateSupabaseUser } from "./auth";
 import { authenticateSupabaseUser } from "./middleware/supabaseAuth";
-import { uploadMultiple } from "./middleware/upload";
+import { uploadMultiple, upload } from "./middleware/upload";
 import { processDocument, matchRatesToExtractedData } from "./services/documentProcessor";
 import { generateChangeOrderExcel } from "./services/excelGenerator";
 import { generateChangeOrderPDF } from "./services/pdfGenerator";
@@ -174,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectData = insertProjectSchema.parse({
         ...processedBody,
         number: projectNumber,
-        createdBy: parseInt(req.user.claims.sub),
+        createdBy: parseInt(req.user.id),
       });
       
       const project = await storage.createProject(projectData);
@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const changeOrderData = insertChangeOrderSchema.parse({
         ...processedBody,
         number: changeOrderNumber,
-        createdBy: parseInt(req.user.claims.sub),
+        createdBy: parseInt(req.user.id),
       });
       
       const changeOrder = await storage.createChangeOrder(changeOrderData);
@@ -322,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           size: file.size,
           type: req.body.type || 'tm_sheet',
           projectId: req.body.projectId ? parseInt(req.body.projectId) : undefined,
-          uploadedBy: parseInt(req.user.claims.sub),
+          uploadedBy: parseInt(req.user.id),
         });
         
         const document = await storage.createDocument(documentData);
@@ -416,8 +416,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rate table routes
   app.get('/api/rate-tables', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const rateTables = await storage.getRateTables();
-      res.json(rateTables);
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+      
+      // Get both company-specific and public rate tables
+      const companyRates = await storage.getRateTables(user.companyId || undefined);
+      const publicRates = await storage.getPublicRateTables();
+      
+      // Combine and return all available rates
+      const allRates = [...companyRates, ...publicRates];
+      res.json(allRates);
     } catch (error) {
       console.error('Error fetching rate tables:', error);
       res.status(500).json({ message: 'Failed to fetch rate tables' });
@@ -427,15 +438,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Protected route - require admin role
   app.put('/api/rate-tables/:id/approve', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = req.user;
       
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
       const id = parseInt(req.params.id);
-      const rateTable = await storage.approveRateTable(id, parseInt(userId));
+      const rateTable = await storage.approveRateTable(id, parseInt(user.id));
       res.json(rateTable);
     } catch (error) {
       console.error('Error approving rate table:', error);
@@ -446,8 +456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update rate table data
   app.put('/api/rate-tables/:id', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = req.user;
       
       if (!user || (user.role !== 'admin' && user.role !== 'pm')) {
         return res.status(403).json({ message: 'Admin or PM access required' });
@@ -522,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/chat/conversations', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const conversations = await storage.getChatConversations(parseInt(req.user.claims.sub));
+      const conversations = await storage.getChatConversations(parseInt(req.user.id));
       res.json(conversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -600,6 +609,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Analytics error:', error);
       res.status(500).json({ message: 'Failed to generate analytics' });
+    }
+  });
+
+  // Upload Caltrans rates (admin only)
+  app.post('/api/rate-tables/caltrans/upload', authenticateSupabaseUser, upload.single('file'), async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      
+      const csvData = req.file.buffer.toString('utf-8');
+      const { importCaltransRates } = await import('./services/caltransRateImporter.js');
+      
+      const result = await importCaltransRates(csvData, new Date());
+      res.json(result);
+    } catch (error) {
+      console.error('Error uploading Caltrans rates:', error);
+      res.status(500).json({ message: error.message || 'Failed to upload Caltrans rates' });
+    }
+  });
+
+  // Get Caltrans rates specifically
+  app.get('/api/rate-tables/caltrans', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { getCaltransRates } = await import('./services/caltransRateImporter.js');
+      const caltransRates = await getCaltransRates();
+      res.json(caltransRates);
+    } catch (error) {
+      console.error('Error fetching Caltrans rates:', error);
+      res.status(500).json({ message: 'Failed to fetch Caltrans rates' });
     }
   });
 

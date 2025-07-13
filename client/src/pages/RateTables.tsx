@@ -11,6 +11,93 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Database, Upload, CheckCircle, AlertCircle, Clock, Eye, Download, Filter, Search, Edit, Save, X } from "lucide-react";
 import { RateTable } from "@shared/schema";
+import { useDropzone } from "react-dropzone";
+
+// Caltrans uploader component
+function CaltransUploader() {
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const uploadCaltransRates = async (file: File) => {
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await fetch('/api/rate-tables/caltrans/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Upload failed');
+      }
+      
+      const result = await response.json();
+      
+      toast({
+        title: "Success",
+        description: `Imported ${result.totalImported} Caltrans rates successfully!`
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/rate-tables"] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload Caltrans rates",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        uploadCaltransRates(acceptedFiles[0]);
+      }
+    },
+    accept: {
+      'text/csv': ['.csv']
+    },
+    maxFiles: 1
+  });
+  
+  return (
+    <div>
+      <div
+        {...getRootProps()}
+        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+          ${isDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'}`}
+      >
+        <input {...getInputProps()} />
+        {uploading ? (
+          <div className="flex flex-col items-center">
+            <Database className="h-12 w-12 text-gray-400 mb-3 animate-pulse" />
+            <p className="text-sm text-gray-600">Uploading Caltrans rates...</p>
+          </div>
+        ) : isDragActive ? (
+          <div className="flex flex-col items-center">
+            <Upload className="h-12 w-12 text-green-500 mb-3" />
+            <p className="text-sm text-gray-600">Drop the CSV file here...</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center">
+            <Database className="h-12 w-12 text-gray-400 mb-3" />
+            <p className="text-sm text-gray-600 mb-1">
+              Drag and drop Caltrans CSV file here, or click to select
+            </p>
+            <p className="text-xs text-gray-500">Only CSV files are accepted</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function RateTables() {
   const [typeFilter, setTypeFilter] = useState<string>("");
@@ -23,6 +110,11 @@ export default function RateTables() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Get user data to check if admin
+  const { data: user } = useQuery({
+    queryKey: ["/api/auth/me"],
+  });
 
   const { data: rateTables, isLoading } = useQuery<RateTable[]>({
     queryKey: ["/api/rate-tables"],
@@ -205,6 +297,28 @@ export default function RateTables() {
             <Upload className="h-4 w-4 mr-2" />
             Upload Rate PDF
           </Button>
+          {user?.role === 'admin' && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Database className="h-4 w-4 mr-2" />
+                  Upload Caltrans Rates
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Upload Caltrans Rates</DialogTitle>
+                  <DialogDescription>
+                    Upload official California Department of Transportation equipment rental rates in CSV format.
+                    These rates will be available to all companies.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <CaltransUploader />
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
           <Button variant="outline">
             Export All
           </Button>
@@ -329,15 +443,22 @@ export default function RateTables() {
                         {new Date(table.effectiveDate).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <Badge className={table.isApproved ? 
-                          'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                          'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                        }>
-                          {getStatusIcon(table.isApproved)}
-                          <span className="ml-1">
-                            {table.isApproved ? 'Approved' : 'Pending'}
-                          </span>
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={table.isApproved ? 
+                            'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                          }>
+                            {getStatusIcon(table.isApproved)}
+                            <span className="ml-1">
+                              {table.isApproved ? 'Approved' : 'Pending'}
+                            </span>
+                          </Badge>
+                          {table.companyId === 0 && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-700">
+                              Public
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
