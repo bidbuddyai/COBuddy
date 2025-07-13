@@ -25,6 +25,7 @@ import {
   X
 } from "lucide-react";
 import type { User, Company } from "@/shared/schema";
+import { PlayfulLoadingAnimation } from "@/components/PlayfulLoadingAnimations";
 
 export default function Company() {
   const { user } = useSupabaseAuth();
@@ -190,9 +191,21 @@ export default function Company() {
   if (companyLoading || usersLoading) {
     return (
       <div className="p-6 space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Company Management</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Manage your company information and team members
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center h-64">
+          <PlayfulLoadingAnimation 
+            stage="analyzing" 
+            message="CO Buddy is loading your company data..."
+            size="lg"
+          />
         </div>
       </div>
     );

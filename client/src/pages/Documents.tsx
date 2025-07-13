@@ -15,6 +15,7 @@ import FileUpload from '@/components/FileUpload';
 import ProjectSelector from '@/components/ProjectSelector';
 import DocumentEditor from '@/components/DocumentEditor';
 import { useDocumentProgress } from '@/hooks/useWebSocket';
+import { COBuddyThinkingAnimation, PulsingCOBuddy } from '@/components/PlayfulLoadingAnimations';
 
 export default function Documents() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -363,7 +364,7 @@ export default function Documents() {
                                       {getStatusIcon(document.status)}
                                       <span className="ml-1 capitalize">{document.status}</span>
                                     </Badge>
-                                    {document.status === 'processing' && <AIThinkingIndicator />}
+                                    {document.status === 'processing' && <COBuddyThinkingAnimation />}
                                   </div>
                                   
                                   {/* Real-time progress display */}

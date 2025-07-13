@@ -13,6 +13,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Plus, Building, Calendar, DollarSign, FileText, Settings, Eye } from 'lucide-react';
 import { Link } from 'wouter';
 import type { Project } from '@shared/schema';
+import { PlayfulLoadingAnimation } from '@/components/PlayfulLoadingAnimations';
 
 export default function Projects() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -82,13 +83,23 @@ export default function Projects() {
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-48 bg-gray-200 rounded"></div>
-            ))}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Projects
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Manage your construction projects and track progress
+            </p>
           </div>
+        </div>
+        
+        <div className="flex items-center justify-center h-64">
+          <PlayfulLoadingAnimation 
+            stage="extracting" 
+            message="CO Buddy is organizing your projects..."
+            size="lg"
+          />
         </div>
       </div>
     );

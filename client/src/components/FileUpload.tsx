@@ -11,6 +11,7 @@ import { CloudUpload, FileText, Image, Eye, CheckCircle, AlertCircle, Clock, Spa
 import { FileUploadResponse } from "@/types";
 import { DocumentProcessingIndicator, PulsingDot } from "@/components/LoadingIndicators";
 import { motion, AnimatePresence } from "framer-motion";
+import { PlayfulLoadingAnimation } from "@/components/PlayfulLoadingAnimations";
 
 interface FileUploadProps {
   onUploadComplete?: (files: FileUploadResponse[]) => void;
@@ -243,12 +244,24 @@ export default function FileUpload({
               className="space-y-3"
             >
               {Object.entries(processingStages).map(([fileName, stage]) => (
-                <DocumentProcessingIndicator
-                  key={fileName}
-                  stage={stage}
-                  progress={stage === 'uploading' ? uploadProgress[fileName] : 0}
-                  fileName={fileName}
-                />
+                <div key={fileName} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fileName}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {stage}
+                    </Badge>
+                  </div>
+                  <PlayfulLoadingAnimation
+                    stage={stage}
+                    message={`CO Buddy is processing ${fileName}...`}
+                    size="sm"
+                  />
+                  {stage === 'uploading' && (
+                    <div className="mt-2">
+                      <Progress value={uploadProgress[fileName] || 0} className="h-2" />
+                    </div>
+                  )}
+                </div>
               ))}
             </motion.div>
           )}

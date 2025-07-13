@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Database, Upload, CheckCircle, AlertCircle, Clock, Eye, Download, Filter, Search, Edit, Save, X } from "lucide-react";
 import { RateTable } from "@shared/schema";
 import { useDropzone } from "react-dropzone";
+import { PlayfulLoadingAnimation } from "@/components/PlayfulLoadingAnimations";
 
 // Caltrans uploader component
 function CaltransUploader() {
@@ -309,6 +310,29 @@ export default function RateTables() {
       color: "bg-emerald-100 text-emerald-600"
     }
   ];
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Rate Tables</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Comprehensive rate database
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center h-64">
+          <PlayfulLoadingAnimation 
+            stage="matching" 
+            message="CO Buddy is loading your rate tables..."
+            size="lg"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

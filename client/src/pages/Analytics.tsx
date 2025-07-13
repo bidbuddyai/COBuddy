@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ProjectSelector from '@/components/ProjectSelector';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { DollarSign, TrendingUp, FileText, AlertTriangle, Building } from 'lucide-react';
+import { PlayfulLoadingAnimation, DataProcessingWave } from '@/components/PlayfulLoadingAnimations';
 
 interface ProjectAnalytics {
   totalChangeOrders: number;
@@ -71,13 +72,32 @@ export default function Analytics() {
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Analytics
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Project analytics and insights
+            </p>
           </div>
+        </div>
+
+        <ProjectSelector
+          selectedProjectId={selectedProjectId}
+          onProjectSelect={setSelectedProjectId}
+        />
+
+        <div className="flex items-center justify-center h-64">
+          <PlayfulLoadingAnimation 
+            stage="analyzing" 
+            message="CO Buddy is crunching the numbers..."
+            size="lg"
+          />
+        </div>
+        
+        <div className="mb-4">
+          <DataProcessingWave />
         </div>
       </div>
     );

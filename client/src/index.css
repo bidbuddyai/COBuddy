@@ -151,6 +151,77 @@ html {
   100% { transform: rotate(360deg); }
 }
 
+/* Playful loading animations */
+.bounce-loading {
+  animation: bounce-loading 1.5s infinite;
+}
+
+@keyframes bounce-loading {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+.wobble {
+  animation: wobble 2s ease-in-out infinite;
+}
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(5deg); }
+  75% { transform: rotate(-5deg); }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 5px rgba(3, 81, 42, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 20px rgba(3, 81, 42, 0.6);
+    transform: scale(1.05);
+  }
+}
+
+.float-animation {
+  animation: float-animation 3s ease-in-out infinite;
+}
+
+@keyframes float-animation {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.co-buddy-bounce {
+  animation: co-buddy-bounce 2s ease-in-out infinite;
+}
+
+@keyframes co-buddy-bounce {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-5px) rotate(2deg); }
+  50% { transform: translateY(0px) rotate(0deg); }
+  75% { transform: translateY(-3px) rotate(-2deg); }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, transparent 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.dark .shimmer {
+  background: linear-gradient(90deg, #374151 25%, transparent 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
 /* Status badges */
 .status-badge {
   @apply px-2 py-1 rounded-full text-xs font-medium;

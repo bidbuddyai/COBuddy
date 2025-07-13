@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { FileText, Brain, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { FileText, Brain, CheckCircle, AlertCircle, Loader2, Sparkles, Zap, Target, Wand2, Database, Search, FileCheck, Paperclip } from "lucide-react";
 
 interface ProcessingIndicatorProps {
   stage: 'uploading' | 'analyzing' | 'extracting' | 'matching' | 'complete' | 'error';
@@ -10,40 +10,46 @@ interface ProcessingIndicatorProps {
 export function DocumentProcessingIndicator({ stage, progress = 0, fileName }: ProcessingIndicatorProps) {
   const stages = {
     uploading: {
-      icon: FileText,
+      icon: Paperclip,
       text: "Uploading document...",
       color: "text-blue-600",
-      bgColor: "bg-blue-100"
+      bgColor: "bg-blue-100",
+      playful: "CO Buddy is catching your file!"
     },
     analyzing: {
-      icon: Brain,
+      icon: Sparkles,
       text: "AI analyzing content...",
       color: "text-purple-600",
-      bgColor: "bg-purple-100"
+      bgColor: "bg-purple-100",
+      playful: "CO Buddy is reading your document like a detective!"
     },
     extracting: {
-      icon: Loader2,
+      icon: Zap,
       text: "Extracting data...",
       color: "text-indigo-600",
-      bgColor: "bg-indigo-100"
+      bgColor: "bg-indigo-100",
+      playful: "CO Buddy is finding all the important details!"
     },
     matching: {
-      icon: Loader2,
+      icon: Target,
       text: "Matching rates...",
       color: "text-orange-600",
-      bgColor: "bg-orange-100"
+      bgColor: "bg-orange-100",
+      playful: "CO Buddy is matching your rates like a pro!"
     },
     complete: {
       icon: CheckCircle,
       text: "Processing complete!",
       color: "text-green-600",
-      bgColor: "bg-green-100"
+      bgColor: "bg-green-100",
+      playful: "CO Buddy has finished! Your document is ready!"
     },
     error: {
       icon: AlertCircle,
       text: "Processing failed",
       color: "text-red-600",
-      bgColor: "bg-red-100"
+      bgColor: "bg-red-100",
+      playful: "CO Buddy encountered an issue, but we'll try again!"
     }
   };
 
@@ -59,20 +65,92 @@ export function DocumentProcessingIndicator({ stage, progress = 0, fileName }: P
     >
       <div className="flex items-center space-x-4 p-4 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700">
         <div className={`relative ${currentStage.bgColor} p-3 rounded-full`}>
-          {stage === 'analyzing' || stage === 'extracting' || stage === 'matching' ? (
+          {stage === 'analyzing' ? (
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              animate={{ 
+                rotate: [0, 360],
+                scale: [1, 1.1, 1]
+              }}
+              transition={{ 
+                duration: 2, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+            >
+              <Icon className={`h-6 w-6 ${currentStage.color}`} />
+            </motion.div>
+          ) : stage === 'extracting' ? (
+            <motion.div
+              animate={{ 
+                y: [0, -3, 0],
+                rotate: [0, 15, -15, 0]
+              }}
+              transition={{ 
+                duration: 1.5, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+            >
+              <Icon className={`h-6 w-6 ${currentStage.color}`} />
+            </motion.div>
+          ) : stage === 'matching' ? (
+            <motion.div
+              animate={{ 
+                scale: [1, 1.2, 1],
+                rotate: [0, 180, 360]
+              }}
+              transition={{ 
+                duration: 1.8, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+            >
+              <Icon className={`h-6 w-6 ${currentStage.color}`} />
+            </motion.div>
+          ) : stage === 'uploading' ? (
+            <motion.div
+              animate={{ 
+                y: [0, -5, 0],
+                x: [0, 2, -2, 0]
+              }}
+              transition={{ 
+                duration: 1.2, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+            >
+              <Icon className={`h-6 w-6 ${currentStage.color}`} />
+            </motion.div>
+          ) : stage === 'complete' ? (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: [0, 1.3, 1] }}
+              transition={{ 
+                duration: 0.6, 
+                ease: "easeOut" 
+              }}
             >
               <Icon className={`h-6 w-6 ${currentStage.color}`} />
             </motion.div>
           ) : (
-            <Icon className={`h-6 w-6 ${currentStage.color}`} />
+            <motion.div
+              animate={{ 
+                rotate: [0, 10, -10, 0]
+              }}
+              transition={{ 
+                duration: 1, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+            >
+              <Icon className={`h-6 w-6 ${currentStage.color}`} />
+            </motion.div>
           )}
         </div>
         
         <div className="flex-1">
           <p className={`font-medium ${currentStage.color}`}>{currentStage.text}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{currentStage.playful}</p>
           {fileName && (
             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{fileName}</p>
           )}

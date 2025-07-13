@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import CompanySetupModal from "@/components/CompanySetupModal";
 import COBuddyIcon from "@assets/icon_1752387185212.png";
+import { PlayfulLoadingAnimation } from "@/components/PlayfulLoadingAnimations";
 
 export default function Home() {
   const { user, isLoading, signOut } = useSupabaseAuth();
@@ -27,10 +28,11 @@ export default function Home() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#03512A] mx-auto mb-4"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading...</p>
-        </div>
+        <PlayfulLoadingAnimation 
+          stage="analyzing" 
+          message="CO Buddy is preparing your dashboard..."
+          size="lg"
+        />
       </div>
     );
   }
