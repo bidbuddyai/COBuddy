@@ -504,6 +504,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Assistant Chat endpoint (simplified version for bubble/page)
+  app.post('/api/ai/chat', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: 'Message is required' });
+      }
+      
+      // Get rate context for AI
+      const rateTablesData = await storage.getRateTables();
+      const rateContext = {
+        availableRates: rateTablesData.map(rt => ({
+          name: rt.name,
+          type: rt.type,
+          entries: Array.isArray(rt.data) ? rt.data.length : 0
+        })),
+        totalRates: rateTablesData.reduce((sum, rt) => sum + (Array.isArray(rt.data) ? rt.data.length : 0), 0)
+      };
+      
+      const response = await processAIChat(message, { rateContext });
+      
+      res.json({
+        message: response,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error('Error processing AI chat:', error);
+      res.status(500).json({ message: 'Failed to process chat message' });
+    }
+  });
+
   // Change order generation from T&M data
   app.post('/api/change-orders/generate', authenticateSupabaseUser, async (req: any, res) => {
     try {

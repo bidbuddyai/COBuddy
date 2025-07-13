@@ -1,9 +1,11 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
+import AIAssistantBubble from "./AIAssistantBubble";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLocation } from "wouter";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +15,7 @@ export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, isLoading } = useSupabaseAuth();
   const isMobile = useIsMobile();
+  const [location] = useLocation();
 
   if (isLoading) {
     return (
@@ -73,6 +76,9 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* AI Assistant Bubble - hide on AI Assistant page */}
+      {location !== '/ai-assistant' && <AIAssistantBubble />}
     </div>
   );
 }
