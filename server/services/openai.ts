@@ -56,29 +56,29 @@ export interface ExtractedRateData {
   };
 }
 
-export async function extractTMData(base64Image: string): Promise<ExtractedTMData> {
+export async function extractTMData(documentText: string): Promise<ExtractedTMData> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini", // Using the more cost-effective model as requested
       messages: [
         {
           role: "system",
           content: `You are an expert at extracting Time and Material (T&M) data from construction documents. 
           Extract all labor, equipment, and material entries with their quantities, hours, and rates.
-          Pay special attention to handwritten entries and ensure accuracy.
+          Pay special attention to all entries and ensure accuracy.
           Return the data in the specified JSON format with confidence scores (0-1) for each entry.`
         },
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Please extract all T&M data from this document. Include:
+          content: `Please extract all T&M data from this document text. Include:
               - Labor entries (name, role, hours worked)
               - Equipment entries (type, description, hours used)
               - Material entries (type, description, quantity, unit)
               - Project information (name, location, date)
               - Confidence scores for each extraction
+              
+              Document text:
+              ${documentText}
               
               Return as JSON with this exact structure:
               {
@@ -89,18 +89,11 @@ export async function extractTMData(base64Image: string): Promise<ExtractedTMDat
                 "projectInfo": {"name": "string", "location": "string", "confidence": number},
                 "totalConfidence": number
               }`
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ],
-        },
+        }
       ],
       response_format: { type: "json_object" },
       max_tokens: 2000,
+      temperature: 0.1 // Lower temperature for more consistent extraction
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -111,10 +104,10 @@ export async function extractTMData(base64Image: string): Promise<ExtractedTMDat
   }
 }
 
-export async function extractRateTableData(base64Image: string): Promise<ExtractedRateData> {
+export async function extractRateTableData(documentText: string): Promise<ExtractedRateData> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini", // Using cost-effective model
       messages: [
         {
           role: "system",
@@ -125,14 +118,14 @@ export async function extractRateTableData(base64Image: string): Promise<Extract
         },
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Extract all rate table data from this document. Include:
+          content: `Extract all rate table data from this document text. Include:
               - Rate type (labor, equipment, material, disposal, import)
               - Individual rate entries with codes, descriptions, rates, units
               - Effective dates and regions if available
               - Confidence scores for accuracy
+              
+              Document text:
+              ${documentText}
               
               Return as JSON:
               {
@@ -140,18 +133,11 @@ export async function extractRateTableData(base64Image: string): Promise<Extract
                 "entries": [{"code": "string", "description": "string", "rate": number, "unit": "string", "effectiveDate": "string", "region": "string", "category": "string", "confidence": number}],
                 "metadata": {"source": "string", "extractedAt": "string", "confidence": number}
               }`
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ],
-        },
+        }
       ],
       response_format: { type: "json_object" },
       max_tokens: 3000,
+      temperature: 0.1
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -224,10 +210,10 @@ export interface ExtractedInvoiceData {
   totalConfidence: number;
 }
 
-export async function extractQuoteData(base64Image: string): Promise<ExtractedQuoteData> {
+export async function extractQuoteData(documentText: string): Promise<ExtractedQuoteData> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -238,10 +224,7 @@ export async function extractQuoteData(base64Image: string): Promise<ExtractedQu
         },
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Please extract all quote data from this document. Include:
+          content: `Please extract all quote data from this document text. Include:
               - Quote number and date
               - Vendor information (name, contact details)
               - Client/project information
@@ -249,6 +232,9 @@ export async function extractQuoteData(base64Image: string): Promise<ExtractedQu
               - Subtotal, tax, and total amounts
               - Terms and validity period
               - Confidence scores for each extraction
+              
+              Document text:
+              ${documentText}
               
               Return as JSON with this exact structure:
               {
@@ -264,18 +250,11 @@ export async function extractQuoteData(base64Image: string): Promise<ExtractedQu
                 "validUntil": "string",
                 "totalConfidence": number
               }`
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ],
-        },
+        }
       ],
       response_format: { type: "json_object" },
       max_tokens: 2000,
+      temperature: 0.1
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -286,10 +265,10 @@ export async function extractQuoteData(base64Image: string): Promise<ExtractedQu
   }
 }
 
-export async function extractInvoiceData(base64Image: string): Promise<ExtractedInvoiceData> {
+export async function extractInvoiceData(documentText: string): Promise<ExtractedInvoiceData> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -300,10 +279,7 @@ export async function extractInvoiceData(base64Image: string): Promise<Extracted
         },
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Please extract all invoice data from this document. Include:
+          content: `Please extract all invoice data from this document text. Include:
               - Invoice number and dates (invoice date, due date)
               - Vendor information (name, contact details)
               - Bill-to information and project details
@@ -311,6 +287,9 @@ export async function extractInvoiceData(base64Image: string): Promise<Extracted
               - Subtotal, tax, and total amounts
               - Payment terms and status (paid amount, balance due)
               - Confidence scores for each extraction
+              
+              Document text:
+              ${documentText}
               
               Return as JSON with this exact structure:
               {
@@ -328,18 +307,11 @@ export async function extractInvoiceData(base64Image: string): Promise<Extracted
                 "balanceDue": number,
                 "totalConfidence": number
               }`
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ],
-        },
+        }
       ],
       response_format: { type: "json_object" },
       max_tokens: 2000,
+      temperature: 0.1
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');

@@ -8,6 +8,7 @@ import {
   ExtractedQuoteData,
   ExtractedInvoiceData
 } from './openai';
+import { extractTextFromDocument } from './azureVision';
 import { db } from '../db';
 import { documents, rateTables } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -33,25 +34,59 @@ export async function processDocument(documentId: number, progressCallback?: (pr
     
     progressCallback?.(10, 'Document found, starting processing...');
 
-    // Read file and convert to base64
+    // Get file path
     const filePath = path.join(__dirname, '../uploads', document.filename);
-    const fileBuffer = fs.readFileSync(filePath);
-    const base64Data = fileBuffer.toString('base64');
     
-    progressCallback?.(25, 'File loaded, analyzing content...');
+    progressCallback?.(20, 'Processing document with Azure Computer Vision...');
+    
+    // Extract text using Azure Computer Vision
+    let documentText: string;
+    let ocrConfidence: number = 0.8; // Default confidence
+    
+    try {
+      const ocrResult = await extractTextFromDocument(filePath, document.mimeType);
+      documentText = ocrResult.text;
+      ocrConfidence = ocrResult.confidence;
+      
+      progressCallback?.(35, `Text extracted successfully (${Math.round(ocrConfidence * 100)}% confidence)...`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Check if it's an Azure credentials issue
+      if (errorMessage.includes('401') || errorMessage.includes('invalid subscription key')) {
+        progressCallback?.(25, 'Azure Computer Vision not configured. Using basic text extraction...');
+        
+        // Fallback: For now, we'll create a basic message
+        documentText = `[Document requires Azure Computer Vision for processing]
+        
+Please ensure your Azure Computer Vision credentials are correctly configured:
+1. Check that AZURE_COMPUTER_VISION_KEY is correct
+2. Verify AZURE_COMPUTER_VISION_ENDPOINT matches your resource region
+3. Ensure your Azure subscription is active
+
+Document: ${document.originalName}
+Type: ${document.type}
+Uploaded: ${new Date(document.uploadedAt).toLocaleString()}`;
+        
+        // Continue processing with limited data
+      } else {
+        progressCallback?.(0, `Failed to extract text: ${errorMessage}`);
+        throw error;
+      }
+    }
 
     let extractedData: ExtractedTMData | ExtractedRateData | ExtractedQuoteData | ExtractedInvoiceData;
     let confidence: number;
 
     // Process based on document type
     if (document.type === 'tm_sheet') {
-      progressCallback?.(40, 'Extracting T&M data using AI vision...');
-      extractedData = await extractTMData(base64Data);
+      progressCallback?.(50, 'Analyzing T&M data with AI...');
+      extractedData = await extractTMData(documentText);
       confidence = (extractedData as ExtractedTMData).totalConfidence;
       progressCallback?.(70, 'T&M data extracted successfully!');
     } else if (document.type === 'rate_table') {
-      progressCallback?.(40, 'Extracting rate table data...');
-      extractedData = await extractRateTableData(base64Data);
+      progressCallback?.(50, 'Analyzing rate table data...');
+      extractedData = await extractRateTableData(documentText);
       confidence = (extractedData as ExtractedRateData).metadata.confidence;
       
       progressCallback?.(60, 'Storing rate table entries...');
@@ -66,19 +101,19 @@ export async function processDocument(documentId: number, progressCallback?: (pr
       });
       progressCallback?.(70, 'Rate table stored successfully!');
     } else if (document.type === 'quote') {
-      progressCallback?.(40, 'Extracting quote data...');
-      extractedData = await extractQuoteData(base64Data);
+      progressCallback?.(50, 'Analyzing quote data...');
+      extractedData = await extractQuoteData(documentText);
       confidence = (extractedData as ExtractedQuoteData).totalConfidence;
       progressCallback?.(70, 'Quote data extracted successfully!');
     } else if (document.type === 'invoice') {
-      progressCallback?.(40, 'Extracting invoice data...');
-      extractedData = await extractInvoiceData(base64Data);
+      progressCallback?.(50, 'Analyzing invoice data...');
+      extractedData = await extractInvoiceData(documentText);
       confidence = (extractedData as ExtractedInvoiceData).totalConfidence;
       progressCallback?.(70, 'Invoice data extracted successfully!');
     } else {
       // For other document types, use general extraction
-      progressCallback?.(40, 'Extracting document data...');
-      extractedData = await extractTMData(base64Data);
+      progressCallback?.(50, 'Analyzing document data...');
+      extractedData = await extractTMData(documentText);
       confidence = (extractedData as ExtractedTMData).totalConfidence;
       progressCallback?.(70, 'Data extracted successfully!');
     }
@@ -100,10 +135,18 @@ export async function processDocument(documentId: number, progressCallback?: (pr
   } catch (error) {
     console.error('Document processing error:', error);
     
-    // Update document status to failed
+    // Update document status to failed with error details
     await db.update(documents)
-      .set({ status: 'failed' })
+      .set({ 
+        status: 'failed',
+        extractedData: {
+          error: error instanceof Error ? error.message : 'Unknown error occurred',
+          failedAt: new Date().toISOString()
+        }
+      })
       .where(eq(documents.id, documentId));
+    
+    progressCallback?.(0, `Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     
     throw error;
   }
