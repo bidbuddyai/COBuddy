@@ -83,6 +83,14 @@ export const projects = pgTable("projects", {
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  // Markup percentages for each category
+  markupLabor: decimal("markup_labor", { precision: 5, scale: 2 }).default("15.00"),
+  markupMaterials: decimal("markup_materials", { precision: 5, scale: 2 }).default("25.00"),
+  markupEquipmentOwned: decimal("markup_equipment_owned", { precision: 5, scale: 2 }).default("20.00"),
+  markupEquipmentRented: decimal("markup_equipment_rented", { precision: 5, scale: 2 }).default("15.00"),
+  markupDisposal: decimal("markup_disposal", { precision: 5, scale: 2 }).default("15.00"),
+  markupImport: decimal("markup_import", { precision: 5, scale: 2 }).default("15.00"),
+  markupSubcontractors: decimal("markup_subcontractors", { precision: 5, scale: 2 }).default("10.00"),
 });
 
 // Change orders

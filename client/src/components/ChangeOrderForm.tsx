@@ -68,15 +68,15 @@ export default function ChangeOrderForm({
     importEntries: [] as EntryRow[],
     subcontractorEntries: [] as EntryRow[],
     
-    // Markups (percentages)
+    // Markups (percentages) - use project defaults if available
     markups: {
-      labor: 0,
-      materials: 0,
-      equipmentOwned: 0,
-      equipmentRented: 0,
-      disposal: 0,
-      import: 0,
-      subcontractors: 0
+      labor: currentProject?.markupLabor || 15,
+      materials: currentProject?.markupMaterials || 25,
+      equipmentOwned: currentProject?.markupEquipmentOwned || 20,
+      equipmentRented: currentProject?.markupEquipmentRented || 15,
+      disposal: currentProject?.markupDisposal || 15,
+      import: currentProject?.markupImport || 15,
+      subcontractors: currentProject?.markupSubcontractors || 10
     },
     
     // Contract Info
@@ -163,6 +163,15 @@ export default function ChangeOrderForm({
         projectNumber: currentProject.number,
         toName: currentProject.clientContact || '',
         toCompany: currentProject.clientName || '',
+        markups: {
+          labor: currentProject.markupLabor || 15,
+          materials: currentProject.markupMaterials || 25,
+          equipmentOwned: currentProject.markupEquipmentOwned || 20,
+          equipmentRented: currentProject.markupEquipmentRented || 15,
+          disposal: currentProject.markupDisposal || 15,
+          import: currentProject.markupImport || 15,
+          subcontractors: currentProject.markupSubcontractors || 10
+        }
       }));
     }
   }, [currentProject]);

@@ -23,7 +23,14 @@ export default function Projects() {
     clientName: '',
     clientContact: '',
     status: 'active' as const,
-    budget: ''
+    budget: '',
+    markupLabor: '15',
+    markupMaterials: '25',
+    markupEquipmentOwned: '20',
+    markupEquipmentRented: '15',
+    markupDisposal: '15',
+    markupImport: '15',
+    markupSubcontractors: '10'
   });
 
   const { toast } = useToast();
@@ -37,7 +44,14 @@ export default function Projects() {
     mutationFn: async (data: any) => {
       return await apiRequest('POST', '/api/projects', {
         ...data,
-        budget: data.budget ? parseFloat(data.budget) : null
+        budget: data.budget ? parseFloat(data.budget) : null,
+        markupLabor: parseFloat(data.markupLabor),
+        markupMaterials: parseFloat(data.markupMaterials),
+        markupEquipmentOwned: parseFloat(data.markupEquipmentOwned),
+        markupEquipmentRented: parseFloat(data.markupEquipmentRented),
+        markupDisposal: parseFloat(data.markupDisposal),
+        markupImport: parseFloat(data.markupImport),
+        markupSubcontractors: parseFloat(data.markupSubcontractors)
       });
     },
     onSuccess: () => {
@@ -52,7 +66,14 @@ export default function Projects() {
         clientName: '',
         clientContact: '',
         status: 'active',
-        budget: ''
+        budget: '',
+        markupLabor: '15',
+        markupMaterials: '25',
+        markupEquipmentOwned: '20',
+        markupEquipmentRented: '15',
+        markupDisposal: '15',
+        markupImport: '15',
+        markupSubcontractors: '10'
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
     },
@@ -124,7 +145,7 @@ export default function Projects() {
               New Project
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Project</DialogTitle>
             </DialogHeader>
@@ -193,6 +214,115 @@ export default function Projects() {
                   </SelectContent>
                 </Select>
               </div>
+              
+              {/* Markup Percentages Section */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Markup Percentages</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+                  Set default markup percentages for this project. These will be applied when creating change orders.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="markupLabor" className="text-xs">Labor Markup (%)</Label>
+                    <Input
+                      id="markupLabor"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.markupLabor}
+                      onChange={(e) => setFormData({ ...formData, markupLabor: e.target.value })}
+                      placeholder="15"
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="markupMaterials" className="text-xs">Materials Markup (%)</Label>
+                    <Input
+                      id="markupMaterials"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.markupMaterials}
+                      onChange={(e) => setFormData({ ...formData, markupMaterials: e.target.value })}
+                      placeholder="25"
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="markupEquipmentOwned" className="text-xs">Equipment (Owned) (%)</Label>
+                    <Input
+                      id="markupEquipmentOwned"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.markupEquipmentOwned}
+                      onChange={(e) => setFormData({ ...formData, markupEquipmentOwned: e.target.value })}
+                      placeholder="20"
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="markupEquipmentRented" className="text-xs">Equipment (Rented) (%)</Label>
+                    <Input
+                      id="markupEquipmentRented"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.markupEquipmentRented}
+                      onChange={(e) => setFormData({ ...formData, markupEquipmentRented: e.target.value })}
+                      placeholder="15"
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="markupDisposal" className="text-xs">Disposal Markup (%)</Label>
+                    <Input
+                      id="markupDisposal"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.markupDisposal}
+                      onChange={(e) => setFormData({ ...formData, markupDisposal: e.target.value })}
+                      placeholder="15"
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="markupImport" className="text-xs">Import Duty Markup (%)</Label>
+                    <Input
+                      id="markupImport"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.markupImport}
+                      onChange={(e) => setFormData({ ...formData, markupImport: e.target.value })}
+                      placeholder="15"
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="markupSubcontractors" className="text-xs">Subcontractors Markup (%)</Label>
+                    <Input
+                      id="markupSubcontractors"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.markupSubcontractors}
+                      onChange={(e) => setFormData({ ...formData, markupSubcontractors: e.target.value })}
+                      placeholder="10"
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              </div>
+              
               <Button type="submit" className="w-full" disabled={createProject.isPending}>
                 {createProject.isPending ? 'Creating...' : 'Create Project'}
               </Button>

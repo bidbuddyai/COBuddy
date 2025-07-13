@@ -19,6 +19,14 @@ App focus: Everything must be project-centric with project selection/filtering.
 Important features: Professional dashboard with sidebar navigation, not simplified views.
 
 ## Recent Updates (January 2025)
+- **Added Project-Specific Markup Percentages (Jan 13, 2025)**: Major enhancement
+  - Added markup percentage fields to project schema for each category
+  - Project creation form now includes markup configuration section
+  - Default markups: Labor 15%, Materials 25%, Equipment Owned 20%, Equipment Rented 15%, Disposal 15%, Import 15%, Subcontractors 10%
+  - Change Order Form automatically uses project-specific markups
+  - Each project can have different markup percentages
+  - Database migration completed to add markup columns
+  - AI assistant aware of project markups and can display them
 - **Enhanced Change Order Form to Match Professional PDF Template (Jan 13, 2025)**: Comprehensive update
   - Created detailed ChangeOrderForm component with all cost categories from PDF template
   - Includes sections for: Labor, Materials, Equipment (Owned/Rented), Disposal, Import Duty, Subcontractors
