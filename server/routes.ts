@@ -409,7 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectData = insertProjectSchema.parse({
         ...processedBody,
         number: projectNumber,
-        createdBy: parseInt(user.id),
+        createdBy: user.id, // user.id is already a string (UUID)
         companyId: user.companyId,
       });
       
