@@ -102,6 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               variant: "destructive",
             });
           }
+        } else {
+          // Supabase user doesn't exist - they need to sign up again
+          console.log('Supabase auth user not found - signing out');
+          await supabase.auth.signOut();
+          toast({
+            title: "Session Invalid",
+            description: "Please sign up or login again",
+            variant: "destructive",
+          });
         }
       } else {
         console.error('Unexpected response status:', response.status);
