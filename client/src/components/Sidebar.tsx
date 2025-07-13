@@ -15,7 +15,8 @@ import {
   Sun,
   LogOut,
   X,
-  Building
+  Building,
+  Building2
 } from "lucide-react";
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Change Orders', href: '/change-orders', icon: FileText },
   { name: 'Rate Tables', href: '/rate-tables', icon: Database },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Company', href: '/company', icon: Building2 },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

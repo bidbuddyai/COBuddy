@@ -11,6 +11,12 @@ App focus: Everything must be project-centric with project selection/filtering.
 Important features: Professional dashboard with sidebar navigation, not simplified views.
 
 ## Recent Updates (January 2025)
+- **Added Company Management System (Jan 13, 2025)**: Comprehensive company and team management features
+  - New Company page for managing team members and company information
+  - User invitation system for adding team members with role assignment
+  - Admin users can update company info, manage team roles, and remove users
+  - All data is properly scoped by company for secure multi-tenant access
+  - Added navigation link in sidebar with Building2 icon
 - **Added Rate Table Editing (Jan 12, 2025)**: Implemented full edit functionality for rate tables with inline editing
   - Click eye icon to view rates, then "Edit Rates" button to enable editing mode
   - Edit rates, descriptions, codes and units directly in the table

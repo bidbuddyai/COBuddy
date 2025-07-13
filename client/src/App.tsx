@@ -16,6 +16,7 @@ import Projects from "@/pages/Projects";
 import Documents from "@/pages/Documents";
 import Settings from "@/pages/Settings";
 import AIAssistant from "@/pages/AIAssistant";
+import Company from "@/pages/Company";
 import AuthPage from "@/pages/auth-page";
 import AuthCallback from "@/pages/auth-callback";
 import NotFound from "@/pages/not-found";
@@ -48,6 +49,7 @@ function Router() {
           <Route path="/projects" component={() => <Layout><Projects /></Layout>} />
           <Route path="/documents" component={() => <Layout><Documents /></Layout>} />
           <Route path="/ai-assistant" component={() => <Layout><AIAssistant /></Layout>} />
+          <Route path="/company" component={() => <Layout><Company /></Layout>} />
           <Route path="/settings" component={() => <Layout><Settings /></Layout>} />
         </>
       )}

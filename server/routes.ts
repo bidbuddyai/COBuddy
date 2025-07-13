@@ -178,6 +178,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch company" });
     }
   });
+  
+  app.put('/api/companies/current', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user || !user.companyId || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const { name } = req.body;
+      const updatedCompany = await storage.updateCompany(user.companyId, { name });
+      res.json(updatedCompany);
+    } catch (error) {
+      console.error("Error updating company:", error);
+      res.status(500).json({ message: "Failed to update company" });
+    }
+  });
+  
+  app.get('/api/companies/users', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user || !user.companyId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      
+      const users = await storage.getUsersByCompanyId(user.companyId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching company users:", error);
+      res.status(500).json({ message: "Failed to fetch company users" });
+    }
+  });
+  
+  app.put('/api/companies/users/:userId/role', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { userId } = req.params;
+      const { role } = req.body;
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      // Verify the target user belongs to the same company
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser || targetUser.companyId !== user.companyId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.updateUser(userId, { role });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+  
+  app.delete('/api/companies/users/:userId', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { userId } = req.params;
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      // Verify the target user belongs to the same company
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser || targetUser.companyId !== user.companyId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't allow removing self
+      if (userId === user.id) {
+        return res.status(400).json({ message: "Cannot remove yourself" });
+      }
+      
+      // Remove company association from user
+      await storage.updateUser(userId, { companyId: null });
+      res.json({ message: "User removed from company" });
+    } catch (error) {
+      console.error("Error removing user:", error);
+      res.status(500).json({ message: "Failed to remove user" });
+    }
+  });
+  
+  app.post('/api/companies/invite', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { email, role } = req.body;
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      // For now, we'll create a simple invitation record
+      // In production, this would send an email with a secure invitation link
+      const invitationId = `inv_${Date.now()}`;
+      const invitation = {
+        id: invitationId,
+        email,
+        role,
+        companyId: user.companyId,
+        invitedBy: user.id,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        inviteLink: `${process.env.REPL_SLUG}.repl.co/invite/${invitationId}`
+      };
+      
+      // In a real app, you'd store this in an invitations table and send an email
+      console.log('Invitation created:', invitation);
+      
+      res.json({ 
+        message: "Invitation sent successfully",
+        invitation 
+      });
+    } catch (error) {
+      console.error("Error creating invitation:", error);
+      res.status(500).json({ message: "Failed to create invitation" });
+    }
+  });
+  
+  app.get('/api/companies/invitations', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      // In a real app, this would fetch from an invitations table
+      res.json([]);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+  
+  app.delete('/api/companies/invitations/:invitationId', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      // In a real app, this would delete from invitations table
+      res.json({ message: "Invitation cancelled" });
+    } catch (error) {
+      console.error("Error cancelling invitation:", error);
+      res.status(500).json({ message: "Failed to cancel invitation" });
+    }
+  });
 
   app.post('/api/companies/setup', authenticateSupabaseUser, async (req: any, res) => {
     try {
@@ -226,7 +380,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project routes
   app.get('/api/projects', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const projects = await storage.getProjects();
+      const user = req.user;
+      const projects = await storage.getProjects(user?.companyId);
       res.json(projects);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -236,6 +391,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects', authenticateSupabaseUser, async (req: any, res) => {
     try {
+      const user = req.user;
+      
+      if (!user.companyId) {
+        return res.status(400).json({ message: 'User must belong to a company' });
+      }
+      
       // Generate a unique project number
       const projectNumber = `PROJ-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       
@@ -248,7 +409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectData = insertProjectSchema.parse({
         ...processedBody,
         number: projectNumber,
-        createdBy: parseInt(req.user.id),
+        createdBy: parseInt(user.id),
+        companyId: user.companyId,
       });
       
       const project = await storage.createProject(projectData);

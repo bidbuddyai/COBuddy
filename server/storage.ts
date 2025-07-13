@@ -39,7 +39,7 @@ export interface IStorage {
   getUsersByCompanyId(companyId: number): Promise<User[]>;
 
   // Project operations
-  getProjects(): Promise<Project[]>;
+  getProjects(companyId?: number): Promise<Project[]>;
   getProject(id: number): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: number, project: Partial<Project>): Promise<Project>;
@@ -153,7 +153,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Project operations
-  async getProjects(): Promise<Project[]> {
+  async getProjects(companyId?: number): Promise<Project[]> {
+    if (companyId) {
+      return await db.select().from(projects)
+        .where(eq(projects.companyId, companyId))
+        .orderBy(projects.createdAt);
+    }
     return await db.select().from(projects).orderBy(projects.createdAt);
   }
 
