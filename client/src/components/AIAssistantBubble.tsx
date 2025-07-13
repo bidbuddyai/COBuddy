@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Send, User, Loader2, X, MessageCircle } from "lucide-react";
+import { Bot, Send, User, Loader2, X, MessageCircle, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,12 +16,19 @@ interface Message {
   timestamp: Date;
 }
 
+interface ActionChip {
+  label: string;
+  action: () => void;
+  icon?: React.ReactNode;
+}
+
 export default function AIAssistantBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [actionChips, setActionChips] = useState<ActionChip[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -33,11 +40,64 @@ export default function AIAssistantBubble() {
     scrollToBottom();
   }, [messages]);
 
+  // Generate predictive action chips based on current page
+  const generateActionChips = (path: string): ActionChip[] => {
+    switch (path) {
+      case '/rate-tables':
+        return [
+          { label: 'Search equipment rates', action: () => setInput('Show me all equipment rates') },
+          { label: 'Edit labor rates', action: () => setInput('I want to edit labor rates') },
+          { label: 'Import new rates', action: () => setInput('Help me import new rate tables') },
+          { label: 'View Caltrans rates', action: () => setInput('Show me the public Caltrans rates') }
+        ];
+      case '/projects':
+        return [
+          { label: 'Create new project', action: () => setInput('Create a new project') },
+          { label: 'View project analytics', action: () => setInput('Show me analytics for my current project') },
+          { label: 'Update project status', action: () => setInput('Help me update project status') },
+          { label: 'Set markup percentages', action: () => setInput('I need to adjust project markups') }
+        ];
+      case '/change-orders':
+        return [
+          { label: 'Create from T&M', action: () => setInput('Create a change order from my T&M sheets') },
+          { label: 'Generate Excel export', action: () => setInput('Generate an Excel file for change order') },
+          { label: 'View pending COs', action: () => setInput('Show me all pending change orders') },
+          { label: 'Calculate totals', action: () => setInput('Help me calculate change order totals') }
+        ];
+      case '/documents':
+        return [
+          { label: 'Process pending docs', action: () => setInput('Process all my pending documents') },
+          { label: 'Check failed extractions', action: () => setInput('Show me documents that failed processing') },
+          { label: 'Create CO from docs', action: () => setInput('Create a change order from selected documents') },
+          { label: 'Validate imports', action: () => setInput('Validate the imported data against rate tables') }
+        ];
+      case '/analytics':
+        return [
+          { label: 'Explain trends', action: () => setInput('Explain the cost trends in my analytics') },
+          { label: 'Find anomalies', action: () => setInput('Are there any anomalies in my project data?') },
+          { label: 'Generate report', action: () => setInput('Generate a summary report') },
+          { label: 'Compare projects', action: () => setInput('Compare performance across projects') }
+        ];
+      default:
+        return [
+          { label: 'View projects', action: () => setInput('Show me my projects') },
+          { label: 'Create change order', action: () => setInput('Help me create a change order') },
+          { label: 'Process documents', action: () => setInput('I need to process T&M sheets') },
+          { label: 'Check rates', action: () => setInput('Show me current rate tables') }
+        ];
+    }
+  };
+
   // Initialize with context-aware message when opened
   useEffect(() => {
-    if (isOpen && !hasInitialized) {
+    if (isOpen) {
       const currentPath = window.location.pathname;
-      let initialMessage = "Hi! I'm CO Buddy AI, your intelligent assistant. ";
+      
+      // Always update action chips when opening
+      setActionChips(generateActionChips(currentPath));
+      
+      if (!hasInitialized) {
+        let initialMessage = "Hi! I'm CO Buddy AI, your intelligent assistant. ";
       
       // Add context-specific greeting based on current page
       switch (currentPath) {
@@ -60,13 +120,14 @@ export default function AIAssistantBubble() {
           initialMessage += "I can help you create projects, manage change orders, process T&M sheets, edit rates, and much more. Just tell me what you need!";
       }
       
-      setMessages([{
-        id: 1,
-        role: 'assistant',
-        content: initialMessage,
-        timestamp: new Date()
-      }]);
-      setHasInitialized(true);
+        setMessages([{
+          id: 1,
+          role: 'assistant',
+          content: initialMessage,
+          timestamp: new Date()
+        }]);
+        setHasInitialized(true);
+      }
     }
   }, [isOpen, hasInitialized]);
 
@@ -116,6 +177,10 @@ export default function AIAssistantBubble() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Update action chips after assistant responds
+      const currentPath = window.location.pathname;
+      setActionChips(generateActionChips(currentPath));
     } catch (error) {
       toast({
         title: "Error",
@@ -251,43 +316,27 @@ export default function AIAssistantBubble() {
                   </div>
                 </ScrollArea>
                 <div className="border-t">
-                  {/* Quick actions/suggestions */}
-                  {messages.length === 1 && (
+                  {/* Predictive Action Chips */}
+                  {actionChips.length > 0 && (
                     <div className="p-2 border-b">
-                      <p className="text-xs text-gray-500 mb-2">Try these actions:</p>
+                      <p className="text-xs text-gray-500 mb-2">Suggested actions:</p>
                       <div className="flex flex-wrap gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7"
-                          onClick={() => setInput("Create a change order from the latest T&M sheet")}
-                        >
-                          Create Change Order
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7"
-                          onClick={() => setInput("Generate Excel and PDF for my latest change order")}
-                        >
-                          Export Files
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7"
-                          onClick={() => setInput("Edit the hourly rate for Operating Engineer to $125")}
-                        >
-                          Edit Rates
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7"
-                          onClick={() => setInput("Validate my recent imports against rate tables")}
-                        >
-                          Validate Data
-                        </Button>
+                        {actionChips.map((chip, index) => (
+                          <Button
+                            key={index}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7 hover:bg-primary hover:text-white transition-colors"
+                            onClick={() => {
+                              chip.action();
+                              // Auto-send the message after a short delay
+                              setTimeout(() => handleSendMessage(), 100);
+                            }}
+                          >
+                            {chip.icon && <span className="mr-1">{chip.icon}</span>}
+                            {chip.label}
+                          </Button>
+                        ))}
                       </div>
                     </div>
                   )}
