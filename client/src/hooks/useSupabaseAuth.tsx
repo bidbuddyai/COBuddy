@@ -159,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data.user) {
       // Create user in our database
+      console.log('Creating user profile after signup...');
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,6 +174,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.ok) {
         throw new Error('Failed to create user profile');
       }
+      
+      // Fetch the user data to update the state
+      console.log('Fetching user data after signup...');
+      await fetchUserData(data.user.id);
     }
   };
 

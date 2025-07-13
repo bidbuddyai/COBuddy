@@ -102,7 +102,10 @@ export default function AuthPage() {
         title: "Success",
         description: "You have been logged in successfully",
       });
-      navigate("/");
+      // Give time for auth state to update
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     } catch (error: any) {
       toast({
         title: "Login failed",
@@ -120,9 +123,12 @@ export default function AuthPage() {
       await signUp(data.username, data.password, data.firstName, data.lastName);
       toast({
         title: "Success",
-        description: "Your account has been created successfully. Please check your email to verify your account.",
+        description: "Your account has been created successfully!",
       });
-      navigate("/");
+      // Give time for auth state to update
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000);
     } catch (error: any) {
       toast({
         title: "Registration failed",
