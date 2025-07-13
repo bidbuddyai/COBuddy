@@ -179,8 +179,7 @@ export default function AIAssistantBubble() {
       setMessages(prev => [...prev, assistantMessage]);
       
       // Update action chips after assistant responds
-      const currentPath = window.location.pathname;
-      setActionChips(generateActionChips(currentPath));
+      setActionChips(generateActionChips(window.location.pathname));
     } catch (error) {
       toast({
         title: "Error",
