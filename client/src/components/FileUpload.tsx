@@ -12,6 +12,7 @@ import { FileUploadResponse } from "@/types";
 import { DocumentProcessingIndicator, PulsingDot } from "@/components/LoadingIndicators";
 import { motion, AnimatePresence } from "framer-motion";
 import { PlayfulLoadingAnimation } from "@/components/PlayfulLoadingAnimations";
+import { useLocation } from "wouter";
 
 interface FileUploadProps {
   onUploadComplete?: (files: FileUploadResponse[]) => void;
@@ -33,6 +34,7 @@ export default function FileUpload({
   const [uploadedFiles, setUploadedFiles] = useState<FileUploadResponse[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
@@ -113,6 +115,10 @@ export default function FileUpload({
         title: "Upload successful",
         description: `${data.length} file(s) uploaded and processing started`,
       });
+      
+      // Redirect to documents page with selected document IDs
+      const documentIds = data.map(file => file.id).join(',');
+      setLocation(`/documents?selected=${documentIds}`);
     },
     onError: (error) => {
       toast({

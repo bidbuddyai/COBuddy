@@ -17,6 +17,7 @@ import DocumentEditor from '@/components/DocumentEditor';
 import ChangeOrderForm from '@/components/ChangeOrderForm';
 import { useDocumentProgress } from '@/hooks/useWebSocket';
 import { COBuddyThinkingAnimation, PulsingCOBuddy } from '@/components/PlayfulLoadingAnimations';
+import { useLocation } from 'wouter';
 
 export default function Documents() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -30,6 +31,7 @@ export default function Documents() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const documentProgress = useDocumentProgress();
+  const [location] = useLocation();
   
   // Auto-refresh documents when processing completes
   useEffect(() => {
@@ -42,6 +44,29 @@ export default function Documents() {
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
     }
   }, [documentProgress, queryClient]);
+
+  // Check for pre-selected documents from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const selectedIds = params.get('selected');
+    
+    if (selectedIds && documents) {
+      const ids = selectedIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+      const newSelectedDocuments = new Set<number>();
+      
+      ids.forEach(id => {
+        if (documents.some(doc => doc.id === id)) {
+          newSelectedDocuments.add(id);
+        }
+      });
+      
+      if (newSelectedDocuments.size > 0) {
+        setSelectedDocuments(newSelectedDocuments);
+        // Clear the URL params after selection
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [documents]);
 
   const { data: documents, isLoading, isRefetching } = useQuery<Document[]>({
     queryKey: ['/api/documents', { projectId: selectedProjectId }],
