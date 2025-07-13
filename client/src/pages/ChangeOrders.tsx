@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import { ChangeOrder } from '@shared/schema';
-import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building } from 'lucide-react';
+import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage } from 'lucide-react';
 import ProjectSelector from '@/components/ProjectSelector';
 
 export default function ChangeOrders() {
@@ -15,6 +20,16 @@ export default function ChangeOrders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    status: 'draft' as const,
+    totalAmount: ''
+  });
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: changeOrdersData, isLoading } = useQuery<{
     data: ChangeOrder[];
@@ -31,6 +46,69 @@ export default function ChangeOrders() {
 
   const changeOrders = changeOrdersData?.data || [];
   const totalChangeOrders = changeOrdersData?.total || 0;
+
+  const createChangeOrder = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('POST', '/api/change-orders', {
+        ...data,
+        projectId: selectedProjectId,
+        totalAmount: data.totalAmount ? parseFloat(data.totalAmount) : 0
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Change Order Created",
+        description: "The change order has been created successfully.",
+      });
+      setIsCreateModalOpen(false);
+      setFormData({
+        title: '',
+        description: '',
+        status: 'draft',
+        totalAmount: ''
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/change-orders'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create change order",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleExport = async (id: number, format: 'excel' | 'pdf') => {
+    try {
+      const endpoint = format === 'excel' 
+        ? `/api/change-orders/${id}/excel`
+        : `/api/change-orders/${id}/pdf`;
+      
+      const response = await apiRequest('GET', endpoint);
+      const blob = await response.blob();
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `CO-${id}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Successful",
+        description: `Change order exported as ${format.toUpperCase()}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: `Failed to export change order as ${format}.`,
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -71,14 +149,82 @@ export default function ChangeOrders() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button className="fieldflo-primary fieldflo-primary-hover">
-            <Plus className="h-4 w-4 mr-2" />
-            New Change Order
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={!selectedProjectId}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Change Order
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Change Order</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Enter change order title"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Enter change order description"
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalAmount">Total Amount</Label>
+                  <Input
+                    id="totalAmount"
+                    type="number"
+                    value={formData.totalAmount}
+                    onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
+                    placeholder="0.00"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select 
+                    value={formData.status} 
+                    onValueChange={(value) => setFormData({ ...formData, status: value as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => createChangeOrder.mutate(formData)}
+                    disabled={!formData.title || createChangeOrder.isPending}
+                  >
+                    Create
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -254,11 +400,27 @@ export default function ChangeOrders() {
                           {changeOrder.status}
                         </Badge>
                         <div className="flex items-center space-x-1">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" title="View">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" title="Edit">
                             <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Export as Excel"
+                            onClick={() => handleExport(changeOrder.id, 'excel')}
+                          >
+                            <FileSpreadsheet className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="Export as PDF"
+                            onClick={() => handleExport(changeOrder.id, 'pdf')}
+                          >
+                            <FileImage className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>

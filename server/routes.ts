@@ -215,8 +215,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processedBody.materialAmount = processedBody.materialAmount.toString();
       }
       
+      // Generate a unique change order number
+      const timestamp = Date.now();
+      const changeOrderNumber = `CO-${processedBody.projectId}-${timestamp}`;
+      
       const changeOrderData = insertChangeOrderSchema.parse({
         ...processedBody,
+        number: changeOrderNumber,
         createdBy: parseInt(req.user.claims.sub),
       });
       
