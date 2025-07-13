@@ -15,7 +15,16 @@ export async function apiRequest(
 ): Promise<Response> {
   // Get the current session token
   const { data: { session } } = await supabase.auth.getSession();
-  const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
+  const headers: HeadersInit = {};
+  
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  let body: any;
+  if (data instanceof FormData) {
+    body = data;
+  } else if (data) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(data);
+  }
   
   if (session?.access_token) {
     headers.Authorization = `Bearer ${session.access_token}`;
@@ -24,7 +33,7 @@ export async function apiRequest(
   const res = await fetch(url, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
   });
 

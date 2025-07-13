@@ -652,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           size: file.size,
           type: req.body.type || 'tm_sheet',
           projectId: req.body.projectId ? parseInt(req.body.projectId) : undefined,
-          uploadedBy: parseInt(req.user.id),
+          uploadedBy: req.user.id, // user.id is already a string (UUID)
         });
         
         const document = await storage.createDocument(documentData);
