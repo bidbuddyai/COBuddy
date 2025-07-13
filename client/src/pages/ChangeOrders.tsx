@@ -6,15 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { ChangeOrder } from '@shared/schema';
 import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage, Folder } from 'lucide-react';
 import ProjectSelector from '@/components/ProjectSelector';
 import ChangeOrderTemplates from '@/components/ChangeOrderTemplates';
+import ChangeOrderForm from '@/components/ChangeOrderForm';
 
 export default function ChangeOrders() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -23,12 +21,7 @@ export default function ChangeOrders() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    status: 'draft' as const,
-    totalAmount: ''
-  });
+
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -63,12 +56,6 @@ export default function ChangeOrders() {
         description: "The change order has been created successfully.",
       });
       setIsCreateModalOpen(false);
-      setFormData({
-        title: '',
-        description: '',
-        status: 'draft',
-        totalAmount: ''
-      });
       queryClient.invalidateQueries({ queryKey: ['/api/change-orders'] });
     },
     onError: (error: any) => {
@@ -158,82 +145,13 @@ export default function ChangeOrders() {
             <Folder className="h-4 w-4 mr-2" />
             Templates
           </Button>
-          <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={!selectedProjectId}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Change Order
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Change Order</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Enter change order title"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Enter change order description"
-                    rows={4}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="totalAmount">Total Amount</Label>
-                  <Input
-                    id="totalAmount"
-                    type="number"
-                    value={formData.totalAmount}
-                    onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-                    placeholder="0.00"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select 
-                    value={formData.status} 
-                    onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreateModalOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => createChangeOrder.mutate(formData)}
-                    disabled={!formData.title || createChangeOrder.isPending}
-                  >
-                    Create
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            disabled={!selectedProjectId}
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Change Order
+          </Button>
         </div>
       </div>
 
@@ -447,14 +365,18 @@ export default function ChangeOrders() {
         isOpen={isTemplatesModalOpen}
         onClose={() => setIsTemplatesModalOpen(false)}
         onSelectTemplate={(template) => {
-          setFormData({
-            title: template.defaultTitle,
-            description: template.defaultDescription,
-            status: 'draft',
-            totalAmount: ''
-          });
+          // Template selection will be handled in the form
           setIsCreateModalOpen(true);
         }}
+      />
+      
+      {/* Change Order Form Modal */}
+      <ChangeOrderForm
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={(data) => createChangeOrder.mutate(data)}
+        projectId={selectedProjectId}
+        isSubmitting={createChangeOrder.isPending}
       />
     </div>
   );

@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import FileUpload from '@/components/FileUpload';
 import ProjectSelector from '@/components/ProjectSelector';
 import DocumentEditor from '@/components/DocumentEditor';
+import ChangeOrderForm from '@/components/ChangeOrderForm';
 import { useDocumentProgress } from '@/hooks/useWebSocket';
 import { COBuddyThinkingAnimation, PulsingCOBuddy } from '@/components/PlayfulLoadingAnimations';
 
@@ -23,6 +24,9 @@ export default function Documents() {
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+  const [isCreateCOModalOpen, setIsCreateCOModalOpen] = useState(false);
+  const [selectedDocumentForCO, setSelectedDocumentForCO] = useState<Document | null>(null);
+  const [selectedDocumentsForCO, setSelectedDocumentsForCO] = useState<Document[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const documentProgress = useDocumentProgress();
@@ -134,171 +138,9 @@ export default function Documents() {
     },
   });
   
-  const createChangeOrderMutation = useMutation({
-    mutationFn: async (document: Document) => {
-      // Calculate amounts from extracted data
-      const extractedData = document.extractedData as any;
-      let laborAmount = 0;
-      let equipmentAmount = 0; 
-      let materialAmount = 0;
-      
-      // Calculate labor amount
-      if (extractedData?.laborEntries) {
-        laborAmount = extractedData.laborEntries.reduce((total: number, entry: any) => {
-          const hours = entry.hours || 0;
-          const rate = entry.rate || 0;
-          return total + (hours * rate);
-        }, 0);
-      }
-      
-      // Calculate equipment amount
-      if (extractedData?.equipmentEntries) {
-        equipmentAmount = extractedData.equipmentEntries.reduce((total: number, entry: any) => {
-          const hours = entry.hours || 0;
-          const rate = entry.rate || 0;
-          return total + (hours * rate);
-        }, 0);
-      }
-      
-      // Calculate material amount
-      if (extractedData?.materialEntries) {
-        materialAmount = extractedData.materialEntries.reduce((total: number, entry: any) => {
-          const quantity = entry.quantity || 0;
-          const rate = entry.rate || 0;
-          return total + (quantity * rate);
-        }, 0);
-      }
-      
-      const totalAmount = laborAmount + equipmentAmount + materialAmount;
-      
-      // Create change order from the document's extracted data
-      const changeOrderData = {
-        projectId: document.projectId,
-        name: `CO from ${document.originalName}`,
-        description: `Change order created from T&M sheet: ${document.originalName}`,
-        documentIds: [document.id],
-        data: document.extractedData,
-        totalAmount: totalAmount.toFixed(2),
-        laborAmount: laborAmount.toFixed(2),
-        equipmentAmount: equipmentAmount.toFixed(2),
-        materialAmount: materialAmount.toFixed(2),
-      };
-      
-      return await apiRequest('POST', '/api/change-orders', changeOrderData);
-    },
-    onSuccess: (data) => {
-      toast({
-        title: 'Change Order Created',
-        description: 'Successfully created change order from T&M sheet.',
-      });
-      // Navigate to the change order page
-      window.location.href = `/change-orders/${data.id}`;
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Failed to create change order',
-        description: error.message || 'An error occurred while creating the change order.',
-        variant: 'destructive',
-      });
-    },
-  });
+  // Change order creation is now handled by the ChangeOrderForm component
   
-  const createMultiDocumentChangeOrderMutation = useMutation({
-    mutationFn: async (documentIds: number[]) => {
-      // Get selected documents
-      const selectedDocs = documents?.filter(d => documentIds.includes(d.id)) || [];
-      
-      // Calculate total amounts from all selected documents
-      let totalLaborAmount = 0;
-      let totalEquipmentAmount = 0;
-      let totalMaterialAmount = 0;
-      let combinedData: any = {
-        laborEntries: [],
-        equipmentEntries: [],
-        materialEntries: [],
-        disposalEntries: []
-      };
-      
-      selectedDocs.forEach(doc => {
-        const extractedData = doc.extractedData as any;
-        
-        // Combine labor entries
-        if (extractedData?.laborEntries) {
-          combinedData.laborEntries.push(...extractedData.laborEntries);
-          totalLaborAmount += extractedData.laborEntries.reduce((total: number, entry: any) => {
-            const hours = entry.hours || 0;
-            const rate = entry.rate || 0;
-            return total + (hours * rate);
-          }, 0);
-        }
-        
-        // Combine equipment entries
-        if (extractedData?.equipmentEntries) {
-          combinedData.equipmentEntries.push(...extractedData.equipmentEntries);
-          totalEquipmentAmount += extractedData.equipmentEntries.reduce((total: number, entry: any) => {
-            const hours = entry.hours || 0;
-            const rate = entry.rate || 0;
-            return total + (hours * rate);
-          }, 0);
-        }
-        
-        // Combine material entries
-        if (extractedData?.materialEntries) {
-          combinedData.materialEntries.push(...extractedData.materialEntries);
-          totalMaterialAmount += extractedData.materialEntries.reduce((total: number, entry: any) => {
-            const quantity = entry.quantity || 0;
-            const rate = entry.rate || 0;
-            return total + (quantity * rate);
-          }, 0);
-        }
-        
-        // Combine disposal entries if present
-        if (extractedData?.disposalEntries) {
-          combinedData.disposalEntries.push(...extractedData.disposalEntries);
-        }
-      });
-      
-      const totalAmount = totalLaborAmount + totalEquipmentAmount + totalMaterialAmount;
-      
-      // Get project ID from the first document (they should all be from the same project)
-      const projectId = selectedDocs[0]?.projectId;
-      
-      if (!projectId) {
-        throw new Error('Selected documents must be assigned to a project');
-      }
-      
-      // Create change order from combined data
-      const changeOrderData = {
-        projectId: projectId,
-        name: `CO from ${selectedDocs.length} T&M Sheets`,
-        description: `Change order created from documents: ${selectedDocs.map(d => d.originalName).join(', ')}`,
-        documentIds: documentIds,
-        data: combinedData,
-        totalAmount: totalAmount.toFixed(2),
-        laborAmount: totalLaborAmount.toFixed(2),
-        equipmentAmount: totalEquipmentAmount.toFixed(2),
-        materialAmount: totalMaterialAmount.toFixed(2),
-      };
-      
-      return await apiRequest('POST', '/api/change-orders', changeOrderData);
-    },
-    onSuccess: (data) => {
-      toast({
-        title: 'Change Order Created',
-        description: `Successfully created change order from ${selectedDocuments.size} documents.`,
-      });
-      setSelectedDocuments(new Set());
-      // Navigate to the change order page
-      window.location.href = `/change-orders/${data.id}`;
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Failed to create change order',
-        description: error.message || 'An error occurred while creating the change order.',
-        variant: 'destructive',
-      });
-    },
-  });
+  // Multi-document change order creation is now handled by the ChangeOrderForm component
 
   const handleCreateChangeOrder = (document: Document) => {
     if (!document.projectId) {
@@ -310,12 +152,16 @@ export default function Documents() {
       return;
     }
     
-    createChangeOrderMutation.mutate(document);
+    setSelectedDocumentForCO(document);
+    setSelectedDocumentsForCO([document]);
+    setIsCreateCOModalOpen(true);
   };
   
   const handleCreateMultiDocumentCO = () => {
-    const selectedDocIds = Array.from(selectedDocuments);
-    createMultiDocumentChangeOrderMutation.mutate(selectedDocIds);
+    const selectedDocs = documents?.filter(d => selectedDocuments.has(d.id)) || [];
+    setSelectedDocumentsForCO(selectedDocs);
+    setSelectedDocumentForCO(null);
+    setIsCreateCOModalOpen(true);
   };
   
   const canCreateCOFromSelected = () => {
@@ -737,6 +583,38 @@ export default function Documents() {
           onClose={() => setEditingDocument(null)}
         />
       )}
+      
+      {/* Change Order Form Modal */}
+      <ChangeOrderForm
+        isOpen={isCreateCOModalOpen}
+        onClose={() => {
+          setIsCreateCOModalOpen(false);
+          setSelectedDocumentForCO(null);
+          setSelectedDocumentsForCO([]);
+        }}
+        onSubmit={async (data) => {
+          try {
+            await apiRequest('POST', '/api/change-orders', data);
+            toast({
+              title: 'Change Order Created',
+              description: 'Successfully created change order from T&M sheet(s).',
+            });
+            setIsCreateCOModalOpen(false);
+            setSelectedDocumentForCO(null);
+            setSelectedDocumentsForCO([]);
+            setSelectedDocuments(new Set());
+            queryClient.invalidateQueries({ queryKey: ['/api/change-orders'] });
+          } catch (error: any) {
+            toast({
+              title: 'Failed to create change order',
+              description: error.message || 'An error occurred while creating the change order.',
+              variant: 'destructive',
+            });
+          }
+        }}
+        projectId={selectedDocumentsForCO[0]?.projectId || selectedProjectId}
+        selectedDocuments={selectedDocumentsForCO}
+      />
     </div>
   );
 }

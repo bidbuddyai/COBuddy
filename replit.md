@@ -19,6 +19,16 @@ App focus: Everything must be project-centric with project selection/filtering.
 Important features: Professional dashboard with sidebar navigation, not simplified views.
 
 ## Recent Updates (January 2025)
+- **Enhanced Change Order Form to Match Professional PDF Template (Jan 13, 2025)**: Comprehensive update
+  - Created detailed ChangeOrderForm component with all cost categories from PDF template
+  - Includes sections for: Labor, Materials, Equipment (Owned/Rented), Disposal, Import Duty, Subcontractors
+  - Each section has customizable markup percentages (default 15% labor, 25% materials)
+  - Automatic calculation of amounts with markup applied to each category
+  - Professional layout matching REI's change order PDF format
+  - Multi-document support for creating change orders from multiple T&M sheets
+  - Fixed API validation by ensuring all amount fields are sent as strings
+  - Updated both ChangeOrders and Documents pages to use new comprehensive form
+  - Removed old simple change order creation mutations in favor of new form
 - **Updated App Branding with CO Buddy AI Icon (Jan 13, 2025)**: Comprehensive branding update
   - Added new CO Buddy AI icon across the application
   - Updated Sidebar with new paperclip-style logo
