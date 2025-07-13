@@ -216,9 +216,9 @@ export default function RateTables() {
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Region</TableHead>
+                  <TableHead>Rate Count</TableHead>
                   <TableHead>Effective Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Extracted</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -247,6 +247,13 @@ export default function RateTables() {
                       <TableCell className="text-gray-600 dark:text-gray-400">
                         {table.region || 'N/A'}
                       </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {Array.isArray(table.data) ? table.data.length : 
+                           (table.data && typeof table.data === 'object' && Array.isArray((table.data as any).entries)) ? 
+                           (table.data as any).entries.length : 0} rates
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-gray-600 dark:text-gray-400">
                         {new Date(table.effectiveDate).toLocaleDateString()}
                       </TableCell>
@@ -260,9 +267,6 @@ export default function RateTables() {
                             {table.isApproved ? 'Approved' : 'Pending'}
                           </span>
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-600 dark:text-gray-400">
-                        {new Date(table.extractedAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
@@ -338,27 +342,54 @@ export default function RateTables() {
               
               <div>
                 <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Rate Entries</h4>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 max-h-60 overflow-y-auto">
-                  {selectedTable.data && typeof selectedTable.data === 'object' ? (
-                    <div className="space-y-2">
-                      {((selectedTable.data as any).entries || []).map((entry: any, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded">
-                          <div>
-                            <p className="text-sm font-medium">{entry.description}</p>
-                            {entry.code && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Code: {entry.code}</p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium">${entry.rate}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{entry.unit}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">No rate entries available</p>
-                  )}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 max-h-[400px] overflow-y-auto">
+                  {(() => {
+                    const data = selectedTable.data;
+                    let entries: any[] = [];
+                    
+                    // Handle different data structures
+                    if (Array.isArray(data)) {
+                      entries = data;
+                    } else if (data && typeof data === 'object' && 'entries' in data) {
+                      entries = (data as any).entries || [];
+                    } else if (data && typeof data === 'object') {
+                      // Convert object to array if it has numeric keys
+                      entries = Object.values(data);
+                    }
+                    
+                    if (entries.length === 0) {
+                      return <p className="text-sm text-gray-600 dark:text-gray-400">No rate entries available</p>;
+                    }
+                    
+                    return (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-100 dark:bg-gray-900">
+                            <tr>
+                              {entries[0].code && <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>}
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                              {entries[0].unit && <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>}
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {entries.map((entry: any, index: number) => (
+                              <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                {entry.code && <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">{entry.code}</td>}
+                                <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                                  {entry.description || entry.item || entry.name || 'N/A'}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
+                                  ${typeof entry.rate === 'number' ? entry.rate.toFixed(2) : entry.rate || '0.00'}
+                                </td>
+                                {entry.unit && <td className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">{entry.unit}</td>}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
