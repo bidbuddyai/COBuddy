@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,10 +26,22 @@ export default function Documents() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const documentProgress = useDocumentProgress();
+  
+  // Auto-refresh documents when processing completes
+  useEffect(() => {
+    const hasCompletedDocuments = Object.values(documentProgress).some(
+      progress => progress.status === 'completed' || progress.status === 'failed'
+    );
+    
+    if (hasCompletedDocuments) {
+      // Refresh the document list
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+    }
+  }, [documentProgress, queryClient]);
 
   const { data: documents, isLoading, isRefetching } = useQuery<Document[]>({
     queryKey: ['/api/documents', { projectId: selectedProjectId }],
-    enabled: !!selectedProjectId,
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
 
   const reprocessMutation = useMutation({
@@ -218,20 +230,24 @@ export default function Documents() {
         onProjectSelect={setSelectedProjectId}
       />
 
-      {selectedProjectId && (
-        <>
-          {/* Upload Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload New Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FileUpload projectId={selectedProjectId} />
-            </CardContent>
-          </Card>
+      {/* Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload New Documents</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {selectedProjectId ? (
+            <FileUpload projectId={selectedProjectId} />
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              Please select a project to upload documents
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-          {/* Documents List */}
-          <Card>
+      {/* Documents List */}
+      <Card>
             <CardHeader>
               <CardTitle>Document Library</CardTitle>
             </CardHeader>
@@ -492,8 +508,6 @@ export default function Documents() {
               </Tabs>
             </CardContent>
           </Card>
-        </>
-      )}
       
       {/* Document Editor Modal */}
       {editingDocument && (
