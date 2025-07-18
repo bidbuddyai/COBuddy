@@ -146,22 +146,45 @@ export const auditLogs = pgTable("audit_logs", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
-// Change Order Activity Logs - Construction PM perspective
+// Change Order Logs - Construction PM Communication & Documentation
 export const changeOrderLogs = pgTable("change_order_logs", {
   id: serial("id").primaryKey(),
   changeOrderId: integer("change_order_id").notNull().references(() => changeOrders.id),
   projectId: integer("project_id").notNull().references(() => projects.id),
-  action: varchar("action").notNull(), // created, updated, status_changed, document_added, document_removed, exported, approved, rejected, submitted
-  description: text("description").notNull(), // Human-readable description
-  details: jsonb("details"), // Additional context (old values, new values, document info, etc.)
-  userId: varchar("user_id").references(() => users.id),
-  userName: varchar("user_name"), // Denormalized for quick display
-  timestamp: timestamp("timestamp").defaultNow(),
-  // PM-specific fields
-  costImpact: decimal("cost_impact", { precision: 12, scale: 2 }), // Cost change if applicable
-  scheduleImpact: integer("schedule_impact"), // Days impact if applicable
-  rfi: varchar("rfi"), // Related RFI number if applicable
-  documentId: integer("document_id").references(() => documents.id), // If action involves a document
+  logType: varchar("log_type").notNull(), // meeting, phone_call, email, site_visit, rfi_response, decision, weather_delay, inspection
+  subject: varchar("subject").notNull(), // Brief subject line
+  description: text("description").notNull(), // Detailed notes
+  
+  // Meeting/Communication fields
+  attendees: text("attendees"), // Who was present/involved
+  location: varchar("location"), // Where (job site, office, virtual)
+  meetingDate: timestamp("meeting_date"), // When the meeting/call occurred
+  
+  // Decision tracking
+  decisionRequired: boolean("decision_required").default(false),
+  decisionMade: text("decision_made"),
+  actionItems: jsonb("action_items"), // Array of {task, assignee, dueDate}
+  
+  // Impact tracking
+  costImpact: decimal("cost_impact", { precision: 12, scale: 2 }),
+  scheduleImpact: integer("schedule_impact"), // Days
+  weatherConditions: varchar("weather_conditions"), // For delay documentation
+  
+  // References
+  rfiNumber: varchar("rfi_number"), // Related RFI
+  submittals: jsonb("submittals"), // Related submittal numbers
+  attachments: jsonb("attachments"), // File references/photos
+  
+  // Metadata
+  createdBy: varchar("created_by").references(() => users.id),
+  createdByName: varchar("created_by_name"), // Denormalized for display
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  
+  // Owner/Client visibility
+  sharedWithOwner: boolean("shared_with_owner").default(false),
+  ownerResponse: text("owner_response"),
+  ownerResponseDate: timestamp("owner_response_date"),
 });
 
 // Chat conversations
