@@ -190,56 +190,60 @@ export default function ChangeOrders() {
     }
 
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         {/* Header with back button */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center space-x-3 md:space-x-4">
             <Button 
               variant="outline" 
               onClick={() => setLocation('/change-orders')}
               className="flex items-center"
+              size="sm"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Change Orders
+              <ArrowLeft className="h-4 w-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Back to Change Orders</span>
+              <span className="sm:hidden">Back</span>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {specificChangeOrder.title}
               </h1>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-gray-500 dark:text-gray-400 text-sm md:text-base">
                 {project?.name || 'Loading project...'} • {specificChangeOrder.number || `CO-${specificChangeOrder.id}`}
               </p>
             </div>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex gap-2 flex-wrap">
             <Button 
               variant="outline" 
               onClick={() => handleExport(specificChangeOrder.id, 'excel')}
-              className="flex items-center"
+              className="flex items-center text-sm"
+              size="sm"
             >
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              <FileSpreadsheet className="h-4 w-4 mr-1 md:mr-2" />
               Export Excel
             </Button>
             <Button 
               variant="outline" 
               onClick={() => handleExport(specificChangeOrder.id, 'pdf')}
-              className="flex items-center"
+              className="flex items-center text-sm"
+              size="sm"
             >
-              <FileImage className="h-4 w-4 mr-2" />
+              <FileImage className="h-4 w-4 mr-1 md:mr-2" />
               Export PDF
             </Button>
           </div>
         </div>
 
         {/* Change Order Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
                 <CardTitle>Change Order Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Status</label>
                     <div className="mt-1">
@@ -330,22 +334,24 @@ export default function ChangeOrders() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Change Orders</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">Change Orders</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm md:text-base">
             Manage and track change orders for your projects
           </p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             onClick={() => setIsTemplatesModalOpen(true)}
             disabled={!selectedProjectId}
+            size="sm"
+            className="text-sm"
           >
-            <Folder className="h-4 w-4 mr-2" />
+            <Folder className="h-4 w-4 mr-1 md:mr-2" />
             Templates
           </Button>
           <Button 
@@ -356,8 +362,10 @@ export default function ChangeOrders() {
               console.log('Setting isCreateModalOpen to true');
               setIsCreateModalOpen(true);
             }}
+            size="sm"
+            className="text-sm"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-1 md:mr-2" />
             New Change Order
           </Button>
         </div>
