@@ -566,6 +566,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export all change orders for a project
+  app.get('/api/projects/:projectId/change-orders/export', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { projectId } = req.params;
+      const { format } = req.query;
+      
+      const changeOrders = await storage.getChangeOrdersByProject(Number(projectId));
+      const project = await storage.getProject(Number(projectId));
+      
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      
+      if (format === 'excel') {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Change Order Log');
+        
+        // Add header
+        worksheet.columns = [
+          { header: 'CO Number', key: 'number', width: 20 },
+          { header: 'Date', key: 'date', width: 15 },
+          { header: 'Description', key: 'description', width: 40 },
+          { header: 'Labor', key: 'labor', width: 15 },
+          { header: 'Materials', key: 'materials', width: 15 },
+          { header: 'Equipment', key: 'equipment', width: 15 },
+          { header: 'Disposal', key: 'disposal', width: 15 },
+          { header: 'Subcontractors', key: 'subcontractors', width: 15 },
+          { header: 'Total', key: 'total', width: 15 },
+          { header: 'Status', key: 'status', width: 12 },
+          { header: 'Days Open', key: 'daysOpen', width: 12 }
+        ];
+        
+        // Add data
+        changeOrders.forEach(co => {
+          const total = (co.laborAmount || 0) + (co.materialsAmount || 0) + 
+                       (co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0) +
+                       (co.disposalAmount || 0) + (co.importAmount || 0) + 
+                       (co.subcontractorsAmount || 0);
+          
+          const daysOpen = Math.floor((new Date().getTime() - new Date(co.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+          
+          worksheet.addRow({
+            number: co.number,
+            date: new Date(co.createdAt).toLocaleDateString(),
+            description: co.description,
+            labor: co.laborAmount || 0,
+            materials: co.materialsAmount || 0,
+            equipment: (co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0),
+            disposal: co.disposalAmount || 0,
+            subcontractors: co.subcontractorsAmount || 0,
+            total: total,
+            status: co.status,
+            daysOpen: co.status === 'approved' ? 'Closed' : `${daysOpen} days`
+          });
+        });
+        
+        // Style the header
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+        
+        // Add totals row
+        const totalRow = worksheet.addRow({
+          number: 'TOTALS',
+          date: '',
+          description: '',
+          labor: changeOrders.reduce((sum, co) => sum + (co.laborAmount || 0), 0),
+          materials: changeOrders.reduce((sum, co) => sum + (co.materialsAmount || 0), 0),
+          equipment: changeOrders.reduce((sum, co) => sum + ((co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0)), 0),
+          disposal: changeOrders.reduce((sum, co) => sum + (co.disposalAmount || 0), 0),
+          subcontractors: changeOrders.reduce((sum, co) => sum + (co.subcontractorsAmount || 0), 0),
+          total: changeOrders.reduce((sum, co) => {
+            return sum + (co.laborAmount || 0) + (co.materialsAmount || 0) + 
+                   (co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0) +
+                   (co.disposalAmount || 0) + (co.importAmount || 0) + 
+                   (co.subcontractorsAmount || 0);
+          }, 0),
+          status: '',
+          daysOpen: ''
+        });
+        
+        totalRow.font = { bold: true };
+        totalRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFC000' }
+        };
+        
+        const buffer = await workbook.xlsx.writeBuffer();
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${project.number}-change-order-log.xlsx"`);
+        return res.send(buffer);
+      } else if (format === 'pdf') {
+        const pdfBuffer = await pdfGenerator.generateChangeOrderLogPDF(changeOrders, project);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${project.number}-change-order-log.pdf"`);
+        return res.send(pdfBuffer);
+      }
+      
+      return res.status(400).json({ message: 'Invalid format' });
+    } catch (error) {
+      console.error('Export error:', error);
+      res.status(500).json({ message: 'Failed to export change order log' });
+    }
+  });
+
   // Change Order Logs - Construction PM Communication & Documentation
   app.get('/api/projects/:projectId/co-logs', authenticateSupabaseUser, async (req: any, res) => {
     try {

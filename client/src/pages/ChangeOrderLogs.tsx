@@ -19,7 +19,12 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Upload,
+  Sparkles,
+  MessageSquare,
+  Zap,
+  BarChart3
 } from 'lucide-react';
 import type { ChangeOrder, Project } from '@shared/schema';
 import { PlayfulLoadingAnimation } from '@/components/PlayfulLoadingAnimations';
@@ -95,11 +100,14 @@ export default function ChangeOrderLogs() {
 
   const handleExport = async (id: number, format: 'excel' | 'pdf') => {
     try {
-      const response = await apiRequest('GET', `/api/change-orders/${id}/export?format=${format}`, null, {
-        responseType: 'blob'
-      });
+      const endpoint = format === 'excel' 
+        ? `/api/change-orders/${id}/excel`
+        : `/api/change-orders/${id}/pdf`;
       
-      const url = window.URL.createObjectURL(response);
+      const response = await apiRequest('GET', endpoint);
+      const blob = await response.blob();
+      
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
@@ -118,6 +126,35 @@ export default function ChangeOrderLogs() {
       toast({
         title: 'Export Failed',
         description: 'Failed to export change order',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const handleExportAll = async (format: 'excel' | 'pdf') => {
+    try {
+      const response = await apiRequest('GET', `/api/projects/${projectId}/change-orders/export?format=${format}`);
+      const blob = await response.blob();
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `${project?.number || 'project'}-change-order-log.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Success',
+        description: `All change orders exported as ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export change order log',
         variant: 'destructive',
       });
     }
@@ -225,6 +262,57 @@ export default function ChangeOrderLogs() {
             <FileImage className="h-4 w-4 mr-2" />
             Export PDF
           </Button>
+        </div>
+      </div>
+
+      {/* AI-Powered Features Banner */}
+      <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-4 md:p-6 text-white mb-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 mb-2">
+              <Sparkles className="h-5 w-5" />
+              AI-Powered Change Order Creation
+            </h2>
+            <p className="text-sm md:text-base opacity-90">
+              Upload T&M sheets or invoices and let AI instantly create change orders with your pre-loaded rates
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <Link href={`/documents?project=${projectId}`}>
+              <Button className="bg-white text-green-700 hover:bg-gray-100 w-full sm:w-auto">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload T&M
+              </Button>
+            </Link>
+            <Button 
+              className="bg-green-800 hover:bg-green-900 text-white w-full sm:w-auto"
+              onClick={() => {
+                const event = new CustomEvent('open-ai-assistant', { 
+                  detail: { message: `Help me create a change order for project ${project?.name}` } 
+                });
+                window.dispatchEvent(event);
+              }}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Chat with AI
+            </Button>
+          </div>
+        </div>
+        
+        {/* Feature highlights */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-green-500">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            <span className="text-sm">Instant CO creation from uploads</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            <span className="text-sm">Pre-loaded company rates</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span className="text-sm">AI validates & matches rates</span>
+          </div>
         </div>
       </div>
 
@@ -380,6 +468,9 @@ export default function ChangeOrderLogs() {
                     Amount
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Days Open
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -394,6 +485,8 @@ export default function ChangeOrderLogs() {
                                (order.disposalAmount || 0) + (order.importAmount || 0) + 
                                (order.subcontractorsAmount || 0);
                   
+                  const daysOpen = Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                  
                   return (
                     <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -407,6 +500,15 @@ export default function ChangeOrderLogs() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                         ${total.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                        {order.status === 'approved' ? (
+                          <span className="text-green-600">Closed</span>
+                        ) : (
+                          <span className={daysOpen > 30 ? 'text-red-600 font-medium' : ''}>
+                            {daysOpen} days
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <Badge className={`${getStatusColor(order.status)} flex items-center gap-1 w-fit`}>
