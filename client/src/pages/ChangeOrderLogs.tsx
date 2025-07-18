@@ -1,589 +1,471 @@
-import { useState, useMemo } from "react";
-import { useLocation, useParams } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useParams, Link } from 'wouter';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
-  Plus, 
-  Calendar, 
-  Clock, 
-  Users, 
-  MapPin, 
+  ArrowLeft, 
   FileText, 
-  AlertCircle,
-  Phone,
-  Mail,
-  Building2,
-  Briefcase,
-  CloudRain,
-  CheckSquare,
-  ArrowLeft,
-  Edit,
-  Save,
-  X,
+  DollarSign,
+  Search,
   Filter,
-  Search
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import type { ChangeOrderLog, ChangeOrder, Project } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
-
-// Log type configurations with icons and colors
-const LOG_TYPES = {
-  meeting: { icon: Users, label: "Meeting", color: "bg-blue-100 text-blue-800" },
-  phone_call: { icon: Phone, label: "Phone Call", color: "bg-green-100 text-green-800" },
-  email: { icon: Mail, label: "Email", color: "bg-purple-100 text-purple-800" },
-  site_visit: { icon: Building2, label: "Site Visit", color: "bg-yellow-100 text-yellow-800" },
-  rfi_response: { icon: FileText, label: "RFI Response", color: "bg-orange-100 text-orange-800" },
-  decision: { icon: CheckSquare, label: "Decision", color: "bg-red-100 text-red-800" },
-  weather_delay: { icon: CloudRain, label: "Weather Delay", color: "bg-gray-100 text-gray-800" },
-  inspection: { icon: Briefcase, label: "Inspection", color: "bg-indigo-100 text-indigo-800" },
-};
+  Eye,
+  FileSpreadsheet,
+  FileImage,
+  Plus,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle
+} from 'lucide-react';
+import type { ChangeOrder, Project } from '@shared/schema';
+import { PlayfulLoadingAnimation } from '@/components/PlayfulLoadingAnimations';
+import { format } from 'date-fns';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ChangeOrderLogs() {
-  const [, params] = useLocation();
-  const projectId = parseInt(params.projectId!);
-  const changeOrderId = params.changeOrderId ? parseInt(params.changeOrderId) : undefined;
-  
-  const [, setLocation] = useLocation();
+  const { projectId } = useParams();
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
-  const [isCreating, setIsCreating] = useState(false);
-  const [editingLogId, setEditingLogId] = useState<number | null>(null);
-  const [selectedLogType, setSelectedLogType] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  // Form states
-  const [formData, setFormData] = useState({
-    logType: "meeting",
-    subject: "",
-    description: "",
-    attendees: "",
-    location: "",
-    meetingDate: new Date().toISOString().split('T')[0],
-    decisionRequired: false,
-    decisionMade: "",
-    costImpact: "",
-    scheduleImpact: "",
-    weatherConditions: "",
-    rfiNumber: "",
-    sharedWithOwner: false,
-  });
 
-  // Fetch project data
-  const { data: project } = useQuery<Project>({
+  // Fetch project details
+  const { data: project, isLoading: projectLoading } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
     enabled: !!projectId,
   });
 
-  // Fetch change order data if specified
-  const { data: changeOrder } = useQuery<ChangeOrder>({
-    queryKey: [`/api/change-orders/${changeOrderId}`],
-    enabled: !!changeOrderId,
-  });
-
-  // Fetch logs
-  const { data: logs = [], isLoading } = useQuery<ChangeOrderLog[]>({
-    queryKey: changeOrderId 
-      ? [`/api/projects/${projectId}/co-logs?changeOrderId=${changeOrderId}`]
-      : [`/api/projects/${projectId}/co-logs`],
+  // Fetch change orders for this project
+  const { data: changeOrders = [], isLoading: ordersLoading } = useQuery<ChangeOrder[]>({
+    queryKey: [`/api/change-orders?projectId=${projectId}`],
     enabled: !!projectId,
   });
 
-  // Filter logs by type and search
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      const matchesType = !selectedLogType || log.logType === selectedLogType;
-      const matchesSearch = !searchTerm || 
-        log.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (log.attendees && log.attendees.toLowerCase().includes(searchTerm.toLowerCase()));
+  const isLoading = projectLoading || ordersLoading;
+
+  // Filter change orders based on search
+  const filteredOrders = changeOrders.filter(order => 
+    order.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Calculate totals
+  const totals = filteredOrders.reduce((acc, order) => {
+    const orderTotal = (order.laborAmount || 0) + (order.materialsAmount || 0) + 
+                      (order.equipmentOwnedAmount || 0) + (order.equipmentRentedAmount || 0) +
+                      (order.disposalAmount || 0) + (order.importAmount || 0) + 
+                      (order.subcontractorsAmount || 0);
+    
+    acc.total += orderTotal;
+    acc.approved += order.status === 'approved' ? orderTotal : 0;
+    acc.pending += order.status === 'pending' ? orderTotal : 0;
+    acc.draft += order.status === 'draft' ? orderTotal : 0;
+    
+    return acc;
+  }, { total: 0, approved: 0, pending: 0, draft: 0 });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'pending':
+        return <Clock className="h-4 w-4" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <AlertCircle className="h-4 w-4" />;
+    }
+  };
+
+  const handleExport = async (id: number, format: 'excel' | 'pdf') => {
+    try {
+      const response = await apiRequest('GET', `/api/change-orders/${id}/export?format=${format}`, null, {
+        responseType: 'blob'
+      });
       
-      return matchesType && matchesSearch;
-    });
-  }, [logs, selectedLogType, searchTerm]);
-
-  // Create log mutation
-  const createLogMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const logData = {
-        changeOrderId: changeOrderId || changeOrder?.id,
-        projectId,
-        ...data,
-        costImpact: data.costImpact ? parseFloat(data.costImpact) : null,
-        scheduleImpact: data.scheduleImpact ? parseInt(data.scheduleImpact) : null,
-        meetingDate: data.meetingDate ? new Date(data.meetingDate) : null,
-      };
+      const url = window.URL.createObjectURL(response);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `change-order-${id}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
-      return apiRequest("/api/co-logs", {
-        method: "POST",
-        body: JSON.stringify(logData),
+      toast({
+        title: 'Success',
+        description: `Change order exported as ${format.toUpperCase()}`,
       });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/co-logs`] });
-      toast({ title: "Log created successfully" });
-      setIsCreating(false);
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to create log", 
-        description: error.message,
-        variant: "destructive" 
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export change order',
+        variant: 'destructive',
       });
-    },
-  });
-
-  // Update log mutation
-  const updateLogMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<ChangeOrderLog> }) => {
-      return apiRequest(`/api/co-logs/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/co-logs`] });
-      toast({ title: "Log updated successfully" });
-      setEditingLogId(null);
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to update log", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    },
-  });
-
-  const resetForm = () => {
-    setFormData({
-      logType: "meeting",
-      subject: "",
-      description: "",
-      attendees: "",
-      location: "",
-      meetingDate: new Date().toISOString().split('T')[0],
-      decisionRequired: false,
-      decisionMade: "",
-      costImpact: "",
-      scheduleImpact: "",
-      weatherConditions: "",
-      rfiNumber: "",
-      sharedWithOwner: false,
-    });
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    createLogMutation.mutate(formData);
+  const handleExportAll = async (format: 'excel' | 'pdf') => {
+    try {
+      const response = await apiRequest('GET', `/api/projects/${projectId}/change-orders/export?format=${format}`, null, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(response);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `${project?.number}-change-order-log.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Success',
+        description: `Change order log exported as ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export change order log',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+  if (isLoading) {
+    return <PlayfulLoadingAnimation />;
+  }
+
+  if (!project) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-gray-500">Project not found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={() => setLocation(changeOrderId ? `/change-orders/${changeOrderId}` : `/projects/${projectId}`)}
-            size="sm"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-          <div>
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="flex items-center gap-2">
+          <Link href="/projects">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Change Order Logs
+              Change Order Log
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              {project?.name} {changeOrder && `• ${changeOrder.number}`}
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {project.name} • {project.number}
             </p>
           </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleExportAll('excel')}
+              className="hidden md:flex"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export Excel
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleExportAll('pdf')}
+              className="hidden md:flex"
+            >
+              <FileImage className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setIsCreating(true)} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          New Log Entry
-        </Button>
+        
+        {/* Mobile Export Buttons */}
+        <div className="flex gap-2 md:hidden">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleExportAll('excel')}
+            className="flex-1"
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Export Excel
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleExportAll('pdf')}
+            className="flex-1"
+          >
+            <FileImage className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search logs..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Total COs</p>
+                <p className="text-xl md:text-2xl font-bold">{filteredOrders.length}</p>
               </div>
+              <FileText className="h-8 w-8 text-gray-300" />
             </div>
-            <Select value={selectedLogType || "all"} onValueChange={(value) => setSelectedLogType(value === "all" ? null : value)}>
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {Object.entries(LOG_TYPES).map(([value, config]) => (
-                  <SelectItem key={value} value={value}>
-                    <div className="flex items-center">
-                      <config.icon className="h-4 w-4 mr-2" />
-                      {config.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Total Value</p>
+                <p className="text-lg md:text-xl font-bold">${totals.total.toFixed(2)}</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-gray-300" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Approved</p>
+                <p className="text-lg md:text-xl font-bold text-green-600">${totals.approved.toFixed(2)}</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-300" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Pending</p>
+                <p className="text-lg md:text-xl font-bold text-yellow-600">${totals.pending.toFixed(2)}</p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-300" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Actions */}
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search by CO number or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Link href={`/change-orders?project=${projectId}`}>
+          <Button className="w-full md:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            New Change Order
+          </Button>
+        </Link>
+      </div>
+
+      {/* Change Orders Table - Mobile */}
+      <div className="block md:hidden space-y-3">
+        {filteredOrders.map((order) => {
+          const total = (order.laborAmount || 0) + (order.materialsAmount || 0) + 
+                       (order.equipmentOwnedAmount || 0) + (order.equipmentRentedAmount || 0) +
+                       (order.disposalAmount || 0) + (order.importAmount || 0) + 
+                       (order.subcontractorsAmount || 0);
+          
+          return (
+            <Card key={order.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                      {order.number}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {order.description}
+                    </p>
+                  </div>
+                  <Badge className={`${getStatusColor(order.status)} flex items-center gap-1`}>
+                    {getStatusIcon(order.status)}
+                    {order.status}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {format(new Date(order.createdAt), 'MMM dd, yyyy')}
+                  </span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">
+                    ${total.toFixed(2)}
+                  </span>
+                </div>
+                
+                <div className="flex gap-2 mt-3">
+                  <Link href={`/change-orders/${order.id}`}>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleExport(order.id, 'excel')}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleExport(order.id, 'pdf')}
+                  >
+                    <FileImage className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Change Orders Table - Desktop */}
+      <Card className="hidden md:block">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    CO Number
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredOrders.map((order) => {
+                  const total = (order.laborAmount || 0) + (order.materialsAmount || 0) + 
+                               (order.equipmentOwnedAmount || 0) + (order.equipmentRentedAmount || 0) +
+                               (order.disposalAmount || 0) + (order.importAmount || 0) + 
+                               (order.subcontractorsAmount || 0);
+                  
+                  return (
+                    <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {order.number}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                        {format(new Date(order.createdAt), 'MMM dd, yyyy')}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                        {order.description}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                        ${total.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge className={`${getStatusColor(order.status)} flex items-center gap-1 w-fit`}>
+                          {getStatusIcon(order.status)}
+                          {order.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link href={`/change-orders/${order.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleExport(order.id, 'excel')}
+                          >
+                            <FileSpreadsheet className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleExport(order.id, 'pdf')}
+                          >
+                            <FileImage className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
 
-      {/* Create/Edit Form */}
-      {(isCreating || editingLogId) && (
+      {/* Empty State */}
+      {filteredOrders.length === 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>{isCreating ? "Create New Log Entry" : "Edit Log Entry"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="logType">Log Type</Label>
-                  <Select 
-                    value={formData.logType} 
-                    onValueChange={(value) => setFormData({ ...formData, logType: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(LOG_TYPES).map(([value, config]) => (
-                        <SelectItem key={value} value={value}>
-                          <div className="flex items-center">
-                            <config.icon className="h-4 w-4 mr-2" />
-                            {config.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="meetingDate">Date</Label>
-                  <Input
-                    id="meetingDate"
-                    type="date"
-                    value={formData.meetingDate}
-                    onChange={(e) => setFormData({ ...formData, meetingDate: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  placeholder="Brief subject of the log entry"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Detailed notes about the meeting, call, or event..."
-                  rows={4}
-                  required
-                />
-              </div>
-
-              {(formData.logType === "meeting" || formData.logType === "phone_call") && (
-                <div>
-                  <Label htmlFor="attendees">Attendees/Participants</Label>
-                  <Textarea
-                    id="attendees"
-                    value={formData.attendees}
-                    onChange={(e) => setFormData({ ...formData, attendees: e.target.value })}
-                    placeholder="List all attendees or participants"
-                    rows={2}
-                  />
-                </div>
-              )}
-
-              {formData.logType === "meeting" && (
-                <div>
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="Meeting location (job site, office, virtual)"
-                  />
-                </div>
-              )}
-
-              {formData.logType === "rfi_response" && (
-                <div>
-                  <Label htmlFor="rfiNumber">RFI Number</Label>
-                  <Input
-                    id="rfiNumber"
-                    value={formData.rfiNumber}
-                    onChange={(e) => setFormData({ ...formData, rfiNumber: e.target.value })}
-                    placeholder="RFI-001"
-                  />
-                </div>
-              )}
-
-              {formData.logType === "weather_delay" && (
-                <div>
-                  <Label htmlFor="weatherConditions">Weather Conditions</Label>
-                  <Input
-                    id="weatherConditions"
-                    value={formData.weatherConditions}
-                    onChange={(e) => setFormData({ ...formData, weatherConditions: e.target.value })}
-                    placeholder="Heavy rain, high winds, etc."
-                  />
-                </div>
-              )}
-
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="font-semibold">Impact Assessment</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="costImpact">Cost Impact ($)</Label>
-                    <Input
-                      id="costImpact"
-                      type="number"
-                      step="0.01"
-                      value={formData.costImpact}
-                      onChange={(e) => setFormData({ ...formData, costImpact: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="scheduleImpact">Schedule Impact (days)</Label>
-                    <Input
-                      id="scheduleImpact"
-                      type="number"
-                      value={formData.scheduleImpact}
-                      onChange={(e) => setFormData({ ...formData, scheduleImpact: e.target.value })}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4 border-t pt-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="decisionRequired"
-                    checked={formData.decisionRequired}
-                    onCheckedChange={(checked) => setFormData({ ...formData, decisionRequired: checked as boolean })}
-                  />
-                  <Label htmlFor="decisionRequired">Decision Required</Label>
-                </div>
-                
-                {formData.decisionRequired && (
-                  <div>
-                    <Label htmlFor="decisionMade">Decision Made</Label>
-                    <Textarea
-                      id="decisionMade"
-                      value={formData.decisionMade}
-                      onChange={(e) => setFormData({ ...formData, decisionMade: e.target.value })}
-                      placeholder="Document the decision made..."
-                      rows={2}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2 border-t pt-4">
-                <Checkbox
-                  id="sharedWithOwner"
-                  checked={formData.sharedWithOwner}
-                  onCheckedChange={(checked) => setFormData({ ...formData, sharedWithOwner: checked as boolean })}
-                />
-                <Label htmlFor="sharedWithOwner">Share with Owner</Label>
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsCreating(false);
-                    setEditingLogId(null);
-                    resetForm();
-                  }}
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createLogMutation.isPending}>
-                  <Save className="h-4 w-4 mr-1" />
-                  {isCreating ? "Create Log" : "Update Log"}
-                </Button>
-              </div>
-            </form>
+          <CardContent className="text-center py-12">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+              No change orders found
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {searchTerm ? 'Try adjusting your search' : 'Create your first change order for this project'}
+            </p>
+            <Link href={`/change-orders?project=${projectId}`}>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Change Order
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       )}
-
-      {/* Logs List */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100 mx-auto"></div>
-              <p className="mt-4 text-gray-500">Loading logs...</p>
-            </CardContent>
-          </Card>
-        ) : filteredLogs.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No logs found</h3>
-              <p className="text-gray-500">
-                {searchTerm || selectedLogType 
-                  ? "Try adjusting your filters" 
-                  : "Create your first log entry to start tracking change order activities"}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredLogs.map((log) => {
-            const logConfig = LOG_TYPES[log.logType as keyof typeof LOG_TYPES];
-            const Icon = logConfig?.icon || FileText;
-            
-            return (
-              <Card key={log.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3 flex-1">
-                      <div className={`p-2 rounded-lg ${logConfig?.color || 'bg-gray-100 text-gray-800'}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                            {log.subject}
-                          </h3>
-                          {log.sharedWithOwner && (
-                            <Badge variant="secondary" className="text-xs">
-                              Shared with Owner
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
-                          <span className="flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {log.meetingDate 
-                              ? format(new Date(log.meetingDate), 'MMM dd, yyyy')
-                              : format(new Date(log.createdAt), 'MMM dd, yyyy')
-                            }
-                          </span>
-                          {log.location && (
-                            <span className="flex items-center">
-                              <MapPin className="h-3 w-3 mr-1" />
-                              {log.location}
-                            </span>
-                          )}
-                          {log.rfiNumber && (
-                            <span className="flex items-center">
-                              <FileText className="h-3 w-3 mr-1" />
-                              {log.rfiNumber}
-                            </span>
-                          )}
-                        </div>
-                        
-                        <p className="text-gray-700 dark:text-gray-300 mb-2">
-                          {log.description}
-                        </p>
-                        
-                        {log.attendees && (
-                          <div className="mb-2">
-                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                              Attendees: 
-                            </span>
-                            <span className="text-sm text-gray-700 dark:text-gray-300 ml-1">
-                              {log.attendees}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {(log.costImpact || log.scheduleImpact) && (
-                          <div className="flex items-center gap-4 mt-2">
-                            {log.costImpact && (
-                              <Badge variant="outline" className="text-xs">
-                                Cost: {formatCurrency(Number(log.costImpact))}
-                              </Badge>
-                            )}
-                            {log.scheduleImpact && (
-                              <Badge variant="outline" className="text-xs">
-                                Schedule: {log.scheduleImpact} days
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                        
-                        {log.decisionRequired && (
-                          <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
-                            <div className="flex items-center text-yellow-800 dark:text-yellow-200">
-                              <AlertCircle className="h-4 w-4 mr-1" />
-                              <span className="text-sm font-medium">Decision Required</span>
-                            </div>
-                            {log.decisionMade && (
-                              <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                                <span className="font-medium">Decision: </span>
-                                {log.decisionMade}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center justify-between mt-3">
-                          <span className="text-xs text-gray-500">
-                            Created by {log.createdByName} • {format(new Date(log.createdAt), 'MMM dd, yyyy h:mm a')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
     </div>
   );
 }
