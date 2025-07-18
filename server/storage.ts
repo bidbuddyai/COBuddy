@@ -7,6 +7,7 @@ import {
   rateTables,
   auditLogs,
   chatConversations,
+  changeOrderLogs,
   type User,
   type InsertUser,
   type UpsertUser,
@@ -24,6 +25,8 @@ import {
   type InsertAuditLog,
   type ChatConversation,
   type InsertChatConversation,
+  type ChangeOrderLog,
+  type InsertChangeOrderLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, or, isNull, ne } from "drizzle-orm";
@@ -103,6 +106,13 @@ export interface IStorage {
 
   // Audit
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+
+  // Change Order Logs
+  getChangeOrderLogs(projectId: number, changeOrderId?: number): Promise<ChangeOrderLog[]>;
+  getChangeOrderLog(id: number): Promise<ChangeOrderLog | undefined>;
+  createChangeOrderLog(log: InsertChangeOrderLog): Promise<ChangeOrderLog>;
+  updateChangeOrderLog(id: number, log: Partial<ChangeOrderLog>): Promise<ChangeOrderLog>;
+  getProjectLogsByType(projectId: number, logType: string): Promise<ChangeOrderLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -504,6 +514,77 @@ export class DatabaseStorage implements IStorage {
       statusBreakdown,
       monthlyTrends
     };
+  }
+
+  // Change Order Logs
+  async getChangeOrderLogs(projectId: number, changeOrderId?: number): Promise<ChangeOrderLog[]> {
+    const conditions = [eq(changeOrderLogs.projectId, projectId)];
+    
+    if (changeOrderId) {
+      conditions.push(eq(changeOrderLogs.changeOrderId, changeOrderId));
+    }
+    
+    const logs = await db
+      .select()
+      .from(changeOrderLogs)
+      .where(and(...conditions))
+      .orderBy(desc(changeOrderLogs.createdAt));
+      
+    return logs;
+  }
+
+  async getChangeOrderLog(id: number): Promise<ChangeOrderLog | undefined> {
+    const [log] = await db
+      .select()
+      .from(changeOrderLogs)
+      .where(eq(changeOrderLogs.id, id));
+      
+    return log;
+  }
+
+  async createChangeOrderLog(log: InsertChangeOrderLog): Promise<ChangeOrderLog> {
+    const [newLog] = await db
+      .insert(changeOrderLogs)
+      .values({
+        ...log,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+      
+    return newLog;
+  }
+
+  async updateChangeOrderLog(id: number, log: Partial<ChangeOrderLog>): Promise<ChangeOrderLog> {
+    const [updatedLog] = await db
+      .update(changeOrderLogs)
+      .set({
+        ...log,
+        updatedAt: new Date(),
+      })
+      .where(eq(changeOrderLogs.id, id))
+      .returning();
+      
+    if (!updatedLog) {
+      throw new Error("Change order log not found");
+    }
+    
+    return updatedLog;
+  }
+
+  async getProjectLogsByType(projectId: number, logType: string): Promise<ChangeOrderLog[]> {
+    const logs = await db
+      .select()
+      .from(changeOrderLogs)
+      .where(
+        and(
+          eq(changeOrderLogs.projectId, projectId),
+          eq(changeOrderLogs.logType, logType)
+        )
+      )
+      .orderBy(desc(changeOrderLogs.createdAt));
+      
+    return logs;
   }
 }
 

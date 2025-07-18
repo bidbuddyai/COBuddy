@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Upload from "@/pages/Upload";
 import ChangeOrders from "@/pages/ChangeOrders";
+import ChangeOrderLogs from "@/pages/ChangeOrderLogs";
 import RateTables from "@/pages/RateTables";
 import Analytics from "@/pages/Analytics";
 import Projects from "@/pages/Projects";
@@ -54,6 +55,8 @@ function Router() {
           <Route path="/upload" component={() => <Layout><Upload /></Layout>} />
           <Route path="/change-orders" component={() => <Layout><ChangeOrders /></Layout>} />
           <Route path="/change-orders/:id" component={() => <Layout><ChangeOrders /></Layout>} />
+          <Route path="/projects/:projectId/co-logs" component={() => <Layout><ChangeOrderLogs /></Layout>} />
+          <Route path="/projects/:projectId/co-logs/:changeOrderId" component={() => <Layout><ChangeOrderLogs /></Layout>} />
           <Route path="/rate-tables" component={() => <Layout><RateTables /></Layout>} />
           <Route path="/analytics" component={() => <Layout><Analytics /></Layout>} />
           <Route path="/projects" component={() => <Layout><Projects /></Layout>} />

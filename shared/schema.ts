@@ -249,7 +249,8 @@ export const insertChatConversationSchema = createInsertSchema(chatConversations
 
 export const insertChangeOrderLogSchema = createInsertSchema(changeOrderLogs).omit({
   id: true,
-  timestamp: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Types
@@ -270,3 +271,5 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type ChatConversation = typeof chatConversations.$inferSelect;
 export type InsertChatConversation = z.infer<typeof insertChatConversationSchema>;
+export type ChangeOrderLog = typeof changeOrderLogs.$inferSelect;
+export type InsertChangeOrderLog = z.infer<typeof insertChangeOrderLogSchema>;

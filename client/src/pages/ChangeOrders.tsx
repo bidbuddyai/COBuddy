@@ -8,12 +8,57 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { ChangeOrder, Project } from '@shared/schema';
-import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage, Folder, ArrowLeft } from 'lucide-react';
+import { ChangeOrder, Project, ChangeOrderLog } from '@shared/schema';
+import { FileText, Plus, Search, Filter, Download, Eye, Edit, Building, FileSpreadsheet, FileImage, Folder, ArrowLeft, ClipboardList, MessageSquare, Calendar, User } from 'lucide-react';
 import ProjectSelector from '@/components/ProjectSelector';
 import ChangeOrderTemplates from '@/components/ChangeOrderTemplates';
 import ChangeOrderForm from '@/components/ChangeOrderForm';
 import { useLocation } from 'wouter';
+import { format } from 'date-fns';
+
+// Component to show recent logs
+function RecentLogs({ projectId, changeOrderId, limit = 5 }: { projectId: number; changeOrderId: number; limit?: number }) {
+  const { data: logs = [], isLoading } = useQuery<ChangeOrderLog[]>({
+    queryKey: [`/api/projects/${projectId}/co-logs?changeOrderId=${changeOrderId}`],
+    enabled: !!projectId && !!changeOrderId,
+  });
+
+  const recentLogs = logs.slice(0, limit);
+
+  if (isLoading) {
+    return <div className="text-sm text-gray-500">Loading activity...</div>;
+  }
+
+  if (recentLogs.length === 0) {
+    return <div className="text-sm text-gray-500">No activity logged yet</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {recentLogs.map((log) => (
+        <div key={log.id} className="flex items-start space-x-3 text-sm">
+          <div className="flex-shrink-0 mt-0.5">
+            {log.logType === 'meeting' && <User className="h-4 w-4 text-blue-500" />}
+            {log.logType === 'decision' && <FileText className="h-4 w-4 text-green-500" />}
+            {log.logType === 'phone_call' && <MessageSquare className="h-4 w-4 text-purple-500" />}
+            {!['meeting', 'decision', 'phone_call'].includes(log.logType) && <ClipboardList className="h-4 w-4 text-gray-500" />}
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-gray-900 dark:text-gray-100">{log.subject}</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">{log.description.substring(0, 100)}...</p>
+            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+              <span className="flex items-center">
+                <Calendar className="h-3 w-3 mr-1" />
+                {format(new Date(log.createdAt), 'MMM dd, yyyy')}
+              </span>
+              <span>{log.createdByName}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ChangeOrders() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -327,8 +372,59 @@ export default function ChangeOrders() {
                 )}
               </CardContent>
             </Card>
+            
+            {/* Communication & Documentation */}
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  Communication & Logs
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center"
+                  onClick={() => setLocation(`/projects/${specificChangeOrder.projectId}/co-logs/${specificChangeOrder.id}`)}
+                >
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  View Activity Logs
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center"
+                  onClick={() => setLocation(`/projects/${specificChangeOrder.projectId}/co-logs`)}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  All Project Logs
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
+        
+        {/* Recent Logs Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Recent Activity</CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setLocation(`/projects/${specificChangeOrder.projectId}/co-logs/${specificChangeOrder.id}`)}
+              >
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <RecentLogs 
+              projectId={specificChangeOrder.projectId} 
+              changeOrderId={specificChangeOrder.id} 
+              limit={5} 
+            />
+          </CardContent>
+        </Card>
       </div>
     );
   }

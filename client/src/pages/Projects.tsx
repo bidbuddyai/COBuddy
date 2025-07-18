@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Plus, Building, Calendar, DollarSign, FileText, Settings, Eye } from 'lucide-react';
+import { Plus, Building, Calendar, DollarSign, FileText, Settings, Eye, ClipboardList } from 'lucide-react';
 import { Link } from 'wouter';
 import type { Project } from '@shared/schema';
 import { PlayfulLoadingAnimation } from '@/components/PlayfulLoadingAnimations';
@@ -383,6 +383,14 @@ export default function Projects() {
                   <Button variant="outline" size="sm" className="flex-1">
                     <FileText className="h-4 w-4 mr-2" />
                     Analytics
+                  </Button>
+                </Link>
+              </div>
+              <div className="pt-2">
+                <Link href={`/projects/${project.id}/co-logs`}>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    CO Activity Logs
                   </Button>
                 </Link>
               </div>

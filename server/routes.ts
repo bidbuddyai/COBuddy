@@ -10,7 +10,7 @@ import { processDocument, matchRatesToExtractedData } from "./services/documentP
 import { generateChangeOrderExcel } from "./services/excelGenerator";
 import { generateChangeOrderPDF } from "./services/pdfGenerator";
 import { processAIChat } from "./services/openai";
-import { insertDocumentSchema, insertChangeOrderSchema, insertProjectSchema } from "@shared/schema";
+import { insertDocumentSchema, insertChangeOrderSchema, insertProjectSchema, insertChangeOrderLogSchema } from "@shared/schema";
 import { Request, Response } from "express";
 import { aiAssistantService } from "./services/aiAssistant";
 
@@ -563,6 +563,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating PDF:', error);
       res.status(500).json({ message: 'Failed to generate PDF file' });
+    }
+  });
+
+  // Change Order Logs - Construction PM Communication & Documentation
+  app.get('/api/projects/:projectId/co-logs', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const changeOrderId = req.query.changeOrderId ? parseInt(req.query.changeOrderId) : undefined;
+      
+      const logs = await storage.getChangeOrderLogs(projectId, changeOrderId);
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching CO logs:', error);
+      res.status(500).json({ message: 'Failed to fetch change order logs' });
+    }
+  });
+
+  app.get('/api/co-logs/:id', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const log = await storage.getChangeOrderLog(id);
+      
+      if (!log) {
+        return res.status(404).json({ message: 'Change order log not found' });
+      }
+      
+      res.json(log);
+    } catch (error) {
+      console.error('Error fetching CO log:', error);
+      res.status(500).json({ message: 'Failed to fetch change order log' });
+    }
+  });
+
+  app.post('/api/co-logs', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { body, user } = req;
+      
+      // Validate the incoming data
+      const logData = insertChangeOrderLogSchema.parse({
+        ...body,
+        createdBy: user.id,
+        createdByName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      });
+      
+      const log = await storage.createChangeOrderLog(logData);
+      
+      // Create audit log for tracking
+      await storage.createAuditLog({
+        action: 'create',
+        entityType: 'change_order_log',
+        entityId: log.id,
+        newData: log,
+        userId: user.id,
+      });
+      
+      res.status(201).json(log);
+    } catch (error) {
+      console.error('Error creating CO log:', error);
+      res.status(500).json({ message: 'Failed to create change order log' });
+    }
+  });
+
+  app.put('/api/co-logs/:id', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const log = await storage.updateChangeOrderLog(id, updateData);
+      
+      // Create audit log for tracking
+      await storage.createAuditLog({
+        action: 'update',
+        entityType: 'change_order_log',
+        entityId: log.id,
+        newData: updateData,
+        userId: req.user.id,
+      });
+      
+      res.json(log);
+    } catch (error) {
+      console.error('Error updating CO log:', error);
+      res.status(500).json({ message: 'Failed to update change order log' });
+    }
+  });
+
+  app.get('/api/projects/:projectId/co-logs/by-type/:logType', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const logType = req.params.logType;
+      
+      const logs = await storage.getProjectLogsByType(projectId, logType);
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching CO logs by type:', error);
+      res.status(500).json({ message: 'Failed to fetch change order logs by type' });
     }
   });
 
