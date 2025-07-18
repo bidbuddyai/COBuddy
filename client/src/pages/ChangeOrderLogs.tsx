@@ -160,35 +160,7 @@ export default function ChangeOrderLogs() {
     }
   };
 
-  const handleExportAll = async (format: 'excel' | 'pdf') => {
-    try {
-      const response = await apiRequest('GET', `/api/projects/${projectId}/change-orders/export?format=${format}`, null, {
-        responseType: 'blob'
-      });
-      
-      const url = window.URL.createObjectURL(response);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `${project?.number}-change-order-log.${format === 'excel' ? 'xlsx' : 'pdf'}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: 'Success',
-        description: `Change order log exported as ${format.toUpperCase()}`,
-      });
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: 'Export Failed',
-        description: 'Failed to export change order log',
-        variant: 'destructive',
-      });
-    }
-  };
+
 
   if (isLoading) {
     return <PlayfulLoadingAnimation />;
