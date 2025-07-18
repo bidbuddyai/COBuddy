@@ -146,6 +146,24 @@ export const auditLogs = pgTable("audit_logs", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+// Change Order Activity Logs - Construction PM perspective
+export const changeOrderLogs = pgTable("change_order_logs", {
+  id: serial("id").primaryKey(),
+  changeOrderId: integer("change_order_id").notNull().references(() => changeOrders.id),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  action: varchar("action").notNull(), // created, updated, status_changed, document_added, document_removed, exported, approved, rejected, submitted
+  description: text("description").notNull(), // Human-readable description
+  details: jsonb("details"), // Additional context (old values, new values, document info, etc.)
+  userId: varchar("user_id").references(() => users.id),
+  userName: varchar("user_name"), // Denormalized for quick display
+  timestamp: timestamp("timestamp").defaultNow(),
+  // PM-specific fields
+  costImpact: decimal("cost_impact", { precision: 12, scale: 2 }), // Cost change if applicable
+  scheduleImpact: integer("schedule_impact"), // Days impact if applicable
+  rfi: varchar("rfi"), // Related RFI number if applicable
+  documentId: integer("document_id").references(() => documents.id), // If action involves a document
+});
+
 // Chat conversations
 export const chatConversations = pgTable("chat_conversations", {
   id: serial("id").primaryKey(),
@@ -204,6 +222,11 @@ export const insertChatConversationSchema = createInsertSchema(chatConversations
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertChangeOrderLogSchema = createInsertSchema(changeOrderLogs).omit({
+  id: true,
+  timestamp: true,
 });
 
 // Types
