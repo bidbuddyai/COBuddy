@@ -160,6 +160,44 @@ export default function ChangeOrders() {
     }
   };
 
+  const handleProjectExport = async (format: 'excel' | 'pdf') => {
+    if (!selectedProjectId) {
+      toast({
+        title: "No Project Selected",
+        description: "Please select a project first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const endpoint = `/api/projects/${selectedProjectId}/change-orders/export?format=${format}`;
+      
+      const response = await apiRequest('GET', endpoint);
+      const blob = await response.blob();
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `project-${selectedProjectId}-change-order-log.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Successful",
+        description: `Change order log exported as ${format.toUpperCase()}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: `Failed to export change order log as ${format}.`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
@@ -485,7 +523,7 @@ export default function ChangeOrders() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Filters */}
+          {/* Filters and Export */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -514,6 +552,24 @@ export default function ChangeOrders() {
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleProjectExport('excel')}
+                title="Export project change order log as Excel"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export Log (Excel)
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleProjectExport('pdf')}
+                title="Export project change order log as PDF"
+              >
+                <FileImage className="h-4 w-4 mr-2" />
+                Export Log (PDF)
               </Button>
             </div>
           </div>
