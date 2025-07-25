@@ -79,22 +79,45 @@ export async function extractTMData(documentText: string): Promise<ExtractedTMDa
         {
           role: "system",
           content: `You are an expert at extracting Time and Material (T&M) data from construction documents, invoices, and quotes. 
-          Extract all labor, equipment, material, subcontractor, and disposal entries with their quantities, hours, amounts, and rates.
-          IMPORTANT: Invoices from companies like Incompli are SUBCONTRACTOR entries, not labor.
-          Invoices are typically for subcontractors, equipment rentals, or operated equipment.
-          Pay special attention to all entries and ensure accuracy.
-          Return the data in the specified JSON format with confidence scores (0-1) for each entry.`
+
+          CRITICAL INVOICE DETECTION RULES:
+          - ANY document from a company/vendor to another company = SUBCONTRACTOR ENTRY
+          - Company invoices (like Incompli, equipment rental companies, service providers) = SUBCONTRACTOR ENTRIES
+          - If you see invoice numbers, vendor names, company letterheads = SUBCONTRACTOR ENTRY
+          - Equipment rental invoices = SUBCONTRACTOR ENTRIES (not equipment entries)
+          - Service provider invoices = SUBCONTRACTOR ENTRIES
+          - Only extract as LABOR if it's direct employee timesheets with individual worker names and hours
+          
+          SUBCONTRACTOR DETECTION SIGNALS:
+          - Invoice number present
+          - Company name as sender/vendor
+          - Total amounts (not hourly rates)
+          - Business addresses/contact info
+          - Terms like "Invoice", "Bill To", "Vendor", "Supplier"
+          
+          Extract all data with confidence scores (0-1). When in doubt, categorize as SUBCONTRACTOR.`
         },
         {
           role: "user",
-          content: `Please extract all T&M data from this document text. Include:
-              - Labor entries (direct employees only - name, role, hours worked)
-              - Equipment entries (type, description, hours used)
-              - Material entries (type, description, quantity, unit)
-              - Subcontractor entries (company invoices like Incompli, description, total amount)
-              - Disposal entries (waste type, description, quantity, unit)
-              - Project information (name, location, date)
-              - Confidence scores for each extraction
+          content: `Please extract all T&M data from this document text. PRIORITY CLASSIFICATION:
+
+              1. SUBCONTRACTOR ENTRIES - Look for these FIRST:
+                 - Company invoices (vendor name, invoice number, total amount)
+                 - Equipment rental invoices (rental company as subcontractor)
+                 - Service provider invoices (Incompli, etc.)
+                 - Any business-to-business billing
+              
+              2. LABOR ENTRIES - Only if direct employees:
+                 - Individual worker names with specific hours
+                 - Direct employee timesheets
+                 - NOT company invoices
+              
+              3. EQUIPMENT/MATERIALS/DISPOSAL - Only if not part of subcontractor invoice:
+                 - Individual equipment usage (not rental invoices)
+                 - Material purchases (not supplier invoices)
+                 - Disposal services (not service provider invoices)
+              
+              4. PROJECT INFO and confidence scores
               
               Document text:
               ${documentText}
@@ -286,46 +309,45 @@ export async function extractQuoteData(documentText: string): Promise<ExtractedQ
   }
 }
 
-export async function extractInvoiceData(documentText: string): Promise<ExtractedInvoiceData> {
+export async function extractInvoiceData(documentText: string): Promise<ExtractedTMData> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are an expert at extracting invoice data from construction documents. 
-          Extract all invoice information including vendor details, line items, pricing, and payment information.
-          Pay special attention to quantities, unit prices, totals, and payment status.
-          Return the data in the specified JSON format with confidence scores (0-1) for each entry.`
+          content: `You are an expert at extracting invoice data from construction documents and converting it to T&M format.
+          CRITICAL: Invoices from companies like Incompli, subcontractors, equipment rental companies, and service providers should ALWAYS be categorized as SUBCONTRACTOR ENTRIES, not labor or other categories.
+          
+          For construction invoices, focus on:
+          - Company invoices = subcontractor entries (with company name, description, total amount)
+          - Equipment rental invoices = subcontractor entries (rental company as subcontractor)
+          - Service provider invoices = subcontractor entries
+          - Only extract as labor if it's direct employee timesheets
+          
+          Return data in T&M format with confidence scores (0-1) for each entry.`
         },
         {
           role: "user",
-          content: `Please extract all invoice data from this document text. Include:
-              - Invoice number and dates (invoice date, due date)
-              - Vendor information (name, contact details)
-              - Bill-to information and project details
-              - Line items with descriptions, quantities, units, and prices
-              - Subtotal, tax, and total amounts
-              - Payment terms and status (paid amount, balance due)
-              - Confidence scores for each extraction
+          content: `Please extract invoice data and convert it to T&M format. Focus on:
+              - Converting vendor/company invoices to SUBCONTRACTOR ENTRIES
+              - Extract invoice number, date, vendor name, total amount
+              - Categorize all invoice content as subcontractor work
+              - Only use labor/equipment/materials if explicitly direct employee work
+              - Include confidence scores for each extraction
               
               Document text:
               ${documentText}
               
-              Return as JSON with this exact structure:
+              Return as JSON with this T&M structure:
               {
-                "invoiceNumber": "string",
+                "laborEntries": [{"name": "string", "role": "string", "hours": number, "rate": number, "confidence": number}],
+                "equipmentEntries": [{"type": "string", "description": "string", "hours": number, "rate": number, "confidence": number}],
+                "materialEntries": [{"type": "string", "description": "string", "quantity": number, "unit": "string", "rate": number, "confidence": number}],
+                "subcontractorEntries": [{"company": "string", "description": "string", "amount": number, "invoiceNumber": "string", "confidence": number}],
+                "disposalEntries": [{"type": "string", "description": "string", "quantity": number, "unit": "string", "rate": number, "confidence": number}],
                 "date": "string",
-                "dueDate": "string",
-                "vendor": {"name": "string", "contact": "string", "email": "string", "phone": "string"},
-                "billTo": {"name": "string", "contact": "string", "projectName": "string"},
-                "lineItems": [{"description": "string", "quantity": number, "unit": "string", "unitPrice": number, "totalPrice": number, "confidence": number}],
-                "subtotal": number,
-                "tax": number,
-                "total": number,
-                "paymentTerms": "string",
-                "paidAmount": number,
-                "balanceDue": number,
+                "projectInfo": {"name": "string", "location": "string", "confidence": number},
                 "totalConfidence": number
               }`
         }
@@ -336,7 +358,7 @@ export async function extractInvoiceData(documentText: string): Promise<Extracte
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
-    return result as ExtractedInvoiceData;
+    return result as ExtractedTMData;
   } catch (error) {
     console.error('OpenAI invoice extraction error:', error);
     throw new Error(`Failed to extract invoice data: ${error instanceof Error ? error.message : 'Unknown error'}`);

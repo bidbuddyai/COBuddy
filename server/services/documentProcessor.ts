@@ -91,7 +91,7 @@ Azure Document Intelligence Error: ${errorMessage}
 Document Details:
 - Filename: ${document.originalName}
 - Type: ${document.type}
-- Uploaded: ${new Date(document.uploadedAt).toLocaleString()}
+- Uploaded: ${document.uploadedAt ? new Date(document.uploadedAt).toLocaleString() : 'Unknown'}
 
 The document could not be processed automatically. This could be due to:
 1. Azure Document Intelligence taking longer than expected
@@ -137,10 +137,10 @@ Please try:
       confidence = (extractedData as ExtractedQuoteData).totalConfidence;
       progressCallback?.(70, 'Quote data extracted successfully!');
     } else if (document.type === 'invoice') {
-      progressCallback?.(50, 'Analyzing invoice data...');
+      progressCallback?.(50, 'Analyzing invoice data as T&M format...');
       extractedData = await extractInvoiceData(documentText);
-      confidence = (extractedData as ExtractedInvoiceData).totalConfidence;
-      progressCallback?.(70, 'Invoice data extracted successfully!');
+      confidence = (extractedData as ExtractedTMData).totalConfidence;
+      progressCallback?.(70, 'Invoice converted to T&M format successfully!');
     } else {
       // For other document types, use general extraction
       progressCallback?.(50, 'Analyzing document data...');
