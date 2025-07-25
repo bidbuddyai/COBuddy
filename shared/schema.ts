@@ -109,6 +109,13 @@ export const changeOrders = pgTable("change_orders", {
   importAmount: decimal("import_amount", { precision: 10, scale: 2 }),
   subcontractorAmount: decimal("subcontractor_amount", { precision: 10, scale: 2 }),
   data: jsonb("data"), // Detailed breakdown data
+  // CO Log fields
+  ccoNumber: varchar("cco_number"), // Client Change Order number
+  pcoNumber: varchar("pco_number"), // Potential Change Order number
+  rfiNumber: varchar("rfi_number"), // Request for Information number
+  ballInCourt: varchar("ball_in_court"), // Who needs to take action
+  assignedPm: varchar("assigned_pm"), // Project Manager assigned
+  timeRequested: integer("time_requested"), // Calendar days requested
   createdBy: varchar("created_by").references(() => users.id),
   approvedBy: varchar("approved_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

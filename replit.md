@@ -20,6 +20,15 @@ Important features: Professional dashboard with sidebar navigation, not simplifi
 Document categorization: Invoices from companies like Incompli are subcontractor entries, not labor. Invoices are typically for subcontractors, equipment rentals, or operated equipment.
 
 ## Recent Updates (January 2025)
+- **Professional PDF Export Templates (Jan 25, 2025)**: Complete overhaul of PDF generation to match professional templates
+  - Request for Change PDF: Added TO/FROM sections, UNIT/QTY/RATE columns, equipment split (Owned/Rented), disposal/import/subcontractor sections
+  - Markups section: Project-specific markup percentages displayed with calculated amounts for each category
+  - Contract tracking: Previous Change Orders, Original Contract, Revised Contract sections
+  - Legal text: Change to Contract Schedule section with comprehensive contract modification language
+  - Signature section: Professional signature lines for Signature, Name/Title, and Date fields
+  - CO Log PDF: Implemented landscape orientation with all required columns matching template
+  - Summary totals: Approved and Outstanding CO amounts with Original Contract Value tracking
+  - Database schema: Added CO Log fields (ccoNumber, pcoNumber, rfiNumber, ballInCourt, assignedPm, timeRequested)
 - **Enhanced Category Recategorization System (Jan 25, 2025)**: Major improvement to document editing and category management
   - Added equipment rental detection to AI: equipment rental companies now categorized as EQUIPMENT entries
   - Enhanced AI priority-based classification: equipment rentals > material suppliers > subcontractor services > labor
