@@ -8,7 +8,8 @@ import { authenticateSupabaseUser } from "./middleware/supabaseAuth";
 import { uploadMultiple, upload } from "./middleware/upload";
 import { processDocument, matchRatesToExtractedData } from "./services/documentProcessor";
 import { generateChangeOrderExcel } from "./services/excelGenerator";
-import { generateChangeOrderPDF } from "./services/pdfGenerator";
+import { generateChangeOrderPDF, generateChangeOrderLogPDF } from "./services/pdfGenerator";
+import * as pdfGenerator from "./services/pdfGenerator";
 import { processAIChat } from "./services/openai";
 import { insertDocumentSchema, insertChangeOrderSchema, insertProjectSchema, insertChangeOrderLogSchema } from "@shared/schema";
 import { Request, Response } from "express";
@@ -572,7 +573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { projectId } = req.params;
       const { format } = req.query;
       
-      const changeOrders = await storage.getChangeOrdersByProject(Number(projectId));
+      const changeOrders = await storage.getChangeOrders({ projectId: Number(projectId) });
       const project = await storage.getProject(Number(projectId));
       
       if (!project) {
@@ -580,6 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (format === 'excel') {
+        const ExcelJS = require('exceljs');
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Change Order Log');
         
@@ -599,7 +601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
         
         // Add data
-        changeOrders.forEach(co => {
+        changeOrders.data.forEach((co: any) => {
           const total = (co.laborAmount || 0) + (co.materialsAmount || 0) + 
                        (co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0) +
                        (co.disposalAmount || 0) + (co.importAmount || 0) + 
@@ -635,12 +637,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           number: 'TOTALS',
           date: '',
           description: '',
-          labor: changeOrders.reduce((sum, co) => sum + (co.laborAmount || 0), 0),
-          materials: changeOrders.reduce((sum, co) => sum + (co.materialsAmount || 0), 0),
-          equipment: changeOrders.reduce((sum, co) => sum + ((co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0)), 0),
-          disposal: changeOrders.reduce((sum, co) => sum + (co.disposalAmount || 0), 0),
-          subcontractors: changeOrders.reduce((sum, co) => sum + (co.subcontractorsAmount || 0), 0),
-          total: changeOrders.reduce((sum, co) => {
+          labor: changeOrders.data.reduce((sum: number, co: any) => sum + (co.laborAmount || 0), 0),
+          materials: changeOrders.data.reduce((sum: number, co: any) => sum + (co.materialsAmount || 0), 0),
+          equipment: changeOrders.data.reduce((sum: number, co: any) => sum + ((co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0)), 0),
+          disposal: changeOrders.data.reduce((sum: number, co: any) => sum + (co.disposalAmount || 0), 0),
+          subcontractors: changeOrders.data.reduce((sum: number, co: any) => sum + (co.subcontractorsAmount || 0), 0),
+          total: changeOrders.data.reduce((sum: number, co: any) => {
             return sum + (co.laborAmount || 0) + (co.materialsAmount || 0) + 
                    (co.equipmentOwnedAmount || 0) + (co.equipmentRentedAmount || 0) +
                    (co.disposalAmount || 0) + (co.importAmount || 0) + 
@@ -662,7 +664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Disposition', `attachment; filename="${project.number}-change-order-log.xlsx"`);
         return res.send(buffer);
       } else if (format === 'pdf') {
-        const pdfBuffer = await pdfGenerator.generateChangeOrderLogPDF(changeOrders, project);
+        const pdfBuffer = await pdfGenerator.generateChangeOrderLogPDF(changeOrders.data, project);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${project.number}-change-order-log.pdf"`);
         return res.send(pdfBuffer);
