@@ -20,13 +20,18 @@ Important features: Professional dashboard with sidebar navigation, not simplifi
 Document categorization: Invoices from companies like Incompli are subcontractor entries, not labor. Invoices are typically for subcontractors, equipment rentals, or operated equipment.
 
 ## Recent Updates (January 2025)
+- **Enhanced Category Recategorization System (Jan 25, 2025)**: Major improvement to document editing and category management
+  - Added equipment rental detection to AI: equipment rental companies now categorized as EQUIPMENT entries
+  - Enhanced AI priority-based classification: equipment rentals > material suppliers > subcontractor services > labor
+  - Implemented individual item recategorization with dropdown selectors for moving items between categories
+  - Added bulk operations with checkboxes and bulk move functionality for multiple items
+  - Updated DocumentEditor UI with enhanced grid layouts, category movement controls, and visual feedback
+  - Fixed TypeScript errors in document processing pipeline and improved error handling
 - **Enhanced AI Invoice Categorization (Jan 25, 2025)**: Major improvement to subcontractor invoice detection
   - Fixed AI processing to properly detect invoices from companies like Incompli as SUBCONTRACTOR entries
   - Enhanced both main T&M extraction and dedicated invoice processing with priority-based classification
   - Added clear detection signals: invoice numbers, vendor names, company letterheads = subcontractor entries
-  - Equipment rental invoices now properly categorized as subcontractor entries (not equipment)
   - AI defaults to subcontractor categorization when document shows business-to-business billing
-  - Fixed TypeScript errors in document processing pipeline
 - **Added Project-Specific Markup Percentages (Jan 13, 2025)**: Major enhancement
   - Added markup percentage fields to project schema for each category
   - Project creation form now includes markup configuration section

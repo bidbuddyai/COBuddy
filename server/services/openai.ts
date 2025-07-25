@@ -81,41 +81,49 @@ export async function extractTMData(documentText: string): Promise<ExtractedTMDa
           content: `You are an expert at extracting Time and Material (T&M) data from construction documents, invoices, and quotes. 
 
           CRITICAL INVOICE DETECTION RULES:
-          - ANY document from a company/vendor to another company = SUBCONTRACTOR ENTRY
-          - Company invoices (like Incompli, equipment rental companies, service providers) = SUBCONTRACTOR ENTRIES
-          - If you see invoice numbers, vendor names, company letterheads = SUBCONTRACTOR ENTRY
-          - Equipment rental invoices = SUBCONTRACTOR ENTRIES (not equipment entries)
+          - Company invoices with labor services (like Incompli) = SUBCONTRACTOR ENTRIES
           - Service provider invoices = SUBCONTRACTOR ENTRIES
+          - Equipment rental invoices = EQUIPMENT ENTRIES (rental company as description, not subcontractor)
+          - Material supplier invoices = MATERIAL ENTRIES (if materials are itemized)
           - Only extract as LABOR if it's direct employee timesheets with individual worker names and hours
           
-          SUBCONTRACTOR DETECTION SIGNALS:
-          - Invoice number present
-          - Company name as sender/vendor
-          - Total amounts (not hourly rates)
-          - Business addresses/contact info
-          - Terms like "Invoice", "Bill To", "Vendor", "Supplier"
+          EQUIPMENT RENTAL DETECTION:
+          - Look for rental terms: "rent", "rental", "lease", "hire"
+          - Equipment names: excavator, bulldozer, crane, generator, compressor, etc.
+          - Daily/weekly/monthly rates rather than lump sums
+          - Rental companies: United Rentals, Home Depot Tool Rental, etc.
           
-          Extract all data with confidence scores (0-1). When in doubt, categorize as SUBCONTRACTOR.`
+          CATEGORY PRIORITY (in order):
+          1. EQUIPMENT ENTRIES - Equipment rentals with daily/weekly rates
+          2. MATERIAL ENTRIES - Supplier invoices with itemized materials
+          3. SUBCONTRACTOR ENTRIES - Labor services, general contractors
+          4. LABOR ENTRIES - Only direct employee timesheets
+          
+          Extract all data with confidence scores (0-1). Default to SUBCONTRACTOR only when category is unclear.`
         },
         {
           role: "user",
           content: `Please extract all T&M data from this document text. PRIORITY CLASSIFICATION:
 
-              1. SUBCONTRACTOR ENTRIES - Look for these FIRST:
-                 - Company invoices (vendor name, invoice number, total amount)
-                 - Equipment rental invoices (rental company as subcontractor)
-                 - Service provider invoices (Incompli, etc.)
-                 - Any business-to-business billing
+              1. EQUIPMENT ENTRIES - Equipment rentals:
+                 - Rental companies: United Rentals, Sunbelt, Home Depot Tool Rental
+                 - Equipment: excavators, bulldozers, generators, compressors, tools
+                 - Rental terms: daily/weekly/monthly rates, "rent", "rental", "lease"
+                 - Convert to equipment entries (type: equipment name, description: rental company)
               
-              2. LABOR ENTRIES - Only if direct employees:
-                 - Individual worker names with specific hours
+              2. MATERIAL ENTRIES - Material suppliers:
+                 - Itemized materials: concrete, steel, lumber, chemicals
+                 - Supplier invoices with quantities and units
+                 - Convert to material entries (type: material, description: supplier)
+              
+              3. SUBCONTRACTOR ENTRIES - Labor services:
+                 - Service companies (Incompli, cleaning, specialized services)
+                 - General contractors providing labor
+                 - Lump sum service amounts
+              
+              4. LABOR ENTRIES - Only direct employees:
+                 - Individual worker names with hourly rates
                  - Direct employee timesheets
-                 - NOT company invoices
-              
-              3. EQUIPMENT/MATERIALS/DISPOSAL - Only if not part of subcontractor invoice:
-                 - Individual equipment usage (not rental invoices)
-                 - Material purchases (not supplier invoices)
-                 - Disposal services (not service provider invoices)
               
               4. PROJECT INFO and confidence scores
               

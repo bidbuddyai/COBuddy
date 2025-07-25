@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Save, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Save, Plus, Trash2, AlertCircle, MoveHorizontal, ArrowRight } from 'lucide-react';
 import { Document } from '@shared/schema';
 
 interface DocumentEditorProps {
@@ -38,14 +40,14 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
     disposal: [],
     subcontractors: []
   });
+  const [selectedItems, setSelectedItems] = useState<{[key: string]: number[]}>({});
+  const [bulkMoveSource, setBulkMoveSource] = useState<string>('');
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<string>('');
   const { toast } = useToast();
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest(`/api/documents/${document.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ extractedData: data })
-      });
+      return await apiRequest(`/api/documents/${document.id}`, 'PATCH', { extractedData: data });
     },
     onSuccess: () => {
       toast({
@@ -116,10 +118,132 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
     }
   };
 
+  const moveItem = (sourceCategory: string, targetCategory: string, sourceIndex: number) => {
+    const newData = { ...extractedData };
+    if (!newData[sourceCategory] || !newData[targetCategory]) return;
+    
+    const item = newData[sourceCategory][sourceIndex];
+    if (!item) return;
+    
+    // Remove from source
+    newData[sourceCategory].splice(sourceIndex, 1);
+    
+    // Transform item based on target category
+    let transformedItem;
+    if (targetCategory === 'labor') {
+      transformedItem = { 
+        name: item.company || item.name || 'Worker', 
+        classification: item.description || item.classification || 'General', 
+        rate: item.rate || 50, 
+        hours: item.hours || item.quantity || 8, 
+        total: 0 
+      };
+    } else if (targetCategory === 'subcontractors') {
+      transformedItem = { 
+        company: item.company || item.name || 'Company', 
+        description: item.description || 'Service', 
+        amount: item.total || item.amount || 0, 
+        invoiceNumber: item.invoiceNumber || '' 
+      };
+    } else {
+      transformedItem = { 
+        description: item.description || item.name || 'Item', 
+        quantity: item.quantity || item.hours || 1, 
+        unit: item.unit || 'each', 
+        rate: item.rate || 0, 
+        total: 0 
+      };
+    }
+    
+    // Add to target
+    newData[targetCategory].push(transformedItem);
+    setExtractedData(newData);
+    
+    toast({
+      title: "Item Moved",
+      description: `Item moved from ${sourceCategory} to ${targetCategory}`
+    });
+  };
+
+  const toggleItemSelection = (category: string, index: number) => {
+    const newSelection = { ...selectedItems };
+    if (!newSelection[category]) newSelection[category] = [];
+    
+    const itemIndex = newSelection[category].indexOf(index);
+    if (itemIndex > -1) {
+      newSelection[category].splice(itemIndex, 1);
+    } else {
+      newSelection[category].push(index);
+    }
+    
+    setSelectedItems(newSelection);
+  };
+
+  const bulkMoveItems = () => {
+    if (!bulkMoveSource || !bulkMoveTarget || !selectedItems[bulkMoveSource]?.length) return;
+    
+    const newData = { ...extractedData };
+    const itemsToMove = selectedItems[bulkMoveSource].sort((a, b) => b - a); // Sort descending to avoid index issues
+    
+    itemsToMove.forEach(index => {
+      const item = newData[bulkMoveSource][index];
+      if (!item) return;
+      
+      // Remove from source
+      newData[bulkMoveSource].splice(index, 1);
+      
+      // Transform and add to target (same logic as single move)
+      let transformedItem;
+      if (bulkMoveTarget === 'labor') {
+        transformedItem = { 
+          name: item.company || item.name || 'Worker', 
+          classification: item.description || item.classification || 'General', 
+          rate: item.rate || 50, 
+          hours: item.hours || item.quantity || 8, 
+          total: 0 
+        };
+      } else if (bulkMoveTarget === 'subcontractors') {
+        transformedItem = { 
+          company: item.company || item.name || 'Company', 
+          description: item.description || 'Service', 
+          amount: item.total || item.amount || 0, 
+          invoiceNumber: item.invoiceNumber || '' 
+        };
+      } else {
+        transformedItem = { 
+          description: item.description || item.name || 'Item', 
+          quantity: item.quantity || item.hours || 1, 
+          unit: item.unit || 'each', 
+          rate: item.rate || 0, 
+          total: 0 
+        };
+      }
+      
+      newData[bulkMoveTarget].push(transformedItem);
+    });
+    
+    setExtractedData(newData);
+    setSelectedItems({});
+    setBulkMoveSource('');
+    setBulkMoveTarget('');
+    
+    toast({
+      title: "Items Moved",
+      description: `${itemsToMove.length} items moved from ${bulkMoveSource} to ${bulkMoveTarget}`
+    });
+  };
+
   const renderItemEditor = (category: string, item: ExtractedItem, index: number) => {
+    const categories = ['labor', 'equipment', 'materials', 'disposal', 'subcontractors'];
+    const isSelected = selectedItems[category]?.includes(index) || false;
+    
     if (category === 'labor') {
       return (
-        <div className="grid grid-cols-6 gap-2 items-center p-2 border rounded">
+        <div className="grid grid-cols-8 gap-2 items-center p-2 border rounded">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => toggleItemSelection(category, index)}
+          />
           <Input
             value={item.name || ''}
             onChange={(e) => updateCategory(category, index, 'name', e.target.value)}
@@ -145,6 +269,18 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
           <div className="text-right font-medium">
             ${((item.rate || 0) * (item.hours || 0)).toFixed(2)}
           </div>
+          <Select value={category} onValueChange={(value) => moveItem(category, value, index)}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat} className="capitalize">
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="ghost"
             size="sm"
@@ -158,7 +294,11 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
     
     if (category === 'subcontractors') {
       return (
-        <div className="grid grid-cols-5 gap-2 items-center p-2 border rounded">
+        <div className="grid grid-cols-7 gap-2 items-center p-2 border rounded">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => toggleItemSelection(category, index)}
+          />
           <Input
             value={item.company || ''}
             onChange={(e) => updateCategory(category, index, 'company', e.target.value)}
@@ -176,13 +316,27 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
             onChange={(e) => updateCategory(category, index, 'amount', parseFloat(e.target.value))}
             placeholder="Amount"
           />
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
             <Input
               value={item.invoiceNumber || ''}
               onChange={(e) => updateCategory(category, index, 'invoiceNumber', e.target.value)}
               placeholder="Invoice #"
-              className="mr-2"
+              className="text-xs"
             />
+          </div>
+          <div className="flex items-center gap-1">
+            <Select value={category} onValueChange={(value) => moveItem(category, value, index)}>
+              <SelectTrigger className="w-24">
+                <MoveHorizontal className="h-3 w-3" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat} className="capitalize text-xs">
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="ghost"
               size="sm"
@@ -196,7 +350,11 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
     }
 
     return (
-      <div className="grid grid-cols-6 gap-2 items-center p-2 border rounded">
+      <div className="grid grid-cols-8 gap-2 items-center p-2 border rounded">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => toggleItemSelection(category, index)}
+        />
         <Input
           value={item.description || item.item || ''}
           onChange={(e) => updateCategory(category, index, 'description', e.target.value)}
@@ -220,10 +378,22 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
           onChange={(e) => updateCategory(category, index, 'rate', parseFloat(e.target.value))}
           placeholder="Rate"
         />
-        <div className="flex items-center justify-between">
-          <span className="text-right font-medium">
-            ${((item.rate || 0) * (item.quantity || 0)).toFixed(2)}
-          </span>
+        <div className="text-right font-medium">
+          ${((item.rate || 0) * (item.quantity || 0)).toFixed(2)}
+        </div>
+        <div className="flex items-center gap-1">
+          <Select value={category} onValueChange={(value) => moveItem(category, value, index)}>
+            <SelectTrigger className="w-24">
+              <MoveHorizontal className="h-3 w-3" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat} className="capitalize text-xs">
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="ghost"
             size="sm"
@@ -250,16 +420,72 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Document: {document.fileName}</DialogTitle>
+          <DialogTitle>Edit Document: {document.originalName}</DialogTitle>
         </DialogHeader>
 
-        {document.confidence && document.confidence < 0.8 && (
+        {document.confidence && parseFloat(document.confidence) < 0.8 && (
           <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
             <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
             <span className="text-sm text-yellow-800 dark:text-yellow-200">
-              Low confidence extraction ({(document.confidence * 100).toFixed(0)}%). Please review carefully.
+              Low confidence extraction ({(parseFloat(document.confidence) * 100).toFixed(0)}%). Please review carefully.
             </span>
           </div>
+        )}
+
+        {/* Bulk Operations */}
+        {Object.values(selectedItems).some(items => items.length > 0) && (
+          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium">
+                  {Object.values(selectedItems).flat().length} items selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm">Move from:</Label>
+                  <Select value={bulkMoveSource} onValueChange={setBulkMoveSource}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(selectedItems).filter(cat => selectedItems[cat]?.length > 0).map(cat => (
+                        <SelectItem key={cat} value={cat} className="capitalize">
+                          {cat} ({selectedItems[cat].length})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                  <Label className="text-sm">to:</Label>
+                  <Select value={bulkMoveTarget} onValueChange={setBulkMoveTarget}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Target" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['labor', 'equipment', 'materials', 'disposal', 'subcontractors'].map(cat => (
+                        <SelectItem key={cat} value={cat} className="capitalize">
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={bulkMoveItems}
+                    disabled={!bulkMoveSource || !bulkMoveTarget || bulkMoveSource === bulkMoveTarget}
+                  >
+                    Move Items
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedItems({})}
+                  >
+                    Clear Selection
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         <Tabs defaultValue="labor" className="w-full">
@@ -306,23 +532,36 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-6 gap-2 text-sm font-medium text-gray-600 px-2">
+                      <div className={`grid gap-2 text-sm font-medium text-gray-600 px-2 ${category === 'subcontractors' ? 'grid-cols-7' : 'grid-cols-8'}`}>
                         {category === 'labor' ? (
                           <>
+                            <span>☑</span>
                             <span>Name</span>
                             <span>Classification</span>
                             <span>Rate ($/hr)</span>
                             <span>Hours</span>
                             <span>Total</span>
+                            <span>Move</span>
                             <span></span>
+                          </>
+                        ) : category === 'subcontractors' ? (
+                          <>
+                            <span>☑</span>
+                            <span>Company</span>
+                            <span className="col-span-2">Description</span>
+                            <span>Amount</span>
+                            <span>Invoice #</span>
+                            <span>Move</span>
                           </>
                         ) : (
                           <>
+                            <span>☑</span>
                             <span className="col-span-2">Description</span>
                             <span>Quantity</span>
                             <span>Unit</span>
                             <span>Rate ($)</span>
                             <span>Total</span>
+                            <span>Move</span>
                           </>
                         )}
                       </div>
