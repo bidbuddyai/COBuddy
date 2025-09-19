@@ -43,16 +43,22 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
   const [selectedItems, setSelectedItems] = useState<{[key: string]: number[]}>({});
   const [bulkMoveSource, setBulkMoveSource] = useState<string>('');
   const [bulkMoveTarget, setBulkMoveTarget] = useState<string>('');
+  const [isReusable, setIsReusable] = useState(document.isReusable || false);
+  const [isBackup, setIsBackup] = useState(document.isBackup || false);
   const { toast } = useToast();
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest(`/api/documents/${document.id}`, 'PATCH', { extractedData: data });
+      return await apiRequest(`/api/documents/${document.id}`, 'PATCH', { 
+        extractedData: data.extractedData,
+        isReusable: data.isReusable,
+        isBackup: data.isBackup 
+      });
     },
     onSuccess: () => {
       toast({
         title: "Document Updated",
-        description: "Extracted data has been saved successfully."
+        description: "Document has been saved successfully."
       });
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
       onClose();
@@ -67,7 +73,11 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
   });
 
   const handleSave = () => {
-    updateMutation.mutate(extractedData);
+    updateMutation.mutate({
+      extractedData,
+      isReusable,
+      isBackup
+    });
   };
 
   const updateCategory = (category: string, index: number, field: string, value: any) => {
@@ -422,6 +432,38 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
         <DialogHeader>
           <DialogTitle>Edit Document: {document.originalName}</DialogTitle>
         </DialogHeader>
+
+        {/* Document Settings */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="reusable"
+                  checked={isReusable}
+                  onCheckedChange={setIsReusable}
+                />
+                <Label htmlFor="reusable" className="cursor-pointer">
+                  Mark as Reusable Template
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="backup"
+                  checked={isBackup}
+                  onCheckedChange={setIsBackup}
+                />
+                <Label htmlFor="backup" className="cursor-pointer">
+                  Mark as Backup Document
+                </Label>
+              </div>
+            </div>
+            <div className="text-sm text-gray-500">
+              <p>Reusable templates can be used across projects</p>
+              <p>Backup documents are linked to change orders</p>
+            </div>
+          </div>
+        </Card>
 
         {document.confidence && parseFloat(document.confidence) < 0.8 && (
           <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">

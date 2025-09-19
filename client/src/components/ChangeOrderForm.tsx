@@ -6,7 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Calculator } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Trash2, Calculator, FileText, FileDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Project, Document } from '@shared/schema';
 
@@ -41,6 +43,14 @@ export default function ChangeOrderForm({
   });
   
   const currentProject = projects?.find(p => p.id === projectId);
+  
+  // Fetch backup documents
+  const { data: backupDocuments } = useQuery<Document[]>({
+    queryKey: ['/api/documents', { projectId, isBackup: true }],
+    enabled: !!projectId,
+  });
+  
+  const [selectedBackupDocuments, setSelectedBackupDocuments] = useState<number[]>([]);
   
   const [formData, setFormData] = useState({
     // Header Information
@@ -244,13 +254,13 @@ export default function ChangeOrderForm({
     const importSubtotal = calculateSubtotal('import');
     const subcontractorSubtotal = calculateSubtotal('subcontractor');
     
-    const laborWithMarkup = laborSubtotal * (1 + formData.markups.labor / 100);
-    const materialWithMarkup = materialSubtotal * (1 + formData.markups.materials / 100);
-    const equipmentOwnedWithMarkup = equipmentOwnedSubtotal * (1 + formData.markups.equipmentOwned / 100);
-    const equipmentRentedWithMarkup = equipmentRentedSubtotal * (1 + formData.markups.equipmentRented / 100);
-    const disposalWithMarkup = disposalSubtotal * (1 + formData.markups.disposal / 100);
-    const importWithMarkup = importSubtotal * (1 + formData.markups.import / 100);
-    const subcontractorWithMarkup = subcontractorSubtotal * (1 + formData.markups.subcontractors / 100);
+    const laborWithMarkup = laborSubtotal * (1 + (formData.markups.labor || 0) / 100);
+    const materialWithMarkup = materialSubtotal * (1 + (formData.markups.materials || 0) / 100);
+    const equipmentOwnedWithMarkup = equipmentOwnedSubtotal * (1 + (formData.markups.equipmentOwned || 0) / 100);
+    const equipmentRentedWithMarkup = equipmentRentedSubtotal * (1 + (formData.markups.equipmentRented || 0) / 100);
+    const disposalWithMarkup = disposalSubtotal * (1 + (formData.markups.disposal || 0) / 100);
+    const importWithMarkup = importSubtotal * (1 + (formData.markups.import || 0) / 100);
+    const subcontractorWithMarkup = subcontractorSubtotal * (1 + (formData.markups.subcontractors || 0) / 100);
     
     return laborWithMarkup + materialWithMarkup + equipmentOwnedWithMarkup + 
            equipmentRentedWithMarkup + disposalWithMarkup + importWithMarkup + subcontractorWithMarkup;
@@ -274,7 +284,8 @@ export default function ChangeOrderForm({
       subcontractorAmount: calculateSubtotal('subcontractor').toFixed(2),
       data: {
         ...formData,
-        documentIds: selectedDocuments?.map(d => d.id) || []
+        documentIds: selectedDocuments?.map(d => d.id) || [],
+        backupDocumentIds: selectedBackupDocuments
       }
     };
     
@@ -392,12 +403,13 @@ export default function ChangeOrderForm({
         </DialogHeader>
         
         <Tabs defaultValue="general" className="mt-4">
-          <TabsList className="grid grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-6 w-full">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="labor">Labor</TabsTrigger>
             <TabsTrigger value="materials">Materials</TabsTrigger>
             <TabsTrigger value="equipment">Equipment</TabsTrigger>
             <TabsTrigger value="other">Other</TabsTrigger>
+            <TabsTrigger value="documents">Backup Docs</TabsTrigger>
           </TabsList>
           
           <TabsContent value="general" className="space-y-4">
@@ -571,6 +583,58 @@ export default function ChangeOrderForm({
                 <span className="text-2xl">${calculateTotalWithMarkup().toFixed(2)}</span>
               </div>
             </div>
+          </TabsContent>
+          
+          <TabsContent value="documents" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileDown className="h-5 w-5" />
+                  Select Backup Documents
+                </CardTitle>
+                <p className="text-sm text-gray-500">Choose backup documents to include with this change order</p>
+              </CardHeader>
+              <CardContent>
+                {backupDocuments && backupDocuments.length > 0 ? (
+                  <div className="space-y-2">
+                    {backupDocuments.map((doc) => (
+                      <div key={doc.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <Checkbox
+                          id={`backup-${doc.id}`}
+                          checked={selectedBackupDocuments.includes(doc.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedBackupDocuments([...selectedBackupDocuments, doc.id]);
+                            } else {
+                              setSelectedBackupDocuments(selectedBackupDocuments.filter(id => id !== doc.id));
+                            }
+                          }}
+                        />
+                        <Label 
+                          htmlFor={`backup-${doc.id}`} 
+                          className="flex-1 cursor-pointer flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4 text-gray-400" />
+                          <span className="font-medium">{doc.originalName}</span>
+                          <span className="text-sm text-gray-500">• {new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                          {doc.type && (
+                            <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                              {doc.type.replace('_', ' ')}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileDown className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>No backup documents available for this project</p>
+                    <p className="text-sm mt-1">Mark documents as "Backup" in the Documents page to use them here</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
         

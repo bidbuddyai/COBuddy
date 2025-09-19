@@ -967,12 +967,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/documents/:id', authenticateSupabaseUser, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
-      const updates = req.body;
+      const { extractedData, isReusable, isBackup } = req.body;
       
       const document = await storage.getDocument(id);
       if (!document) {
         return res.status(404).json({ message: 'Document not found' });
       }
+      
+      // Build update object
+      const updates: any = {};
+      if (extractedData !== undefined) updates.extractedData = extractedData;
+      if (isReusable !== undefined) updates.isReusable = isReusable;
+      if (isBackup !== undefined) updates.isBackup = isBackup;
       
       const updatedDocument = await storage.updateDocument(id, updates);
       res.json(updatedDocument);

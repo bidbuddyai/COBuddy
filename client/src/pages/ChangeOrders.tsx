@@ -505,11 +505,21 @@ export default function ChangeOrders() {
         </div>
       </div>
 
-      {/* Project Selection */}
-      <ProjectSelector
-        selectedProjectId={selectedProjectId}
-        onProjectSelect={setSelectedProjectId}
-      />
+      {/* Project Selection - Prominent */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Folder className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold text-sm">Select Project:</h3>
+          </div>
+          <div className="mt-2">
+            <ProjectSelector
+              selectedProjectId={selectedProjectId}
+              onProjectSelect={setSelectedProjectId}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {!selectedProjectId ? (
         <div className="flex items-center justify-center h-64">

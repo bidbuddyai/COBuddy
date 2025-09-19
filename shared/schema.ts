@@ -109,6 +109,7 @@ export const changeOrders = pgTable("change_orders", {
   importAmount: decimal("import_amount", { precision: 10, scale: 2 }),
   subcontractorAmount: decimal("subcontractor_amount", { precision: 10, scale: 2 }),
   data: jsonb("data"), // Detailed breakdown data
+  backupDocumentIds: jsonb("backup_document_ids"), // Array of document IDs used as backup
   // CO Log fields
   ccoNumber: varchar("cco_number"), // Client Change Order number
   pcoNumber: varchar("pco_number"), // Potential Change Order number
@@ -136,6 +137,8 @@ export const documents = pgTable("documents", {
   confidence: decimal("confidence", { precision: 3, scale: 2 }),
   changeOrderId: integer("change_order_id").references(() => changeOrders.id),
   projectId: integer("project_id").references(() => projects.id),
+  isReusable: boolean("is_reusable").default(false), // Mark as reusable backup/template
+  isBackup: boolean("is_backup").default(false), // Mark as backup document for COs
   uploadedBy: varchar("uploaded_by").references(() => users.id),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   processedAt: timestamp("processed_at"),

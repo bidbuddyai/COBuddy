@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { FileText, Download, Eye, Trash2, RefreshCw, CheckCircle, AlertCircle, Clock, Brain, Edit, Rocket, Upload } from 'lucide-react';
+import { FileText, Download, Eye, Trash2, RefreshCw, CheckCircle, AlertCircle, Clock, Brain, Edit, Rocket, Upload, FileDown, Folder } from 'lucide-react';
 import { Document } from '@shared/schema';
 import { DocumentGridSkeleton, PulsingDot, AIThinkingIndicator } from '@/components/LoadingIndicators';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -279,7 +279,7 @@ export default function Documents() {
             Documents
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm md:text-base">
-            Upload and manage your construction documents
+            Upload and manage project-specific construction documents
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -296,11 +296,21 @@ export default function Documents() {
         </div>
       </div>
 
-      {/* Project Selector */}
-      <ProjectSelector
-        selectedProjectId={selectedProjectId}
-        onProjectSelect={setSelectedProjectId}
-      />
+      {/* Project Selector - Prominent */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Folder className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold text-sm">Select Project:</h3>
+          </div>
+          <div className="mt-2">
+            <ProjectSelector
+              selectedProjectId={selectedProjectId}
+              onProjectSelect={setSelectedProjectId}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Upload Section */}
       <Card>
@@ -457,10 +467,24 @@ export default function Documents() {
 
                                 <div className="space-y-2 mb-3">
                                   <div className="flex items-center justify-between">
-                                    <Badge className={`${getStatusColor(document.status)}`}>
-                                      {getStatusIcon(document.status)}
-                                      <span className="ml-1 capitalize">{document.status}</span>
-                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                      <Badge className={`${getStatusColor(document.status)}`}>
+                                        {getStatusIcon(document.status)}
+                                        <span className="ml-1 capitalize">{document.status}</span>
+                                      </Badge>
+                                      {document.isReusable && (
+                                        <Badge variant="secondary" className="text-xs">
+                                          <RefreshCw className="h-3 w-3 mr-1" />
+                                          Reusable
+                                        </Badge>
+                                      )}
+                                      {document.isBackup && (
+                                        <Badge variant="outline" className="text-xs">
+                                          <FileDown className="h-3 w-3 mr-1" />
+                                          Backup
+                                        </Badge>
+                                      )}
+                                    </div>
                                     {document.status === 'processing' && <COBuddyThinkingAnimation />}
                                   </div>
                                   
@@ -506,54 +530,73 @@ export default function Documents() {
                                   )}
                                 </div>
 
-                                <div className="flex gap-2">
+                                <div className="flex flex-col gap-2">
                                   {document.status === 'processed' && document.type === 'tm_sheet' && (
                                     <Button
                                       size="sm"
-                                      className="flex-1"
+                                      className="w-full"
                                       onClick={() => handleCreateChangeOrder(document)}
                                     >
                                       <Rocket className="h-3 w-3 mr-1" />
                                       Create CO
                                     </Button>
                                   )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className={document.status === 'processed' && document.type === 'tm_sheet' ? '' : 'flex-1'}
-                                    disabled={document.status === 'processing'}
-                                  >
-                                    <Eye className="h-3 w-3 mr-1" />
-                                    View
-                                  </Button>
-                                  {document.status === 'processed' && (
+                                  <div className="flex gap-1">
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => setEditingDocument(document)}
+                                      className="flex-1"
+                                      disabled={document.status === 'processing'}
                                     >
-                                      <Edit className="h-3 w-3" />
+                                      <Eye className="h-3 w-3" />
+                                      <span className="ml-1 hidden sm:inline">View</span>
                                     </Button>
-                                  )}
-                                  {document.status === 'failed' && (
+                                    {document.status === 'processed' && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setEditingDocument(document)}
+                                      >
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {document.status === 'failed' && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => reprocessMutation.mutate(document.id)}
+                                        disabled={reprocessMutation.isPending}
+                                      >
+                                        <RefreshCw className={`h-3 w-3 ${reprocessMutation.isPending ? 'animate-spin' : ''}`} />
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => reprocessMutation.mutate(document.id)}
-                                      disabled={reprocessMutation.isPending}
+                                      onClick={() => deleteMutation.mutate(document.id)}
+                                      disabled={deleteMutation.isPending || document.status === 'processing'}
+                                      className="text-red-600 hover:text-red-700"
                                     >
-                                      <RefreshCw className={`h-3 w-3 ${reprocessMutation.isPending ? 'animate-spin' : ''}`} />
+                                      <Trash2 className="h-3 w-3" />
                                     </Button>
+                                  </div>
+                                  {/* Reusable/Backup indicators */}
+                                  {(document.isReusable || document.isBackup) && (
+                                    <div className="flex gap-1 mt-1">
+                                      {document.isReusable && (
+                                        <Badge variant="secondary" className="text-xs">
+                                          <RefreshCw className="h-3 w-3 mr-1" />
+                                          Reusable
+                                        </Badge>
+                                      )}
+                                      {document.isBackup && (
+                                        <Badge variant="secondary" className="text-xs">
+                                          <FileText className="h-3 w-3 mr-1" />
+                                          Backup
+                                        </Badge>
+                                      )}
+                                    </div>
                                   )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => deleteMutation.mutate(document.id)}
-                                    disabled={deleteMutation.isPending || document.status === 'processing'}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
                                 </div>
                               </CardContent>
                             </Card>
