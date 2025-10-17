@@ -8,6 +8,9 @@ import {
   auditLogs,
   chatConversations,
   changeOrderLogs,
+  subcontractors,
+  subcontractorChangeOrders,
+  numberingSequences,
   type User,
   type InsertUser,
   type UpsertUser,
@@ -27,6 +30,12 @@ import {
   type InsertChatConversation,
   type ChangeOrderLog,
   type InsertChangeOrderLog,
+  type Subcontractor,
+  type InsertSubcontractor,
+  type SubcontractorChangeOrder,
+  type InsertSubcontractorChangeOrder,
+  type NumberingSequence,
+  type InsertNumberingSequence,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, or, isNull, ne } from "drizzle-orm";
@@ -113,6 +122,24 @@ export interface IStorage {
   createChangeOrderLog(log: InsertChangeOrderLog): Promise<ChangeOrderLog>;
   updateChangeOrderLog(id: number, log: Partial<ChangeOrderLog>): Promise<ChangeOrderLog>;
   getProjectLogsByType(projectId: number, logType: string): Promise<ChangeOrderLog[]>;
+  
+  // Subcontractor operations
+  getSubcontractors(companyId: number): Promise<Subcontractor[]>;
+  getSubcontractor(id: number): Promise<Subcontractor | undefined>;
+  createSubcontractor(subcontractor: InsertSubcontractor): Promise<Subcontractor>;
+  updateSubcontractor(id: number, subcontractor: Partial<Subcontractor>): Promise<Subcontractor>;
+  
+  // Subcontractor Change Order operations
+  getSubcontractorChangeOrders(filters?: { projectId?: number; gcChangeOrderId?: number; subcontractorId?: number }): Promise<SubcontractorChangeOrder[]>;
+  getSubcontractorChangeOrder(id: number): Promise<SubcontractorChangeOrder | undefined>;
+  createSubcontractorChangeOrder(sco: InsertSubcontractorChangeOrder): Promise<SubcontractorChangeOrder>;
+  updateSubcontractorChangeOrder(id: number, sco: Partial<SubcontractorChangeOrder>): Promise<SubcontractorChangeOrder>;
+  getSubcontractorChangeOrdersByGcCo(gcChangeOrderId: number): Promise<SubcontractorChangeOrder[]>;
+  
+  // Numbering sequence operations
+  getNextNumber(projectId: number, sequenceType: string, subcontractorId?: number): Promise<string>;
+  updateNumberingSequence(projectId: number, sequenceType: string, newValue: number, subcontractorId?: number): Promise<NumberingSequence>;
+  initializeNumberingFromImport(projectId: number, sequenceType: string, importedNumbers: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -585,6 +612,237 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(changeOrderLogs.createdAt));
       
     return logs;
+  }
+  
+  // Subcontractor operations
+  async getSubcontractors(companyId: number): Promise<Subcontractor[]> {
+    return await db.select().from(subcontractors)
+      .where(eq(subcontractors.companyId, companyId))
+      .orderBy(subcontractors.name);
+  }
+
+  async getSubcontractor(id: number): Promise<Subcontractor | undefined> {
+    const [subcontractor] = await db.select().from(subcontractors).where(eq(subcontractors.id, id));
+    return subcontractor;
+  }
+
+  async createSubcontractor(subcontractorData: InsertSubcontractor): Promise<Subcontractor> {
+    const [subcontractor] = await db.insert(subcontractors).values(subcontractorData).returning();
+    return subcontractor;
+  }
+
+  async updateSubcontractor(id: number, subcontractorData: Partial<Subcontractor>): Promise<Subcontractor> {
+    const [subcontractor] = await db
+      .update(subcontractors)
+      .set({ ...subcontractorData, updatedAt: new Date() })
+      .where(eq(subcontractors.id, id))
+      .returning();
+    return subcontractor;
+  }
+  
+  // Subcontractor Change Order operations
+  async getSubcontractorChangeOrders(filters?: { projectId?: number; gcChangeOrderId?: number; subcontractorId?: number }): Promise<SubcontractorChangeOrder[]> {
+    const conditions = [];
+    
+    if (filters?.projectId) {
+      conditions.push(eq(subcontractorChangeOrders.projectId, filters.projectId));
+    }
+    if (filters?.gcChangeOrderId) {
+      conditions.push(eq(subcontractorChangeOrders.gcChangeOrderId, filters.gcChangeOrderId));
+    }
+    if (filters?.subcontractorId) {
+      conditions.push(eq(subcontractorChangeOrders.subcontractorId, filters.subcontractorId));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(subcontractorChangeOrders)
+        .where(and(...conditions))
+        .orderBy(desc(subcontractorChangeOrders.createdAt));
+    }
+    
+    return await db.select().from(subcontractorChangeOrders)
+      .orderBy(desc(subcontractorChangeOrders.createdAt));
+  }
+
+  async getSubcontractorChangeOrder(id: number): Promise<SubcontractorChangeOrder | undefined> {
+    const [sco] = await db.select().from(subcontractorChangeOrders).where(eq(subcontractorChangeOrders.id, id));
+    return sco;
+  }
+
+  async createSubcontractorChangeOrder(scoData: InsertSubcontractorChangeOrder): Promise<SubcontractorChangeOrder> {
+    const [sco] = await db.insert(subcontractorChangeOrders).values(scoData).returning();
+    
+    // Update parent GC CO aggregated amounts
+    await this.updateGcCoAggregates(scoData.gcChangeOrderId);
+    
+    return sco;
+  }
+
+  async updateSubcontractorChangeOrder(id: number, scoData: Partial<SubcontractorChangeOrder>): Promise<SubcontractorChangeOrder> {
+    const [sco] = await db
+      .update(subcontractorChangeOrders)
+      .set({ ...scoData, updatedAt: new Date() })
+      .where(eq(subcontractorChangeOrders.id, id))
+      .returning();
+      
+    // Update parent GC CO aggregated amounts
+    if (sco) {
+      await this.updateGcCoAggregates(sco.gcChangeOrderId);
+    }
+    
+    return sco;
+  }
+  
+  async getSubcontractorChangeOrdersByGcCo(gcChangeOrderId: number): Promise<SubcontractorChangeOrder[]> {
+    return await db.select().from(subcontractorChangeOrders)
+      .where(eq(subcontractorChangeOrders.gcChangeOrderId, gcChangeOrderId))
+      .orderBy(subcontractorChangeOrders.scoNumber);
+  }
+  
+  // Helper method to update GC CO aggregated subcontractor amounts
+  private async updateGcCoAggregates(gcChangeOrderId: number): Promise<void> {
+    const scos = await this.getSubcontractorChangeOrdersByGcCo(gcChangeOrderId);
+    
+    let subAmountSubmitted = 0;
+    let subAmountApproved = 0;
+    
+    for (const sco of scos) {
+      subAmountSubmitted += Number(sco.amountSubmitted) || 0;
+      subAmountApproved += Number(sco.amountApproved) || 0;
+    }
+    
+    await db
+      .update(changeOrders)
+      .set({
+        subAmountSubmitted: subAmountSubmitted.toString(),
+        subAmountApproved: subAmountApproved.toString(),
+        updatedAt: new Date()
+      })
+      .where(eq(changeOrders.id, gcChangeOrderId));
+  }
+  
+  // Numbering sequence operations
+  async getNextNumber(projectId: number, sequenceType: string, subcontractorId?: number): Promise<string> {
+    // First, try to get existing sequence
+    const conditions = [
+      eq(numberingSequences.projectId, projectId),
+      eq(numberingSequences.sequenceType, sequenceType)
+    ];
+    
+    if (subcontractorId) {
+      conditions.push(eq(numberingSequences.subcontractorId, subcontractorId));
+    } else {
+      conditions.push(isNull(numberingSequences.subcontractorId));
+    }
+    
+    const [sequence] = await db.select().from(numberingSequences)
+      .where(and(...conditions));
+    
+    if (sequence) {
+      // Increment and return
+      const nextValue = sequence.currentValue + 1;
+      await db
+        .update(numberingSequences)
+        .set({ currentValue: nextValue, updatedAt: new Date() })
+        .where(eq(numberingSequences.id, sequence.id));
+        
+      // Format the number
+      const prefix = sequence.prefix || '';
+      const formatted = sequence.format 
+        ? sequence.format.replace('{prefix}', prefix).replace('{number:03d}', String(nextValue).padStart(3, '0'))
+        : `${prefix}${String(nextValue).padStart(3, '0')}`;
+      
+      return formatted;
+    } else {
+      // Create new sequence
+      const prefix = this.getDefaultPrefix(sequenceType);
+      const [newSequence] = await db
+        .insert(numberingSequences)
+        .values({
+          projectId,
+          sequenceType,
+          subcontractorId,
+          prefix,
+          currentValue: 1,
+          format: '{prefix}{number:03d}'
+        })
+        .returning();
+        
+      return `${prefix}001`;
+    }
+  }
+  
+  private getDefaultPrefix(sequenceType: string): string {
+    switch (sequenceType) {
+      case 'GC_RFC': return 'RFC-';
+      case 'GC_CO': return 'CO-';
+      case 'SCO': return 'SCO-';
+      case 'SCO_PER_SUB': return 'SCO-';
+      default: return '';
+    }
+  }
+  
+  async updateNumberingSequence(projectId: number, sequenceType: string, newValue: number, subcontractorId?: number): Promise<NumberingSequence> {
+    const conditions = [
+      eq(numberingSequences.projectId, projectId),
+      eq(numberingSequences.sequenceType, sequenceType)
+    ];
+    
+    if (subcontractorId) {
+      conditions.push(eq(numberingSequences.subcontractorId, subcontractorId));
+    } else {
+      conditions.push(isNull(numberingSequences.subcontractorId));
+    }
+    
+    const [sequence] = await db
+      .update(numberingSequences)
+      .set({ currentValue: newValue, updatedAt: new Date() })
+      .where(and(...conditions))
+      .returning();
+      
+    if (!sequence) {
+      // Create new sequence if it doesn't exist
+      const [newSequence] = await db
+        .insert(numberingSequences)
+        .values({
+          projectId,
+          sequenceType,
+          subcontractorId,
+          prefix: this.getDefaultPrefix(sequenceType),
+          currentValue: newValue,
+          format: '{prefix}{number:03d}'
+        })
+        .returning();
+        
+      return newSequence;
+    }
+    
+    return sequence;
+  }
+  
+  async initializeNumberingFromImport(projectId: number, sequenceType: string, importedNumbers: string[]): Promise<void> {
+    if (importedNumbers.length === 0) return;
+    
+    // Extract the highest number from imported data
+    let maxNumber = 0;
+    
+    for (const numStr of importedNumbers) {
+      if (!numStr) continue;
+      
+      // Extract numeric portion (handle various formats like RFC-001, CO-001, SCO-001)
+      const match = numStr.match(/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    }
+    
+    // Update or create the sequence with the highest number
+    if (maxNumber > 0) {
+      await this.updateNumberingSequence(projectId, sequenceType, maxNumber);
+    }
   }
 }
 

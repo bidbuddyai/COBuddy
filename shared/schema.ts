@@ -93,14 +93,14 @@ export const projects = pgTable("projects", {
   markupSubcontractors: decimal("markup_subcontractors", { precision: 5, scale: 2 }).default("10.00"),
 });
 
-// Change orders
+// Change orders (GC Change Orders)
 export const changeOrders = pgTable("change_orders", {
   id: serial("id").primaryKey(),
   number: varchar("number").unique().notNull(),
   projectId: integer("project_id").references(() => projects.id),
   title: varchar("title").notNull(),
   description: text("description"),
-  status: varchar("status").notNull().default("draft"), // draft, pending, approved, rejected
+  status: varchar("status").notNull().default("draft"), // draft, pending, submitted, approved, rejected
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   laborAmount: decimal("labor_amount", { precision: 10, scale: 2 }),
   materialAmount: decimal("material_amount", { precision: 10, scale: 2 }),
@@ -117,12 +117,81 @@ export const changeOrders = pgTable("change_orders", {
   ballInCourt: varchar("ball_in_court"), // Who needs to take action
   assignedPm: varchar("assigned_pm"), // Project Manager assigned
   timeRequested: integer("time_requested"), // Calendar days requested
+  // Enhanced CO Log fields
+  gcRfcNumber: varchar("gc_rfc_number"), // GC Request for Change number
+  gcCoNumber: varchar("gc_co_number"), // GC Change Order number
+  amountSubmitted: decimal("amount_submitted", { precision: 12, scale: 2 }), // Amount submitted to owner/GC
+  amountApproved: decimal("amount_approved", { precision: 12, scale: 2 }), // Amount approved by owner/GC
+  dateSubmitted: timestamp("date_submitted"), // Date submitted to owner/GC
+  dateApproved: timestamp("date_approved"), // Date approved by owner/GC
+  fundingSource: varchar("funding_source"), // Source of funding if specified
+  notes: text("notes"), // Additional notes
+  // Aggregated subcontractor totals (cached for performance)
+  subAmountSubmitted: decimal("sub_amount_submitted", { precision: 12, scale: 2 }),
+  subAmountApproved: decimal("sub_amount_approved", { precision: 12, scale: 2 }),
   createdBy: varchar("created_by").references(() => users.id),
   approvedBy: varchar("approved_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   approvedAt: timestamp("approved_at"),
 });
+
+// Subcontractors table
+export const subcontractors = pgTable("subcontractors", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  companyName: varchar("company_name"),
+  contactEmail: varchar("contact_email"),
+  contactPhone: varchar("contact_phone"),
+  address: text("address"),
+  licenseNumber: varchar("license_number"),
+  tradeType: varchar("trade_type"), // electrical, plumbing, concrete, etc.
+  companyId: integer("company_id").references(() => companies.id).notNull(), // Which GC company manages this sub
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Subcontractor Change Orders (SCOs)
+export const subcontractorChangeOrders = pgTable("subcontractor_change_orders", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  gcChangeOrderId: integer("gc_change_order_id").references(() => changeOrders.id).notNull(), // Parent GC CO/RFC
+  subcontractorId: integer("subcontractor_id").references(() => subcontractors.id).notNull(),
+  subRfcNumber: varchar("sub_rfc_number"), // Sub's RFC number
+  scoNumber: varchar("sco_number"), // SCO number (auto or manual)
+  amountSubmitted: decimal("amount_submitted", { precision: 12, scale: 2 }), // Amount submitted by sub
+  dateSubmitted: timestamp("date_submitted"), // Date submitted to GC
+  amountApproved: decimal("amount_approved", { precision: 12, scale: 2 }), // Amount approved by GC
+  dateApproved: timestamp("date_approved"), // Date approved by GC
+  scoIssued: boolean("sco_issued").default(false), // Has SCO been issued?
+  scoType: varchar("sco_type"), // T&M, Proceed Under Dispute, Full Amount
+  ccoNumber: varchar("cco_number"), // Related CCO number if applicable
+  notes: text("notes"), // Additional notes
+  attachments: jsonb("attachments"), // File references
+  status: varchar("status").notNull().default("draft"), // draft, pending, approved, rejected, disputed
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_sco_project_gc").on(table.projectId, table.gcChangeOrderId),
+  index("idx_sco_number").on(table.projectId, table.scoNumber),
+]);
+
+// Numbering sequences for auto-numbering
+export const numberingSequences = pgTable("numbering_sequences", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  sequenceType: varchar("sequence_type").notNull(), // GC_RFC, GC_CO, SCO, SCO_PER_SUB
+  subcontractorId: integer("subcontractor_id").references(() => subcontractors.id), // For per-subcontractor SCO sequences
+  prefix: varchar("prefix"), // Optional prefix (e.g., "RFC-", "CO-", "SCO-")
+  currentValue: integer("current_value").notNull().default(0),
+  format: varchar("format"), // Format string (e.g., "{prefix}{number:03d}")
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_numbering_sequence").on(table.projectId, table.sequenceType, table.subcontractorId),
+]);
 
 // Document processing
 export const documents = pgTable("documents", {
@@ -263,6 +332,24 @@ export const insertChangeOrderLogSchema = createInsertSchema(changeOrderLogs).om
   updatedAt: true,
 });
 
+export const insertSubcontractorSchema = createInsertSchema(subcontractors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSubcontractorChangeOrderSchema = createInsertSchema(subcontractorChangeOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNumberingSequenceSchema = createInsertSchema(numberingSequences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type Company = typeof companies.$inferSelect;
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
@@ -283,3 +370,9 @@ export type ChatConversation = typeof chatConversations.$inferSelect;
 export type InsertChatConversation = z.infer<typeof insertChatConversationSchema>;
 export type ChangeOrderLog = typeof changeOrderLogs.$inferSelect;
 export type InsertChangeOrderLog = z.infer<typeof insertChangeOrderLogSchema>;
+export type Subcontractor = typeof subcontractors.$inferSelect;
+export type InsertSubcontractor = z.infer<typeof insertSubcontractorSchema>;
+export type SubcontractorChangeOrder = typeof subcontractorChangeOrders.$inferSelect;
+export type InsertSubcontractorChangeOrder = z.infer<typeof insertSubcontractorChangeOrderSchema>;
+export type NumberingSequence = typeof numberingSequences.$inferSelect;
+export type InsertNumberingSequence = z.infer<typeof insertNumberingSequenceSchema>;

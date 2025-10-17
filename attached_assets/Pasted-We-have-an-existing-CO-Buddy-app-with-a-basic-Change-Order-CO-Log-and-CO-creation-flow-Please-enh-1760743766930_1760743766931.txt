@@ -1,0 +1,116 @@
+We have an existing CO Buddy app with a basic Change Order (CO) Log and CO creation flow. Please enhance and extend the CO Log functionality with the following capabilities. Build on top of our existing models, routes, and UI patterns where possible.
+
+High-level goals:
+
+Robust CO Log management for both GC-facing COs and Subcontractor Change Orders (SCOs).
+Excel import/export for CO Logs.
+Auto-numbering and alignment with project-specific CO numbering sequences, including from imported logs.
+Seamless linkage between COs created in the app and the CO Log.
+Comprehensive subcontractor tracking per GC RFC/CO, including multiple subs per GC RFC.
+Detailed requirements:
+
+Import/Export CO Logs (Excel)
+Add ability to import and export CO Logs in .xlsx format.
+Import should support:
+Project-level CO Log import (GC CO Log) including columns like: Project ID, GC RFC#, GC CO#, CO Title/Description, Status, Submitted Date to Owner/GC, Amount Submitted, Amount Approved, Date Approved, CCO#/PCO#, Funding Source (if present), Notes.
+Subcontractor CO lines associated to a GC RFC/CO: Subcontractor Name/ID, Sub RFC#, SCO#, Amount Submitted, Date Submitted to GC, Amount Approved, Date Approved, SCO Issued? (Y/N), SCO Type (T&M, Proceed Under Dispute, Full Amount), CCO # (if relevant), Notes.
+Multiple subcontractors per GC RFC/CO must be supported.
+If a project’s CO numbering exists in the file, system should read and synchronize numbering seeds (see numbering below).
+Export should:
+Allow export of the full GC CO Log with nested/related Subcontractor CO lines, either:
+Single sheet with grouped/indented rows, or
+Two-sheet format: “GC_CO_Log” and “Sub_CO_Log” with relational keys (Project ID, GC RFC#/CO#).
+Preserve data types (dates, currency).
+Include filters and a clean header row.
+Numbering and Log Synchronization
+Implement project-scoped numbering logic:
+GC CO numbers and/or RFC numbers should increment based on the project’s existing log.
+If a log is imported, detect the highest existing RFC/CO numbers and continue from the next available number.
+If creating a GC CO from within the app, assign the next number automatically. Allow optional manual override with validation (no duplicates within a project).
+For subcontractor COs (SCOs), allow a project-level numbering scheme (e.g., SCO-###) per subcontractor or global, configurable per project.
+Ensure referential integrity between GC COs and their Sub COs (each Sub CO references a parent GC RFC/CO).
+Link Created COs to the Log
+Any CO created within the app must automatically create or update a corresponding entry in the GC CO Log.
+If the CO is created first, it should appear in the Log; if the Log is imported first, newly created COs should honor the existing numbering and merge without duplication.
+On update, edits to a CO (status, amounts, approvals) should propagate to the Log and vice versa (two-way sync). Implement optimistic locking or updated_at checks.
+Subcontractor Change Order Tracking (critical)
+For each GC RFC/CO, support zero or many Subcontractor COs. Track the following fields per Sub CO:
+Subcontractor ID/Name
+Sub RFC# (text)
+SCO# (auto or manual per numbering rules)
+Amount Submitted
+Date Submitted to GC
+Amount Approved
+Date Approved
+SCO Issued (boolean)
+SCO Type (enum: T&M, Proceed Under Dispute, Full Amount)
+CCO # (text)
+Notes/Attachments (optional, links to files if we already support file storage)
+Aggregate rollups:
+On the GC CO Log line, show sums for subcontractor submitted and approved amounts, and variance vs GC submitted/approved.
+Handle multiple subcontractors per GC RFC/CO cleanly.
+UI/UX
+Add a Project-level CO Log page with:
+Filter by status, date ranges, subcontractor, RFC/CO number.
+Inline expand/collapse to view associated Sub COs under each GC CO.
+Buttons: Import Log (xlsx), Export Log (xlsx), New GC CO, Add Sub CO.
+Add forms for:
+New/Edit GC CO with fields for RFC#/CO#, title/desc, status, submitted/approved dates and amounts, CCO #, and associations to Sub COs.
+New/Edit Sub CO with all fields listed above.
+Validation:
+Require project context for all creates/edits.
+Prevent duplicate RFC#/CO#/SCO# within the project scope.
+Currency formatting and required fields (e.g., Subcontractor, Amount Submitted).
+Data Model (adapt to our stack)
+If using relational DB, consider tables (or extend existing):
+projects
+gc_change_orders (id, project_id, rfc_number, co_number, title, description, status, amount_submitted, amount_approved, date_submitted, date_approved, cco_number, numbering_seed_meta, created_at, updated_at)
+subcontractor_change_orders (id, project_id, gc_change_order_id, subcontractor_id, sub_rfc, sco_number, amount_submitted, date_submitted, amount_approved, date_approved, sco_issued boolean, sco_type enum, cco_number, notes, created_at, updated_at)
+subcontractors (id, name, contact_info, …) if not already present
+numbering_sequences (id, project_id, type enum: GC_RFC, GC_CO, SCO, subcontractor_id nullable, current_value)
+Add indexes on (project_id, rfc_number), (project_id, co_number), and for SCOs (project_id, gc_change_order_id, sco_number).
+Business Rules
+A GC RFC can exist without a CO yet; but both can host Sub COs.
+Approval workflow statuses we support now should remain; add statuses if needed to distinguish T&M/Proceed Under Dispute.
+When a GC CO is Approved, allow optional cascade suggestion to mark associated Sub COs as approved if amounts/dates provided (do not force).
+Import/Export Mapping and Validation
+Provide downloadable sample templates for GC and Sub logs.
+On import:
+Show a preview grid with detected columns, validation errors, and row-level messages.
+Allow user to map columns if headers don’t match exactly (basic mapping UI).
+Validate duplicates and numbering conflicts before commit; allow user to fix or auto-increment conflicts (with confirmation).
+On export:
+Include project metadata, generation timestamp, and consistent column order.
+API/Backend
+Add endpoints/services for:
+GET/POST/PUT/PATCH for gc_change_orders and subcontractor_change_orders.
+POST /co-logs/import (xlsx), GET /co-logs/export (xlsx).
+POST /numbering/next?projectId=&type=&subcontractorId=
+Include unit tests for numbering, import validation, and multi-sub aggregation.
+Security/Permissions
+Ensure only project members with appropriate roles can import/export, create, or edit CO Logs and SCOs.
+Audit trail on changes to amounts, approvals, and numbering.
+Performance and Integrity
+Use transactions when importing or bulk-updating logs.
+Paginate CO Log list; lazy-load Sub COs.
+Ensure referential integrity and cascade delete rules are sensible (e.g., prevent deleting a GC CO if it has Sub COs unless explicitly handled).
+Deliverables:
+
+Updated database migrations/schema.
+Backend services/endpoints with tests.
+Frontend UI changes (list, detail, forms, import/export flows).
+Excel import/export implementation with templates.
+Numbering service that respects imported seeds and avoids duplicates.
+Data migration to link existing COs to the new Log structure.
+Brief README with feature overview and usage.
+Please proceed incrementally:
+
+Phase 1: Schema + Numbering service + basic import/export.
+Phase 2: GC CO log UI + link existing COs.
+Phase 3: Sub CO tracking + aggregation + workflow fields.
+Phase 4: Polishing, validations, permissions, tests.
+Notes:
+
+Keep backward compatibility with current CO creation flow.
+Preserve existing API routes where possible; add new ones under a /co-logs namespace if needed.
+All new UI should be responsive and match our existing design system.
