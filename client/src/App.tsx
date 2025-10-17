@@ -19,6 +19,7 @@ import Documents from "@/pages/Documents";
 import Settings from "@/pages/Settings";
 import AIAssistant from "@/pages/AIAssistant";
 import Company from "@/pages/Company";
+import { COLog } from "@/pages/COLog";
 import AuthPage from "@/pages/auth-page";
 import AuthCallback from "@/pages/auth-callback";
 import NotFound from "@/pages/not-found";
@@ -55,6 +56,7 @@ function Router() {
           <Route path="/upload" component={() => <Layout><Upload /></Layout>} />
           <Route path="/change-orders" component={() => <Layout><ChangeOrders /></Layout>} />
           <Route path="/change-orders/:id" component={() => <Layout><ChangeOrders /></Layout>} />
+          <Route path="/co-log" component={() => <Layout><COLog /></Layout>} />
           <Route path="/projects/:projectId/co-logs" component={() => <Layout><ChangeOrderLogs /></Layout>} />
           <Route path="/projects/:projectId/co-logs/:changeOrderId" component={() => <Layout><ChangeOrderLogs /></Layout>} />
           <Route path="/rate-tables" component={() => <Layout><RateTables /></Layout>} />

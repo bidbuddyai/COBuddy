@@ -17,7 +17,8 @@ import {
   LogOut,
   X,
   Building,
-  Building2
+  Building2,
+  ClipboardList
 } from "lucide-react";
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Documents', href: '/documents', icon: FileText },
   { name: 'Upload & Process', href: '/upload', icon: Upload },
   { name: 'Change Orders', href: '/change-orders', icon: FileText },
+  { name: 'CO Log', href: '/co-log', icon: ClipboardList },
   { name: 'Rate Tables', href: '/rate-tables', icon: Database },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Company', href: '/company', icon: Building2 },
@@ -102,7 +104,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <div className="flex items-center space-x-3">
           <Link href="/settings" onClick={handleLinkClick} className="flex items-center space-x-3 flex-1">
             <Avatar className="h-8 w-8 cursor-pointer">
-              <AvatarImage src={user?.profileImageUrl} />
+              <AvatarImage src={user?.profileImageUrl || undefined} />
               <AvatarFallback className="fieldflo-primary text-white">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </AvatarFallback>

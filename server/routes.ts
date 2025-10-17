@@ -14,6 +14,8 @@ import { processAIChat } from "./services/openai";
 import { insertDocumentSchema, insertChangeOrderSchema, insertProjectSchema, insertChangeOrderLogSchema } from "@shared/schema";
 import { Request, Response } from "express";
 import { aiAssistantService } from "./services/aiAssistant";
+import { numberingService } from "./services/numberingService";
+import { excelCoLogService } from "./services/excelCoLogService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1335,10 +1337,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============= CO LOG ENDPOINTS =============
-  
-  // Import services
-  const { numberingService } = require('./services/numberingService');
-  const { excelCoLogService } = require('./services/excelCoLogService');
   
   // --- Subcontractor endpoints ---
   app.get('/api/subcontractors', authenticateSupabaseUser, async (req: any, res) => {
