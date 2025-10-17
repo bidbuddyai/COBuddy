@@ -1334,6 +1334,229 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============= CO LOG ENDPOINTS =============
+  
+  // Import services
+  const { numberingService } = require('./services/numberingService');
+  const { excelCoLogService } = require('./services/excelCoLogService');
+  
+  // --- Subcontractor endpoints ---
+  app.get('/api/subcontractors', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user.companyId) {
+        return res.status(400).json({ message: 'User must belong to a company' });
+      }
+      
+      const subcontractors = await storage.getSubcontractors(user.companyId);
+      res.json(subcontractors);
+    } catch (error) {
+      console.error('Error fetching subcontractors:', error);
+      res.status(500).json({ message: 'Failed to fetch subcontractors' });
+    }
+  });
+  
+  app.post('/api/subcontractors', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user.companyId) {
+        return res.status(400).json({ message: 'User must belong to a company' });
+      }
+      
+      const subcontractorData = {
+        ...req.body,
+        companyId: user.companyId
+      };
+      
+      const subcontractor = await storage.createSubcontractor(subcontractorData);
+      res.status(201).json(subcontractor);
+    } catch (error) {
+      console.error('Error creating subcontractor:', error);
+      res.status(500).json({ message: 'Failed to create subcontractor' });
+    }
+  });
+  
+  app.put('/api/subcontractors/:id', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const subcontractor = await storage.updateSubcontractor(id, req.body);
+      res.json(subcontractor);
+    } catch (error) {
+      console.error('Error updating subcontractor:', error);
+      res.status(500).json({ message: 'Failed to update subcontractor' });
+    }
+  });
+  
+  // --- Subcontractor Change Order endpoints ---
+  app.get('/api/subcontractor-change-orders', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { projectId, gcChangeOrderId, subcontractorId } = req.query;
+      
+      const filters: any = {};
+      if (projectId) filters.projectId = parseInt(projectId);
+      if (gcChangeOrderId) filters.gcChangeOrderId = parseInt(gcChangeOrderId);
+      if (subcontractorId) filters.subcontractorId = parseInt(subcontractorId);
+      
+      const scos = await storage.getSubcontractorChangeOrders(filters);
+      res.json(scos);
+    } catch (error) {
+      console.error('Error fetching SCOs:', error);
+      res.status(500).json({ message: 'Failed to fetch subcontractor change orders' });
+    }
+  });
+  
+  app.post('/api/subcontractor-change-orders', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const scoData = {
+        ...req.body,
+        createdBy: req.user.id
+      };
+      
+      // Generate SCO number if not provided
+      if (!scoData.scoNumber) {
+        scoData.scoNumber = await numberingService.generateScoNumber(
+          scoData.projectId,
+          scoData.subcontractorId,
+          false
+        );
+      }
+      
+      const sco = await storage.createSubcontractorChangeOrder(scoData);
+      res.status(201).json(sco);
+    } catch (error) {
+      console.error('Error creating SCO:', error);
+      res.status(500).json({ message: 'Failed to create subcontractor change order' });
+    }
+  });
+  
+  app.put('/api/subcontractor-change-orders/:id', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const sco = await storage.updateSubcontractorChangeOrder(id, req.body);
+      res.json(sco);
+    } catch (error) {
+      console.error('Error updating SCO:', error);
+      res.status(500).json({ message: 'Failed to update subcontractor change order' });
+    }
+  });
+  
+  // --- CO Log Import/Export endpoints ---
+  app.get('/api/co-logs/export', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { projectId } = req.query;
+      
+      if (!projectId) {
+        return res.status(400).json({ message: 'Project ID is required' });
+      }
+      
+      const buffer = await excelCoLogService.exportCoLog(parseInt(projectId));
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="CO_Log.xlsx"');
+      res.send(buffer);
+    } catch (error) {
+      console.error('Error exporting CO Log:', error);
+      res.status(500).json({ message: 'Failed to export CO Log' });
+    }
+  });
+  
+  app.post('/api/co-logs/import', authenticateSupabaseUser, upload.single('file'), async (req: any, res) => {
+    try {
+      const file = req.file;
+      const { projectId } = req.body;
+      
+      if (!file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      
+      if (!projectId) {
+        return res.status(400).json({ message: 'Project ID is required' });
+      }
+      
+      const result = await excelCoLogService.importCoLog(
+        parseInt(projectId),
+        file.buffer,
+        req.user.id
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing CO Log:', error);
+      res.status(500).json({ message: 'Failed to import CO Log' });
+    }
+  });
+  
+  app.get('/api/co-logs/template', async (req: any, res) => {
+    try {
+      const buffer = await excelCoLogService.getSampleTemplate();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="CO_Log_Template.xlsx"');
+      res.send(buffer);
+    } catch (error) {
+      console.error('Error generating template:', error);
+      res.status(500).json({ message: 'Failed to generate template' });
+    }
+  });
+  
+  // --- Numbering sequence endpoints ---
+  app.post('/api/numbering/next', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { projectId, sequenceType, subcontractorId } = req.body;
+      
+      if (!projectId || !sequenceType) {
+        return res.status(400).json({ message: 'Project ID and sequence type are required' });
+      }
+      
+      const nextNumber = await storage.getNextNumber(projectId, sequenceType, subcontractorId);
+      res.json({ nextNumber });
+    } catch (error) {
+      console.error('Error getting next number:', error);
+      res.status(500).json({ message: 'Failed to get next number' });
+    }
+  });
+  
+  // --- CO Log aggregation endpoint ---
+  app.get('/api/co-logs/summary', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { projectId } = req.query;
+      
+      if (!projectId) {
+        return res.status(400).json({ message: 'Project ID is required' });
+      }
+      
+      const changeOrders = await storage.getChangeOrders({ projectId: parseInt(projectId) });
+      
+      // Calculate aggregations
+      let totalSubmitted = 0;
+      let totalApproved = 0;
+      let totalSubSubmitted = 0;
+      let totalSubApproved = 0;
+      
+      for (const co of changeOrders.data) {
+        totalSubmitted += Number(co.amountSubmitted) || 0;
+        totalApproved += Number(co.amountApproved) || 0;
+        totalSubSubmitted += Number(co.subAmountSubmitted) || 0;
+        totalSubApproved += Number(co.subAmountApproved) || 0;
+      }
+      
+      const variance = totalSubmitted - totalSubSubmitted;
+      
+      res.json({
+        gcCount: changeOrders.total,
+        gcAmountSubmitted: totalSubmitted,
+        gcAmountApproved: totalApproved,
+        subAmountSubmitted: totalSubSubmitted,
+        subAmountApproved: totalSubApproved,
+        variance,
+        percentageComplete: totalSubmitted > 0 ? (totalApproved / totalSubmitted) * 100 : 0
+      });
+    } catch (error) {
+      console.error('Error getting CO Log summary:', error);
+      res.status(500).json({ message: 'Failed to get CO Log summary' });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // WebSocket server for real-time updates
