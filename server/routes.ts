@@ -16,6 +16,7 @@ import { Request, Response } from "express";
 import { aiAssistantService } from "./services/aiAssistant";
 import { numberingService } from "./services/numberingService";
 import { excelCoLogService } from "./services/excelCoLogService";
+import { aggregationService } from "./services/aggregationService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1552,6 +1553,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting CO Log summary:', error);
       res.status(500).json({ message: 'Failed to get CO Log summary' });
+    }
+  });
+  
+  // --- Advanced aggregation endpoints ---
+  app.get('/api/co-logs/advanced-summary', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const { projectId } = req.query;
+      
+      if (!projectId) {
+        return res.status(400).json({ message: 'Project ID is required' });
+      }
+      
+      const aggregation = await aggregationService.calculateProjectAggregation(parseInt(projectId));
+      res.json(aggregation);
+    } catch (error) {
+      console.error('Error getting advanced CO Log summary:', error);
+      res.status(500).json({ message: 'Failed to get advanced CO Log summary' });
+    }
+  });
+  
+  app.get('/api/co-logs/company-summary', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user.companyId) {
+        return res.status(400).json({ message: 'User must belong to a company' });
+      }
+      
+      const aggregation = await aggregationService.calculateCompanyAggregation(user.companyId);
+      res.json(aggregation);
+    } catch (error) {
+      console.error('Error getting company CO Log summary:', error);
+      res.status(500).json({ message: 'Failed to get company CO Log summary' });
     }
   });
 
