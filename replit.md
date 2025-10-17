@@ -33,7 +33,13 @@ The project is organized as a monorepo containing:
 - **Company Management System**: Supports multi-tenancy with company-scoped data, user invitation, role assignment, and project-specific markup percentages.
 - **Rate Tables**: Supports both company-specific and public rate tables (e.g., Caltrans rates), with comprehensive editing functionality.
 - **Document Editor**: Allows inline editing of all extracted T&M data, including labor, equipment, materials, and disposal items, with automatic recalculation and low confidence warnings.
-- **Database Schema**: Includes entities for Users (role-based), Projects, Change Orders, Documents, Rate Tables (company-wide and public), Audit Logs, and Chat Conversations.
+- **CO Log Management System**: Comprehensive change order tracking with:
+  - Auto-numbering for GC RFCs, COs, and Subcontractor COs aligned with project sequences
+  - Excel import/export with validation and template generation
+  - Hierarchical view with expandable subcontractor change orders under each GC CO
+  - Advanced aggregation calculations including variance analysis and rollup metrics
+  - Professional dashboard with project-based filtering and inline editing capabilities
+- **Database Schema**: Includes entities for Users (role-based), Projects, Change Orders (enhanced with GC/SCO tracking), Documents, Rate Tables, Subcontractors, Subcontractor Change Orders, Numbering Sequences, Audit Logs, and Chat Conversations.
 
 ## External Dependencies
 
