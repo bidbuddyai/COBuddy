@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function AuthCallback() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState("Processing authentication...");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Handle the callback from OAuth providers
@@ -13,60 +15,62 @@ export default function AuthCallback() {
       try {
         console.log("Auth callback started");
         console.log("Current URL:", window.location.href);
+        console.log("URL params:", window.location.search);
+        console.log("Hash params:", window.location.hash);
         
-        // Extract the code from URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
+        // Supabase may return data in the URL hash for implicit flow
+        // or in query params for code flow
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const queryParams = new URLSearchParams(window.location.search);
         
-        if (!code) {
-          console.error("No authorization code found in URL");
-          setStatus("No authorization code received");
-          setTimeout(() => navigate("/auth?error=no_code"), 2000);
-          return;
-        }
-        
-        console.log("Authorization code found, exchanging for session...");
-        
-        // Use Supabase's built-in method to handle the OAuth callback
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        
-        if (error) {
-          console.error("Error exchanging code for session:", error);
+        // Check for error in params
+        const errorDesc = queryParams.get('error_description') || hashParams.get('error_description');
+        if (errorDesc) {
+          console.error("OAuth error:", errorDesc);
+          setError(errorDesc);
           setStatus("Authentication failed");
-          setTimeout(() => navigate(`/auth?error=${error.message}`), 2000);
+          setTimeout(() => navigate(`/auth`), 3000);
           return;
         }
-
-        console.log("Code exchanged successfully:", data);
         
-        // Double-check we have a session
+        // For OAuth callbacks, Supabase automatically handles the exchange
+        // We just need to wait for it to complete
+        setStatus("Verifying credentials...");
+        
+        // Give Supabase auth client time to process the callback
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Try to get the session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.error("Error verifying session:", sessionError);
-          setStatus("Session verification failed");
-          setTimeout(() => navigate("/auth?error=session_failed"), 2000);
+          console.error("Session error:", sessionError);
+          setError(sessionError.message);
+          setStatus("Authentication failed");
+          setTimeout(() => navigate(`/auth`), 3000);
           return;
         }
-
+        
         if (session) {
-          console.log("Session verified successfully:", session.user?.email);
-          setStatus("Success! Redirecting...");
+          console.log("Session established:", session.user?.email);
+          setStatus("Success! Redirecting to dashboard...");
           
           // Give the auth provider a moment to sync
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Force a page reload to ensure auth state is properly synced
           window.location.href = "/";
         } else {
-          console.log("No session found after exchange");
-          setStatus("No session established");
-          setTimeout(() => navigate("/auth?error=no_session"), 2000);
+          console.log("No session found");
+          setError("Unable to establish session. Please try logging in again.");
+          setStatus("Session not established");
+          setTimeout(() => navigate("/auth"), 3000);
         }
       } catch (error) {
         console.error("Unexpected error during auth callback:", error);
-        setStatus("An unexpected error occurred");
-        setTimeout(() => navigate("/auth?error=unexpected"), 2000);
+        setError("An unexpected error occurred");
+        setStatus("Authentication failed");
+        setTimeout(() => navigate("/auth"), 3000);
       }
     };
 
@@ -74,11 +78,25 @@ export default function AuthCallback() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-        <p className="text-muted-foreground">{status}</p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-full max-w-md">
+        <CardContent className="pt-6">
+          <div className="text-center">
+            {error ? (
+              <>
+                <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
+                <p className="text-lg font-semibold mb-2">{status}</p>
+                <p className="text-sm text-muted-foreground">{error}</p>
+              </>
+            ) : (
+              <>
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-lg font-semibold">{status}</p>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
