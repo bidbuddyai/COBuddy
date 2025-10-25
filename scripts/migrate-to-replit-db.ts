@@ -92,7 +92,14 @@ async function migrate() {
           const batch = data.rows.slice(i, i + batchSize);
           
           for (const row of batch) {
-            const values = columns.map(col => row[col]);
+            const values = columns.map(col => {
+              const value = row[col];
+              // Handle JSONB columns - convert to JSON string
+              if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+                return JSON.stringify(value);
+              }
+              return value;
+            });
             const placeholders = values.map((_, idx) => `$${idx + 1}`).join(', ');
             const columnNames = columns.join(', ');
             
