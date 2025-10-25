@@ -14,8 +14,21 @@ export default function AuthCallback() {
         console.log("Auth callback started");
         console.log("Current URL:", window.location.href);
         
+        // Extract the code from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        
+        if (!code) {
+          console.error("No authorization code found in URL");
+          setStatus("No authorization code received");
+          setTimeout(() => navigate("/auth?error=no_code"), 2000);
+          return;
+        }
+        
+        console.log("Authorization code found, exchanging for session...");
+        
         // Use Supabase's built-in method to handle the OAuth callback
-        const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         
         if (error) {
           console.error("Error exchanging code for session:", error);
