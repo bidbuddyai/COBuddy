@@ -25,7 +25,7 @@ export class AIAssistantService {
   async processMessage(message: string, context: any): Promise<AIResponse> {
     try {
       // Check if there's an active workflow in the conversation
-      const conversationId = context.conversationId;
+      let conversationId = context.conversationId; // Use 'let' to allow reassignment
       let workflowState: WorkflowState | null = null;
       
       if (conversationId) {
@@ -43,7 +43,7 @@ export class AIAssistantService {
         // Use guided workflow
         const result = await guidedCOAssistant.processGuidedMessage(message, workflowState, context);
         
-        // Update conversation state
+        // Update conversation state if needed
         if (conversationId) {
           await storage.updateChatConversation(conversationId, {
             metadata: result.updatedState || undefined,
@@ -62,17 +62,17 @@ export class AIAssistantService {
             metadata: result.updatedState
           });
           
-          result.response.data = { 
-            conversationId: newConversation.id,
-            draft: result.draft
-          };
-        } else {
-          // Just include draft in existing response data
-          result.response.data = {
-            ...result.response.data,
-            draft: result.draft
-          };
+          // Set the conversationId for next message
+          conversationId = newConversation.id;
         }
+        
+        // CRITICAL: ALWAYS include draft and conversationId in response, regardless of workflow state
+        // This ensures the live preview works on every turn, not just when state changes
+        result.response.data = {
+          ...(result.response.data || {}), // Guard against undefined
+          conversationId: conversationId || undefined,
+          draft: result.draft
+        };
         
         return result.response;
       }
