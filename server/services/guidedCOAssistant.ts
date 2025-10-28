@@ -14,12 +14,17 @@ export class GuidedCOAssistantService {
   ): Promise<{
     response: AIResponse;
     updatedState: WorkflowState | null;
+    draft?: DraftCO;
   }> {
     // If no workflow state, check if user wants to create a CO
     if (!workflowState) {
       const wantsToCreate = this.detectCOCreationIntent(message);
       if (wantsToCreate) {
-        return await this.startCOCreationWorkflow(message, context);
+        const result = await this.startCOCreationWorkflow(message, context);
+        return {
+          ...result,
+          draft: result.updatedState?.draft
+        };
       }
       
       // Not a CO creation request
@@ -27,42 +32,58 @@ export class GuidedCOAssistantService {
         response: {
           message: "I can help you create a change order with step-by-step guidance. Just say 'Create a change order' to get started!"
         },
-        updatedState: null
+        updatedState: null,
+        draft: undefined
       };
     }
     
     // Process based on current state
+    let result: { response: AIResponse; updatedState: WorkflowState | null };
+    
     switch (workflowState.currentState) {
       case COCreationState.INITIAL:
       case COCreationState.PROJECT_SELECTION:
-        return await this.handleProjectSelection(message, workflowState, context);
+        result = await this.handleProjectSelection(message, workflowState, context);
+        break;
       
       case COCreationState.SCOPE_DEFINITION:
-        return await this.handleScopeDefinition(message, workflowState, context);
+        result = await this.handleScopeDefinition(message, workflowState, context);
+        break;
       
       case COCreationState.LABOR_ESTIMATION:
-        return await this.handleLaborEstimation(message, workflowState, context);
+        result = await this.handleLaborEstimation(message, workflowState, context);
+        break;
       
       case COCreationState.MATERIALS_ESTIMATION:
-        return await this.handleMaterialsEstimation(message, workflowState, context);
+        result = await this.handleMaterialsEstimation(message, workflowState, context);
+        break;
       
       case COCreationState.EQUIPMENT_ESTIMATION:
-        return await this.handleEquipmentEstimation(message, workflowState, context);
+        result = await this.handleEquipmentEstimation(message, workflowState, context);
+        break;
       
       case COCreationState.SUBCONTRACTOR_ESTIMATION:
-        return await this.handleSubcontractorEstimation(message, workflowState, context);
+        result = await this.handleSubcontractorEstimation(message, workflowState, context);
+        break;
       
       case COCreationState.REVIEW:
-        return await this.handleReview(message, workflowState, context);
+        result = await this.handleReview(message, workflowState, context);
+        break;
       
       default:
-        return {
+        result = {
           response: {
             message: "Something went wrong with the workflow. Let's start over. What would you like to create?"
           },
           updatedState: null
         };
     }
+    
+    // Include draft in response
+    return {
+      ...result,
+      draft: result.updatedState?.draft
+    };
   }
 
   private detectCOCreationIntent(message: string): boolean {
@@ -209,7 +230,8 @@ export class GuidedCOAssistantService {
     if (similarCOs.length > 0) {
       responseMessage += `I found ${similarCOs.length} similar change orders from past work:\n`;
       similarCOs.slice(0, 3).forEach(co => {
-        responseMessage += `• ${co.title} - $${co.totalCost?.toFixed(2) || '0.00'}\n`;
+        const total = co.totalAmount ? parseFloat(co.totalAmount.toString()) : 0;
+        responseMessage += `• ${co.title} - $${total.toFixed(2)}\n`;
       });
       responseMessage += '\n';
     }
@@ -590,23 +612,27 @@ export class GuidedCOAssistantService {
       const equipmentCost = draft.equipment?.reduce((sum, item) => sum + item.amount, 0) || 0;
       const subcontractorCost = draft.subcontractors?.reduce((sum, item) => sum + item.amount, 0) || 0;
       
-      // Get project markup
+      // Get project markups (use labor as default general markup)
       const project = await storage.getProject(draft.projectId!);
-      const markup = project?.markupPercentage || 15;
+      const markup = project?.markupLabor ? parseFloat(project.markupLabor.toString()) : 15;
+      
+      // Generate a unique number for the CO
+      const coNumber = `CO-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
       
       const changeOrderData: InsertChangeOrder = {
+        number: coNumber,
         projectId: draft.projectId!,
         title: draft.title || draft.scope || 'New Change Order',
         description: draft.description || draft.scope || '',
         status: 'draft',
-        laborCost,
-        materialCost,
-        equipmentCost,
-        disposalCost: 0,
-        markup,
-        totalCost: total,
-        createdBy: context.user?.id || 'system',
-        extractedData
+        totalAmount: total.toString(),
+        laborAmount: laborCost.toString(),
+        materialAmount: materialCost.toString(),
+        equipmentAmount: equipmentCost.toString(),
+        disposalAmount: '0',
+        subcontractorAmount: subcontractorCost.toString(),
+        data: extractedData,
+        createdBy: context.user?.id || 'system'
       };
       
       const newCO = await storage.createChangeOrder(changeOrderData);

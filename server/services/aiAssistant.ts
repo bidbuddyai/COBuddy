@@ -62,7 +62,16 @@ export class AIAssistantService {
             metadata: result.updatedState
           });
           
-          result.response.data = { conversationId: newConversation.id };
+          result.response.data = { 
+            conversationId: newConversation.id,
+            draft: result.draft
+          };
+        } else {
+          // Just include draft in existing response data
+          result.response.data = {
+            ...result.response.data,
+            draft: result.draft
+          };
         }
         
         return result.response;
