@@ -48,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!company && emailDomain) {
         const companyName = emailDomain.split('.')[0]
           .split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ');
         
         company = await storage.createCompany({
@@ -854,7 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No files uploaded' });
       }
 
-      const uploadedDocuments = [];
+      const uploadedDocuments: any[] = [];
       const userId = req.user.id;
       
       // First, create all document records
@@ -1093,7 +1093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const id = parseInt(req.params.id);
-      const rateTable = await storage.approveRateTable(id, parseInt(user.id));
+      const rateTable = await storage.approveRateTable(id, user.id);
       res.json(rateTable);
     } catch (error) {
       console.error('Error approving rate table:', error);
@@ -1179,7 +1179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/chat/conversations', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const conversations = await storage.getChatConversations(parseInt(req.user.id));
+      const conversations = await storage.getChatConversations(req.user.id);
       res.json(conversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -1239,7 +1239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             projectId: co.projectId,
             title: co.title,
             status: co.status,
-            total: co.totalCost
+            total: parseFloat(co.totalAmount || '0')
           })),
           pendingDocuments: documents.filter(d => d.status === 'pending').length
         },
@@ -1321,7 +1321,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       console.error('Error uploading Caltrans rates:', error);
-      res.status(500).json({ message: error.message || 'Failed to upload Caltrans rates' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload Caltrans rates';
+      res.status(500).json({ message: errorMessage });
     }
   });
 
@@ -1616,7 +1617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     ws.on('close', () => {
       // Remove the connection when closed
-      for (const [userId, connection] of userConnections) {
+      for (const [userId, connection] of Array.from(userConnections.entries())) {
         if (connection === ws) {
           userConnections.delete(userId);
           break;

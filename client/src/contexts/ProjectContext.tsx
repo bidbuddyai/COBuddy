@@ -11,17 +11,22 @@ const STORAGE_KEY = 'cobuddy-selected-project';
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [selectedProjectId, setSelectedProjectIdState] = useState<number | null>(() => {
-    // Initialize from localStorage
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? parseInt(stored, 10) : null;
+    // Initialize from localStorage (browser-only)
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? parseInt(stored, 10) : null;
+    }
+    return null;
   });
 
   const setSelectedProjectId = (projectId: number | null) => {
     setSelectedProjectIdState(projectId);
-    if (projectId !== null) {
-      localStorage.setItem(STORAGE_KEY, projectId.toString());
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+    if (typeof window !== 'undefined') {
+      if (projectId !== null) {
+        localStorage.setItem(STORAGE_KEY, projectId.toString());
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
     }
   };
 

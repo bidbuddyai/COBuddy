@@ -9,13 +9,22 @@ App focus: Everything must be project-centric with project selection/filtering.
 Important features: Professional dashboard with sidebar navigation, not simplified views.
 Document categorization: Invoices from companies like Incompli are subcontractor entries, not labor. Invoices are typically for subcontractors, equipment rentals, or operated equipment.
 
+## Recent Changes (October 28, 2025)
+- **Database Migration**: Migrated from Supabase to Replit PostgreSQL (primary database). Supabase preserved as backup.
+- **Authentication**: Using Supabase Auth with Microsoft OAuth configured. Session management via `authenticateSupabaseUser` middleware.
+- **Project Context**: Implemented global ProjectContext with localStorage persistence for maintaining selected project across page refreshes.
+- **Schema Updates**: Added `lastExportedAt` and `exportedFiles` fields to changeOrders table for export tracking.
+- **Type Safety**: Resolved all TypeScript compilation errors across the codebase.
+- **API Standardization**: Ensured consistent response formats between frontend and backend (`{ data, total }` envelopes).
+
 ## System Architecture
 
 ### Full-Stack TypeScript Application
 The application is a full-stack TypeScript application, utilizing:
 - **Frontend**: React with TypeScript and Vite.
 - **Backend**: Express.js with TypeScript.
-- **Database**: PostgreSQL with Drizzle ORM.
+- **Database**: Replit PostgreSQL (primary) with Drizzle ORM. Supabase database preserved as backup.
+- **Authentication**: Supabase Auth with Microsoft OAuth integration.
 - **AI Integration**: OpenAI GPT-4 Vision for document processing and chat assistance.
 - **UI Framework**: Radix UI components styled with Tailwind CSS.
 

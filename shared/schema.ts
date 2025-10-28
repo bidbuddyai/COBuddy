@@ -134,6 +134,9 @@ export const changeOrders = pgTable("change_orders", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   approvedAt: timestamp("approved_at"),
+  // Export tracking
+  lastExportedAt: timestamp("last_exported_at"),
+  exportedFiles: jsonb("exported_files"), // Array of exported file references
 });
 
 // Subcontractors table
