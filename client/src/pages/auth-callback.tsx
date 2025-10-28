@@ -59,9 +59,9 @@ export default function AuthCallback() {
         setSuccess(true);
         setStatus("Success! Redirecting to dashboard...");
         
-        // Navigate to dashboard
+        // Navigate to dashboard using client-side routing
         setTimeout(() => {
-          window.location.href = "/";
+          navigate("/");
         }, 1500);
         
       } catch (err: any) {
