@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Send, User, Loader2, FileText, DollarSign } from "lucide-react";
+import { Bot, Send, User, Loader2, FileText, DollarSign, Paperclip, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useProject } from "@/contexts/ProjectContext";
@@ -41,7 +41,11 @@ export default function AIAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [draftCO, setDraftCO] = useState<DraftCO | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedFileIds, setUploadedFileIds] = useState<number[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { selectedProjectId } = useProject();
@@ -105,24 +109,36 @@ export default function AIAssistant() {
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && selectedFiles.length === 0) || isLoading || isUploading) return;
+
+    // Upload files first if any
+    let fileIds: number[] = [];
+    if (selectedFiles.length > 0) {
+      fileIds = await uploadFiles();
+      if (fileIds.length === 0) {
+        // Upload failed
+        return;
+      }
+    }
 
     const userMessage: Message = {
       id: messages.length + 1,
       role: 'user',
-      content: input,
+      content: input || `📎 Uploaded ${selectedFiles.length} file(s)`,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
     setInput('');
+    setSelectedFiles([]); // Clear selected files
     setIsLoading(true);
 
     try {
       const responseRaw = await apiRequest('POST', '/api/ai/chat', {
         message: currentInput,
         conversationId,
+        fileIds, // Include uploaded file IDs
         context: {
           currentPage: 'ai-assistant',
           projectId: selectedProjectId
@@ -172,6 +188,72 @@ export default function AIAssistant() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setSelectedFiles(prev => [...prev, ...files]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (): Promise<number[]> => {
+    if (selectedFiles.length === 0) return [];
+    
+    setIsUploading(true);
+    const fileIds: number[] = [];
+    
+    try {
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('projectId', selectedProjectId?.toString() || '');
+        formData.append('type', 'invoice'); // Default type
+        
+        // Use fetch directly for FormData (apiRequest doesn't support it)
+        const response = await fetch('/api/documents/upload', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+          // No Content-Type header - browser sets it automatically with boundary
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.id) {
+          fileIds.push(data.id);
+        }
+      }
+      
+      toast({
+        title: "Files uploaded",
+        description: `${selectedFiles.length} file(s) uploaded successfully`,
+      });
+      
+      // Clear the file input so users can reselect the same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      return fileIds;
+    } catch (error) {
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload files. Please try again.",
+        variant: "destructive"
+      });
+      return [];
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -263,22 +345,71 @@ export default function AIAssistant() {
               </div>
             </ScrollArea>
             <div className="border-t p-4">
+              {/* Selected Files Display */}
+              {selectedFiles.length > 0 && (
+                <div className="mb-3 space-y-1">
+                  {selectedFiles.map((file, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Paperclip className="h-4 w-4 text-gray-500" />
+                        <span className="truncate">{file.name}</span>
+                        <span className="text-gray-400 text-xs">
+                          ({Math.round(file.size / 1024)}KB)
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeFile(index)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex space-x-2">
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                
+                {/* File upload button */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || isUploading}
+                  data-testid="button-attach"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
-                  disabled={isLoading}
+                  disabled={isLoading || isUploading}
                   className="flex-1"
                   data-testid="input-message"
                 />
                 <Button 
                   onClick={handleSendMessage} 
-                  disabled={isLoading || !input.trim()}
+                  disabled={isLoading || isUploading || (!input.trim() && selectedFiles.length === 0)}
                   data-testid="button-send"
                 >
-                  <Send className="h-4 w-4" />
+                  {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
