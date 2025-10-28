@@ -1190,7 +1190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Assistant Chat endpoint (enhanced version with actions)
   app.post('/api/ai/chat', authenticateSupabaseUser, async (req: any, res) => {
     try {
-      const { message, context, requestActions } = req.body;
+      const { message, context, requestActions, conversationId } = req.body;
       
       if (!message) {
         return res.status(400).json({ message: 'Message is required' });
@@ -1211,6 +1211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documents = await storage.getDocuments();
       
       const enhancedContext = {
+        conversationId,
         pageContext: context,
         rateContext: {
           companyRates: rateTablesData.map(rt => ({

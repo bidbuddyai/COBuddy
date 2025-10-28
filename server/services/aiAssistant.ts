@@ -3,6 +3,8 @@ import { processDocumentWithVision, processAIChat } from './openai';
 import { generateChangeOrderExcel } from './excelGenerator';
 import { generateChangeOrderPDF } from './pdfGenerator';
 import { InsertChangeOrder, InsertDocument, ChangeOrder } from '../../shared/schema';
+import { guidedCOAssistant } from './guidedCOAssistant';
+import { WorkflowState } from './coCreationWorkflow';
 
 export interface AIAction {
   type: 'navigate' | 'create' | 'update' | 'delete' | 'process' | 'generate' | 'refresh';
@@ -22,16 +24,52 @@ export interface AIResponse {
 export class AIAssistantService {
   async processMessage(message: string, context: any): Promise<AIResponse> {
     try {
-      // Log the conversation for future reference
-      await this.logConversation(context.user?.id, message, context);
-
-      // Check for specific intents
-      const intent = this.detectIntent(message.toLowerCase());
+      // Check if there's an active workflow in the conversation
+      const conversationId = context.conversationId;
+      let workflowState: WorkflowState | null = null;
       
-      switch (intent.type) {
-        case 'create_change_order':
-          return await this.handleCreateChangeOrder(intent.params, context);
+      if (conversationId) {
+        const conversation = await storage.getChatConversation(conversationId);
+        if (conversation?.metadata) {
+          workflowState = conversation.metadata as WorkflowState;
+        }
+      }
+      
+      // Check if this is a guided CO creation request or continuation
+      const intent = this.detectIntent(message.toLowerCase());
+      const isGuidedCORequest = intent.type === 'create_change_order' || workflowState;
+      
+      if (isGuidedCORequest) {
+        // Use guided workflow
+        const result = await guidedCOAssistant.processGuidedMessage(message, workflowState, context);
         
+        // Update conversation state
+        if (conversationId) {
+          await storage.updateChatConversation(conversationId, {
+            metadata: result.updatedState || undefined,
+            title: result.updatedState?.draft?.scope?.substring(0, 50) || 'CO Creation'
+          });
+        } else if (result.updatedState) {
+          // Create new conversation with workflow state
+          const newConversation = await storage.createChatConversation({
+            userId: context.user?.id || 'system',
+            messages: [{
+              role: 'user',
+              content: message,
+              timestamp: new Date()
+            }],
+            title: result.updatedState.draft?.scope?.substring(0, 50) || 'CO Creation',
+            metadata: result.updatedState
+          });
+          
+          result.response.data = { conversationId: newConversation.id };
+        }
+        
+        return result.response;
+      }
+      
+      // Handle other intents
+      switch (intent.type) {
         case 'edit_document':
           return await this.handleEditDocument(intent.params, context);
         
