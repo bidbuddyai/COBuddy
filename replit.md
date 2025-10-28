@@ -16,6 +16,7 @@ Document categorization: Invoices from companies like Incompli are subcontractor
 - **Schema Updates**: Added `lastExportedAt` and `exportedFiles` fields to changeOrders table for export tracking.
 - **Type Safety**: Resolved all TypeScript compilation errors across the codebase.
 - **API Standardization**: Ensured consistent response formats between frontend and backend (`{ data, total }` envelopes).
+- **Guided CO Creation**: Implemented complete multi-step guided workflow with AI estimation, knowledge base querying, and live CO preview. Fixed critical bug where draft data wasn't included on all conversation turns by restructuring response data handling in aiAssistant.ts to ALWAYS merge draft+conversationId regardless of workflow state changes.
 
 ## System Architecture
 
