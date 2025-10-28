@@ -2,6 +2,10 @@ import { storage } from '../storage';
 import { InsertChangeOrder } from '../../shared/schema';
 import { coCreationWorkflow, COCreationState, DraftCO, WorkflowState } from './coCreationWorkflow';
 import { AIResponse, AIAction } from './aiAssistant';
+import { processDocument } from './documentProcessor';
+import { db } from '../db';
+import { documents } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 
 export class GuidedCOAssistantService {
   /**
@@ -720,6 +724,21 @@ export class GuidedCOAssistantService {
     response: AIResponse;
     updatedState: WorkflowState;
   }> {
+    // Check if files were uploaded
+    if (context.fileIds && context.fileIds.length > 0) {
+      // Files uploaded - move to parsing
+      state.draft.uploadedFiles = context.fileIds;
+      state.currentState = COCreationState.DOCUMENT_PARSING;
+      state.lastUpdated = new Date();
+      
+      return {
+        response: {
+          message: `✅ Received ${context.fileIds.length} file(s)!\n\n🔄 Processing documents now:\n• Extracting text with OCR\n• Identifying labor, materials, equipment\n• Matching rates from your rate tables\n\nThis may take a moment...`
+        },
+        updatedState: state
+      };
+    }
+    
     // Save the scope if provided
     if (!state.draft.scope) {
       state.draft.scope = message;
@@ -729,7 +748,7 @@ export class GuidedCOAssistantService {
     
     return {
       response: {
-        message: `Got it! Scope: **${state.draft.scope}**\n\n📎 Now upload your documents (T&M sheets, invoices, quotes, receipts).\n\n**You can upload:**\n• T&M sheets with labor hours\n• Equipment rental invoices\n• Material invoices\n• Subcontractor quotes\n• Any supporting documentation\n\n**To upload:** Click the attachment/upload button and select your files. Once uploaded, I'll parse them and match rates from your rate tables.\n\n_(Note: Document upload will be enabled once I finish implementing the file upload UI. For now, tell me what items you need to add and I can help you enter them.)_`
+        message: `Got it! Scope: **${state.draft.scope}**\n\n📎 Now upload your documents (T&M sheets, invoices, quotes, receipts).\n\n**You can upload:**\n• T&M sheets with labor hours\n• Equipment rental invoices\n• Material invoices\n• Subcontractor quotes\n• Any supporting documentation\n\n**To upload:** Click the paperclip button below and select your files. I'll parse them and match rates from your rate tables.`
       },
       updatedState: state
     };
@@ -743,16 +762,69 @@ export class GuidedCOAssistantService {
     response: AIResponse;
     updatedState: WorkflowState;
   }> {
-    // This will be called after files are uploaded
-    // For now, move to manual data entry
-    state.currentState = COCreationState.DATA_CONFIRMATION;
-    
-    return {
-      response: {
-        message: `I'm parsing your documents now... (This feature will use OCR/Vision API to extract labor, materials, equipment)\n\nFor now, tell me what items need to be added to this CO.`
-      },
-      updatedState: state
-    };
+    try {
+      if (!state.draft.uploadedFiles || state.draft.uploadedFiles.length === 0) {
+        // No files to parse - ask for upload
+        state.currentState = COCreationState.DOCUMENT_UPLOAD;
+        return {
+          response: {
+            message: `No documents found. Please upload your T&M sheets, invoices, or quotes using the paperclip button.`
+          },
+          updatedState: state
+        };
+      }
+      
+      // Process all uploaded documents
+      const parsedResults = [];
+      
+      for (const fileId of state.draft.uploadedFiles) {
+        try {
+          // Process the document
+          await processDocument(fileId);
+          
+          // Get the processed document from database
+          const [processedDoc] = await db.select().from(documents).where(eq(documents.id, fileId));
+          
+          if (processedDoc && processedDoc.data) {
+            parsedResults.push({
+              filename: processedDoc.filename,
+              data: processedDoc.data,
+              status: processedDoc.status
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing document ${fileId}:`, error);
+          parsedResults.push({
+            filename: `Document ${fileId}`,
+            error: error instanceof Error ? error.message : 'Processing failed'
+          });
+        }
+      }
+      
+      // Save parsed data to draft
+      state.draft.parsedData = parsedResults;
+      
+      // Move to rate matching
+      state.currentState = COCreationState.RATE_MATCHING;
+      state.lastUpdated = new Date();
+      
+      const successCount = parsedResults.filter(r => !r.error).length;
+      const failCount = parsedResults.length - successCount;
+      
+      return {
+        response: {
+          message: `✅ Document parsing complete!\n\n**Results:**\n• ${successCount} file(s) processed successfully\n${failCount > 0 ? `• ${failCount} file(s) had errors\n` : ''}\n🔄 Now matching rates from your rate tables...`
+        },
+        updatedState: state
+      };
+    } catch (error) {
+      return {
+        response: {
+          message: `Error parsing documents: ${error instanceof Error ? error.message : 'Unknown error'}. Please try uploading again or contact support.`
+        },
+        updatedState: state
+      };
+    }
   }
   
   private async handleRateMatching(
@@ -763,15 +835,149 @@ export class GuidedCOAssistantService {
     response: AIResponse;
     updatedState: WorkflowState;
   }> {
-    // This will match parsed items against rate tables
-    state.currentState = COCreationState.DATA_CONFIRMATION;
+    try {
+      if (!state.draft.parsedData || state.draft.parsedData.length === 0) {
+        state.currentState = COCreationState.DOCUMENT_UPLOAD;
+        return {
+          response: {
+            message: `No parsed data available. Please upload documents first.`
+          },
+          updatedState: state
+        };
+      }
+      
+      // Aggregate all extracted data from parsed documents
+      const allLabor: any[] = [];
+      const allMaterials: any[] = [];
+      const allEquipment: any[] = [];
+      const allSubcontractors: any[] = [];
+      
+      for (const doc of state.draft.parsedData) {
+        if (doc.error) continue;
+        
+        const extractedData = doc.data as any;
+        
+        // Convert extracted T&M data to draft format
+        if (extractedData.laborEntries) {
+          for (const labor of extractedData.laborEntries) {
+            allLabor.push({
+              description: `${labor.role} - ${labor.name || ''}`,
+              hours: labor.hours || 0,
+              rate: labor.rate || 0,
+              amount: (labor.hours || 0) * (labor.rate || 0),
+              confidence: labor.confidence || 0.5
+            });
+          }
+        }
+        
+        if (extractedData.materialEntries) {
+          for (const material of extractedData.materialEntries) {
+            allMaterials.push({
+              description: `${material.type} - ${material.description || ''}`,
+              quantity: material.quantity || 0,
+              unit: material.unit || 'EA',
+              rate: material.rate || 0,
+              amount: (material.quantity || 0) * (material.rate || 0),
+              confidence: material.confidence || 0.5
+            });
+          }
+        }
+        
+        if (extractedData.equipmentEntries) {
+          for (const equipment of extractedData.equipmentEntries) {
+            allEquipment.push({
+              description: `${equipment.type} - ${equipment.description || ''}`,
+              hours: equipment.hours || 0,
+              rate: equipment.rate || 0,
+              amount: (equipment.hours || 0) * (equipment.rate || 0),
+              confidence: equipment.confidence || 0.5
+            });
+          }
+        }
+        
+        if (extractedData.subcontractorEntries) {
+          for (const sub of extractedData.subcontractorEntries) {
+            allSubcontractors.push({
+              name: sub.company || 'Unknown Subcontractor',
+              scope: sub.description || '',
+              amount: sub.amount || 0,
+              confidence: sub.confidence || 0.5
+            });
+          }
+        }
+      }
+      
+      // Save matched data to draft
+      state.draft.matchedRates = {
+        labor: allLabor,
+        materials: allMaterials,
+        equipment: allEquipment,
+        subcontractors: allSubcontractors
+      };
+      
+      // Move to data confirmation
+      state.currentState = COCreationState.DATA_CONFIRMATION;
+      state.lastUpdated = new Date();
+      
+      // Format summary for user
+      const summary = this.formatMatchedDataSummary(state.draft.matchedRates);
+      
+      return {
+        response: {
+          message: `✅ Rate matching complete!\n\n**Extracted Data:**\n\n${summary}\n\n**Next Steps:**\nReview the items above. You can:\n• Type "looks good" to confirm and create the CO\n• Request changes like "update foreman rate to $85/hr"\n• Add items by describing them\n• Remove items by saying "remove item X"\n\n⚠️ **Note:** Items with confidence below 70% are flagged - please review carefully.`
+        },
+        updatedState: state
+      };
+    } catch (error) {
+      return {
+        response: {
+          message: `Error matching rates: ${error instanceof Error ? error.message : 'Unknown error'}.`
+        },
+        updatedState: state
+      };
+    }
+  }
+  
+  private formatMatchedDataSummary(matchedRates: any): string {
+    const parts: string[] = [];
     
-    return {
-      response: {
-        message: `Matching rates from your rate tables... (This will show matched items with confidence scores)`
-      },
-      updatedState: state
-    };
+    if (matchedRates.labor && matchedRates.labor.length > 0) {
+      parts.push(`**Labor** (${matchedRates.labor.length} items):`);
+      matchedRates.labor.forEach((item: any, idx: number) => {
+        const warning = item.confidence < 0.7 ? ' ⚠️' : '';
+        parts.push(`  ${idx + 1}. ${item.description}: ${item.hours}hrs @ $${item.rate}/hr = $${item.amount.toFixed(2)}${warning}`);
+      });
+    }
+    
+    if (matchedRates.materials && matchedRates.materials.length > 0) {
+      parts.push(`\n**Materials** (${matchedRates.materials.length} items):`);
+      matchedRates.materials.forEach((item: any, idx: number) => {
+        const warning = item.confidence < 0.7 ? ' ⚠️' : '';
+        parts.push(`  ${idx + 1}. ${item.description}: ${item.quantity} ${item.unit} @ $${item.rate} = $${item.amount.toFixed(2)}${warning}`);
+      });
+    }
+    
+    if (matchedRates.equipment && matchedRates.equipment.length > 0) {
+      parts.push(`\n**Equipment** (${matchedRates.equipment.length} items):`);
+      matchedRates.equipment.forEach((item: any, idx: number) => {
+        const warning = item.confidence < 0.7 ? ' ⚠️' : '';
+        parts.push(`  ${idx + 1}. ${item.description}: ${item.hours}hrs @ $${item.rate}/hr = $${item.amount.toFixed(2)}${warning}`);
+      });
+    }
+    
+    if (matchedRates.subcontractors && matchedRates.subcontractors.length > 0) {
+      parts.push(`\n**Subcontractors** (${matchedRates.subcontractors.length} items):`);
+      matchedRates.subcontractors.forEach((item: any, idx: number) => {
+        const warning = item.confidence < 0.7 ? ' ⚠️' : '';
+        parts.push(`  ${idx + 1}. ${item.name} - ${item.scope}: $${item.amount.toFixed(2)}${warning}`);
+      });
+    }
+    
+    if (parts.length === 0) {
+      return 'No items extracted from documents.';
+    }
+    
+    return parts.join('\n');
   }
   
   private async handleDataConfirmation(
@@ -784,22 +990,42 @@ export class GuidedCOAssistantService {
   }> {
     const lower = message.toLowerCase();
     
-    // For now, allow manual entry like estimation flow
-    if (lower.includes('no') || lower.includes('done') || lower.includes('looks good')) {
+    // If user confirms the matched data, copy it to draft and move to review
+    if (lower.includes('looks good') || lower.includes('confirm') || lower.includes('approve')) {
+      // Copy matched rates to draft (if they exist from T&M flow)
+      if (state.draft.matchedRates) {
+        state.draft.labor = state.draft.matchedRates.labor || [];
+        state.draft.materials = state.draft.matchedRates.materials || [];
+        state.draft.equipment = state.draft.matchedRates.equipment || [];
+        state.draft.subcontractors = state.draft.matchedRates.subcontractors || [];
+        state.draft.confirmedData = true;
+      }
+      
       return await this.moveToReview(state, context);
     }
     
-    // Parse manual entries
-    const updatedLabor = this.parseLaborFromMessage(message, state.draft.labor || []);
-    if (updatedLabor.length > (state.draft.labor?.length || 0)) {
-      state.draft.labor = updatedLabor;
+    // Allow manual entry or editing
+    if (lower.includes('done')) {
+      return await this.moveToReview(state, context);
+    }
+    
+    // Parse manual entries (for editing or adding to matched data)
+    const currentLabor = state.draft.matchedRates?.labor || state.draft.labor || [];
+    const updatedLabor = this.parseLaborFromMessage(message, currentLabor);
+    
+    if (updatedLabor.length > currentLabor.length) {
+      if (state.draft.matchedRates) {
+        state.draft.matchedRates.labor = updatedLabor;
+      } else {
+        state.draft.labor = updatedLabor;
+      }
       state.lastUpdated = new Date();
       
       return {
         response: {
-          message: `Added:\n\n${updatedLabor.map(item => 
-            `• ${item.description}: ${item.hours} hrs @ $${item.rate}/hr = $${item.amount.toFixed(2)}`
-          ).join('\n')}\n\nAdd more items or say "done" to review the CO.`
+          message: `Updated labor:\n\n${updatedLabor.map((item, idx) => 
+            `${idx + 1}. ${item.description}: ${item.hours}hrs @ $${item.rate}/hr = $${item.amount.toFixed(2)}`
+          ).join('\n')}\n\nAdd more items, edit existing ones, or say "looks good" to proceed.`
         },
         updatedState: state
       };
@@ -807,7 +1033,7 @@ export class GuidedCOAssistantService {
     
     return {
       response: {
-        message: `I didn't catch that. Add items like:\n• "Foreman, 30 hours at $95/hr"\n• Or say "done" to review`
+        message: `You can:\n• Type "looks good" to confirm and create the CO\n• Add items like "Foreman, 30 hours at $95/hr"\n• Request changes to existing items`
       },
       updatedState: state
     };

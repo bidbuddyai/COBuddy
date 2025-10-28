@@ -442,13 +442,55 @@ export default function AIAssistant() {
                     </div>
                   )}
 
+                  {draftCO.coType && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Type</p>
+                      <p className="text-sm font-medium">
+                        {draftCO.coType === 'estimation' ? '📋 Estimation CO' : '📄 T&M CO'}
+                      </p>
+                    </div>
+                  )}
+
+                  {draftCO.uploadedFiles && draftCO.uploadedFiles.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Uploaded Documents</p>
+                      <div className="space-y-1">
+                        {draftCO.uploadedFiles.map((fileId, idx) => (
+                          <div key={idx} className="text-xs bg-blue-50 p-2 rounded flex items-center">
+                            <FileText className="h-3 w-3 mr-2 text-blue-600" />
+                            <span>Document #{fileId}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {draftCO.parsedData && draftCO.parsedData.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Parsing Status</p>
+                      <div className="space-y-1">
+                        {draftCO.parsedData.map((doc: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${doc.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                            <p className="font-medium">{doc.filename}</p>
+                            <p>{doc.error || doc.status || 'Processed'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {draftCO.labor && draftCO.labor.length > 0 && (
                     <div>
                       <p className="text-sm font-semibold mb-2">Labor</p>
                       <div className="space-y-1">
-                        {draftCO.labor.map((item, idx) => (
-                          <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
-                            <p className="font-medium">{item.description}</p>
+                        {draftCO.labor.map((item: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${item.confidence && item.confidence < 0.7 ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+                            <div className="flex items-start justify-between">
+                              <p className="font-medium flex-1">{item.description}</p>
+                              {item.confidence && item.confidence < 0.7 && (
+                                <span className="text-yellow-600 text-xs ml-2">⚠️</span>
+                              )}
+                            </div>
                             <p className="text-muted-foreground">
                               {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
                             </p>
@@ -462,9 +504,14 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Materials</p>
                       <div className="space-y-1">
-                        {draftCO.materials.map((item, idx) => (
-                          <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
-                            <p className="font-medium">{item.description}</p>
+                        {draftCO.materials.map((item: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${item.confidence && item.confidence < 0.7 ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+                            <div className="flex items-start justify-between">
+                              <p className="font-medium flex-1">{item.description}</p>
+                              {item.confidence && item.confidence < 0.7 && (
+                                <span className="text-yellow-600 text-xs ml-2">⚠️</span>
+                              )}
+                            </div>
                             <p className="text-muted-foreground">
                               {item.quantity} {item.unit} @ ${item.rate} = ${item.amount.toFixed(2)}
                             </p>
@@ -478,9 +525,14 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Equipment</p>
                       <div className="space-y-1">
-                        {draftCO.equipment.map((item, idx) => (
-                          <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
-                            <p className="font-medium">{item.description}</p>
+                        {draftCO.equipment.map((item: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${item.confidence && item.confidence < 0.7 ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+                            <div className="flex items-start justify-between">
+                              <p className="font-medium flex-1">{item.description}</p>
+                              {item.confidence && item.confidence < 0.7 && (
+                                <span className="text-yellow-600 text-xs ml-2">⚠️</span>
+                              )}
+                            </div>
                             <p className="text-muted-foreground">
                               {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
                             </p>
