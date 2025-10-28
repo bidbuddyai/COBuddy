@@ -274,6 +274,8 @@ export const chatConversations = pgTable("chat_conversations", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
   messages: jsonb("messages").notNull(),
+  title: varchar("title"), // Quick reference for the conversation
+  metadata: jsonb("metadata"), // Workflow state, draft CO data, context
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
