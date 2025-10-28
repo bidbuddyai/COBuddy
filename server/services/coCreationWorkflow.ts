@@ -4,12 +4,22 @@ import { ChangeOrder, Project } from '../../shared/schema';
 // Workflow states for guided CO creation
 export enum COCreationState {
   INITIAL = 'initial',
+  CO_TYPE_SELECTION = 'co_type_selection',
   PROJECT_SELECTION = 'project_selection',
   SCOPE_DEFINITION = 'scope_definition',
+  
+  // Estimation Flow States
   LABOR_ESTIMATION = 'labor_estimation',
   MATERIALS_ESTIMATION = 'materials_estimation',
   EQUIPMENT_ESTIMATION = 'equipment_estimation',
   SUBCONTRACTOR_ESTIMATION = 'subcontractor_estimation',
+  
+  // T&M Flow States  
+  DOCUMENT_UPLOAD = 'document_upload',
+  DOCUMENT_PARSING = 'document_parsing',
+  RATE_MATCHING = 'rate_matching',
+  DATA_CONFIRMATION = 'data_confirmation',
+  
   REVIEW = 'review',
   COMPLETE = 'complete'
 }
@@ -17,15 +27,35 @@ export enum COCreationState {
 export interface DraftCO {
   projectId?: number;
   projectName?: string;
+  coType?: 'estimation' | 'tm'; // CO type: estimation or time & materials
   scope?: string;
   title?: string;
   description?: string;
+  
+  // Uploaded documents for T&M flow
+  uploadedDocuments?: {
+    id: number;
+    filename: string;
+    fileType: string;
+  }[];
+  
+  // Parsed data from documents
+  parsedData?: {
+    labor?: any[];
+    materials?: any[];
+    equipment?: any[];
+    disposal?: any[];
+    subcontractors?: any[];
+  };
+  
   labor?: {
     description: string;
     hours: number;
     rate: number;
     amount: number;
     reasoning?: string;
+    confidence?: number; // For T&M parsed data
+    source?: string; // 'estimated' or 'parsed'
   }[];
   materials?: {
     description: string;
@@ -34,6 +64,8 @@ export interface DraftCO {
     rate: number;
     amount: number;
     reasoning?: string;
+    confidence?: number;
+    source?: string;
   }[];
   equipment?: {
     description: string;
@@ -41,12 +73,16 @@ export interface DraftCO {
     rate: number;
     amount: number;
     reasoning?: string;
+    confidence?: number;
+    source?: string;
   }[];
   subcontractors?: {
     name: string;
     scope: string;
     amount: number;
     reasoning?: string;
+    confidence?: number;
+    source?: string;
   }[];
   totalEstimate?: number;
 }
@@ -113,7 +149,7 @@ export class COCreationWorkflowService {
       const rates: any[] = [];
       
       for (const co of similarCOs) {
-        const extractedData = co.extractedData as any;
+        const extractedData = co.data as any;
         if (!extractedData) continue;
         
         // Extract labor rates
@@ -194,7 +230,8 @@ export class COCreationWorkflowService {
       const suggestions = Object.entries(grouped).map(([desc, items]) => {
         const avgRate = items.reduce((sum, item) => sum + (item.rate || 0), 0) / items.length;
         const avgHours = items.reduce((sum, item) => sum + (item.hours || 0), 0) / items.length;
-        const sources = [...new Set(items.map(item => item.source))];
+        const sourcesSet = new Set(items.map(item => item.source));
+        const sources = Array.from(sourcesSet);
         
         return {
           description: items[0].description,
@@ -205,9 +242,11 @@ export class COCreationWorkflowService {
         };
       });
       
+      const uniqueSources = new Set(laborRates.map(r => r.source));
+      
       return {
         suggestions,
-        reasoning: `Based on analysis of ${laborRates.length} labor entries from ${new Set(laborRates.map(r => r.source)).size} similar change orders.`
+        reasoning: `Based on analysis of ${laborRates.length} labor entries from ${uniqueSources.size} similar change orders.`
       };
     } catch (error) {
       console.error('Error estimating labor:', error);
@@ -248,7 +287,8 @@ export class COCreationWorkflowService {
         const avgQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0) / items.length;
         const avgRate = items.reduce((sum, item) => sum + (item.rate || 0), 0) / items.length;
         const unit = items[0].unit || 'ea';
-        const sources = [...new Set(items.map(item => item.source))];
+        const sourcesSet = new Set(items.map(item => item.source));
+        const sources = Array.from(sourcesSet);
         
         return {
           description: items[0].description,
@@ -260,9 +300,11 @@ export class COCreationWorkflowService {
         };
       });
       
+      const uniqueMaterialSources = new Set(materialRates.map(r => r.source));
+      
       return {
         suggestions,
-        reasoning: `Found ${materialRates.length} material entries from ${new Set(materialRates.map(r => r.source)).size} similar change orders.`
+        reasoning: `Found ${materialRates.length} material entries from ${uniqueMaterialSources.size} similar change orders.`
       };
     } catch (error) {
       console.error('Error estimating materials:', error);
@@ -328,7 +370,8 @@ export class COCreationWorkflowService {
       const suggestions = Object.entries(grouped).map(([desc, items]) => {
         const avgRate = items.reduce((sum, item) => sum + (item.rate || 0), 0) / items.length;
         const avgHours = items.reduce((sum, item) => sum + (item.hours || 0), 0) / items.length;
-        const sources = [...new Set(items.map(item => item.source))];
+        const sourcesSet = new Set(items.map(item => item.source));
+        const sources = Array.from(sourcesSet);
         
         return {
           description: items[0].description,

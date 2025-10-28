@@ -42,6 +42,10 @@ export class GuidedCOAssistantService {
     
     switch (workflowState.currentState) {
       case COCreationState.INITIAL:
+      case COCreationState.CO_TYPE_SELECTION:
+        result = await this.handleCOTypeSelection(message, workflowState, context);
+        break;
+        
       case COCreationState.PROJECT_SELECTION:
         result = await this.handleProjectSelection(message, workflowState, context);
         break;
@@ -50,6 +54,7 @@ export class GuidedCOAssistantService {
         result = await this.handleScopeDefinition(message, workflowState, context);
         break;
       
+      // Estimation Flow
       case COCreationState.LABOR_ESTIMATION:
         result = await this.handleLaborEstimation(message, workflowState, context);
         break;
@@ -64,6 +69,23 @@ export class GuidedCOAssistantService {
       
       case COCreationState.SUBCONTRACTOR_ESTIMATION:
         result = await this.handleSubcontractorEstimation(message, workflowState, context);
+        break;
+      
+      // T&M Flow
+      case COCreationState.DOCUMENT_UPLOAD:
+        result = await this.handleDocumentUpload(message, workflowState, context);
+        break;
+        
+      case COCreationState.DOCUMENT_PARSING:
+        result = await this.handleDocumentParsing(message, workflowState, context);
+        break;
+        
+      case COCreationState.RATE_MATCHING:
+        result = await this.handleRateMatching(message, workflowState, context);
+        break;
+        
+      case COCreationState.DATA_CONFIRMATION:
+        result = await this.handleDataConfirmation(message, workflowState, context);
         break;
       
       case COCreationState.REVIEW:
@@ -101,56 +123,69 @@ export class GuidedCOAssistantService {
     response: AIResponse;
     updatedState: WorkflowState;
   }> {
-    // Try to extract project from message
-    const projectMatch = message.match(/project\s+(\d+)|for\s+(.+?)(?:\s|$)/i);
-    const projectIdFromMessage = projectMatch?.[1];
-    const projectNameFromMessage = projectMatch?.[2];
-    
-    // Get available projects
-    const projects = await storage.getProjects();
-    
-    // Try to find project
-    let selectedProject = null;
-    
-    if (projectIdFromMessage) {
-      selectedProject = projects.find(p => p.id === parseInt(projectIdFromMessage));
-    } else if (projectNameFromMessage) {
-      selectedProject = projects.find(p => 
-        p.name.toLowerCase().includes(projectNameFromMessage.toLowerCase())
-      );
-    } else if (projects.length === 1) {
-      selectedProject = projects[0];
-    }
-    
-    // If we have a project, move to scope definition
-    if (selectedProject) {
-      const state: WorkflowState = {
-        currentState: COCreationState.SCOPE_DEFINITION,
-        draft: {
-          projectId: selectedProject.id,
-          projectName: selectedProject.name
-        },
-        lastUpdated: new Date()
-      };
-      
-      return {
-        response: {
-          message: `Great! I'll help you create a change order for **${selectedProject.name}**.\n\nLet's start with the scope. What work needs to be done? Describe it in detail, for example:\n• "Asbestos removal, 200 square feet"\n• "Install 100 feet of new water line"\n• "Repair damaged concrete slab, 50 sq ft"`
-        },
-        updatedState: state
-      };
-    }
-    
-    // Need to ask for project
+    // Start with CO type selection
     const state: WorkflowState = {
-      currentState: COCreationState.PROJECT_SELECTION,
+      currentState: COCreationState.CO_TYPE_SELECTION,
       draft: {},
       lastUpdated: new Date()
     };
     
     return {
       response: {
-        message: `I'll help you create a change order! First, which project is this for?\n\n${projects.map(p => `• ${p.name} (ID: ${p.id})`).join('\n')}\n\nYou can respond with the project name or ID.`
+        message: `I'll help you create a change order! What type of change order do you need?\n\n📋 **1. Estimation** - Quick estimate based on similar past work and production rates\n• AI suggests labor, materials, equipment based on your description\n• Good for planning and preliminary estimates\n\n📄 **2. T&M (Time & Materials)** - Create from actual invoices, T&M sheets, and quotes\n• Upload your documents (T&M sheets, invoices, quotes)\n• AI extracts and matches rates from your rate tables\n• Includes proof/documentation for all costs\n\nRespond with "1" or "estimation" for quick estimates, or "2" or "T&M" for document-based.`
+      },
+      updatedState: state
+    };
+  }
+
+  private async handleCOTypeSelection(
+    message: string,
+    state: WorkflowState,
+    context: any
+  ): Promise<{
+    response: AIResponse;
+    updatedState: WorkflowState;
+  }> {
+    const lower = message.toLowerCase();
+    
+    // Check for estimation selection
+    if (lower.includes('1') || lower.includes('estimation') || lower.includes('estimate')) {
+      state.draft.coType = 'estimation';
+      state.currentState = COCreationState.PROJECT_SELECTION;
+      state.lastUpdated = new Date();
+      
+      // Get available projects
+      const projects = await storage.getProjects();
+      
+      return {
+        response: {
+          message: `Perfect! We'll create an **Estimation CO** with AI-suggested costs.\n\nWhich project is this for?\n\n${projects.map(p => `• ${p.name} (ID: ${p.id})`).join('\n')}\n\nYou can respond with the project name or ID.`
+        },
+        updatedState: state
+      };
+    }
+    
+    // Check for T&M selection
+    if (lower.includes('2') || lower.includes('t&m') || lower.includes('time') || lower.includes('material') || lower.includes('document')) {
+      state.draft.coType = 'tm';
+      state.currentState = COCreationState.PROJECT_SELECTION;
+      state.lastUpdated = new Date();
+      
+      // Get available projects
+      const projects = await storage.getProjects();
+      
+      return {
+        response: {
+          message: `Great! We'll create a **T&M CO** from your documents (invoices, T&M sheets, quotes).\n\nWhich project is this for?\n\n${projects.map(p => `• ${p.name} (ID: ${p.id})`).join('\n')}\n\nYou can respond with the project name or ID.`
+        },
+        updatedState: state
+      };
+    }
+    
+    // Didn't understand the selection
+    return {
+      response: {
+        message: `I didn't catch that. Please choose:\n• Type "1" or "estimation" for a quick AI estimate\n• Type "2" or "T&M" for document-based CO`
       },
       updatedState: state
     };
@@ -191,15 +226,30 @@ export class GuidedCOAssistantService {
     
     state.draft.projectId = selectedProject.id;
     state.draft.projectName = selectedProject.name;
-    state.currentState = COCreationState.SCOPE_DEFINITION;
     state.lastUpdated = new Date();
     
-    return {
-      response: {
-        message: `Perfect! Creating a change order for **${selectedProject.name}**.\n\nNow, describe the scope of work. What needs to be done? For example:\n• "Asbestos removal, 200 square feet"\n• "Install 100 feet of new water line"\n• "Repair damaged concrete slab, 50 sq ft"`
-      },
-      updatedState: state
-    };
+    // Branch based on CO type
+    if (state.draft.coType === 'tm') {
+      // T&M flow: go to document upload
+      state.currentState = COCreationState.DOCUMENT_UPLOAD;
+      
+      return {
+        response: {
+          message: `Perfect! Creating a **T&M change order** for **${selectedProject.name}**.\n\nFirst, briefly describe the work scope (e.g., "Pipe installation and repair"). Then I'll ask you to upload your documents.\n\nWhat's the scope of work?`
+        },
+        updatedState: state
+      };
+    } else {
+      // Estimation flow: go to scope definition
+      state.currentState = COCreationState.SCOPE_DEFINITION;
+      
+      return {
+        response: {
+          message: `Perfect! Creating an **Estimation CO** for **${selectedProject.name}**.\n\nNow, describe the scope of work in detail. What needs to be done? For example:\n• "Asbestos removal, 200 square feet"\n• "Install 100 feet of new water line"\n• "Repair damaged concrete slab, 50 sq ft"`
+        },
+        updatedState: state
+      };
+    }
   }
 
   private async handleScopeDefinition(
@@ -660,6 +710,111 @@ export class GuidedCOAssistantService {
   }
 
   // Helper parsing methods
+  // ===== T&M WORKFLOW HANDLERS =====
+  
+  private async handleDocumentUpload(
+    message: string,
+    state: WorkflowState,
+    context: any
+  ): Promise<{
+    response: AIResponse;
+    updatedState: WorkflowState;
+  }> {
+    // Save the scope if provided
+    if (!state.draft.scope) {
+      state.draft.scope = message;
+      state.draft.description = message;
+      state.draft.title = message.substring(0, 100);
+    }
+    
+    return {
+      response: {
+        message: `Got it! Scope: **${state.draft.scope}**\n\n📎 Now upload your documents (T&M sheets, invoices, quotes, receipts).\n\n**You can upload:**\n• T&M sheets with labor hours\n• Equipment rental invoices\n• Material invoices\n• Subcontractor quotes\n• Any supporting documentation\n\n**To upload:** Click the attachment/upload button and select your files. Once uploaded, I'll parse them and match rates from your rate tables.\n\n_(Note: Document upload will be enabled once I finish implementing the file upload UI. For now, tell me what items you need to add and I can help you enter them.)_`
+      },
+      updatedState: state
+    };
+  }
+  
+  private async handleDocumentParsing(
+    message: string,
+    state: WorkflowState,
+    context: any
+  ): Promise<{
+    response: AIResponse;
+    updatedState: WorkflowState;
+  }> {
+    // This will be called after files are uploaded
+    // For now, move to manual data entry
+    state.currentState = COCreationState.DATA_CONFIRMATION;
+    
+    return {
+      response: {
+        message: `I'm parsing your documents now... (This feature will use OCR/Vision API to extract labor, materials, equipment)\n\nFor now, tell me what items need to be added to this CO.`
+      },
+      updatedState: state
+    };
+  }
+  
+  private async handleRateMatching(
+    message: string,
+    state: WorkflowState,
+    context: any
+  ): Promise<{
+    response: AIResponse;
+    updatedState: WorkflowState;
+  }> {
+    // This will match parsed items against rate tables
+    state.currentState = COCreationState.DATA_CONFIRMATION;
+    
+    return {
+      response: {
+        message: `Matching rates from your rate tables... (This will show matched items with confidence scores)`
+      },
+      updatedState: state
+    };
+  }
+  
+  private async handleDataConfirmation(
+    message: string,
+    state: WorkflowState,
+    context: any
+  ): Promise<{
+    response: AIResponse;
+    updatedState: WorkflowState;
+  }> {
+    const lower = message.toLowerCase();
+    
+    // For now, allow manual entry like estimation flow
+    if (lower.includes('no') || lower.includes('done') || lower.includes('looks good')) {
+      return await this.moveToReview(state, context);
+    }
+    
+    // Parse manual entries
+    const updatedLabor = this.parseLaborFromMessage(message, state.draft.labor || []);
+    if (updatedLabor.length > (state.draft.labor?.length || 0)) {
+      state.draft.labor = updatedLabor;
+      state.lastUpdated = new Date();
+      
+      return {
+        response: {
+          message: `Added:\n\n${updatedLabor.map(item => 
+            `• ${item.description}: ${item.hours} hrs @ $${item.rate}/hr = $${item.amount.toFixed(2)}`
+          ).join('\n')}\n\nAdd more items or say "done" to review the CO.`
+        },
+        updatedState: state
+      };
+    }
+    
+    return {
+      response: {
+        message: `I didn't catch that. Add items like:\n• "Foreman, 30 hours at $95/hr"\n• Or say "done" to review`
+      },
+      updatedState: state
+    };
+  }
+  
+  // ===== HELPER PARSING METHODS =====
+  
   private parseLaborFromMessage(message: string, existing: any[]): any[] {
     // Simple parsing - in production would use more sophisticated NLP
     const lines = message.split(/[,\n]/);
