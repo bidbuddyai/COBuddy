@@ -1,74 +1,72 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function AuthCallback() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState("Processing authentication...");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // Handle the callback from OAuth providers
     const handleCallback = async () => {
       try {
-        console.log("Auth callback started");
-        console.log("Current URL:", window.location.href);
-        console.log("URL params:", window.location.search);
-        console.log("Hash params:", window.location.hash);
+        console.log("[OAuth Callback] Started");
+        console.log("[OAuth Callback] URL:", window.location.href);
         
-        // Supabase may return data in the URL hash for implicit flow
-        // or in query params for code flow
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const queryParams = new URLSearchParams(window.location.search);
+        // Check for OAuth errors in URL
+        const params = new URLSearchParams(window.location.search);
+        const errorParam = params.get('error');
+        const errorDescription = params.get('error_description');
         
-        // Check for error in params
-        const errorDesc = queryParams.get('error_description') || hashParams.get('error_description');
-        if (errorDesc) {
-          console.error("OAuth error:", errorDesc);
-          setError(errorDesc);
+        if (errorParam) {
+          console.error("[OAuth Callback] Error in URL:", errorParam, errorDescription);
+          setError(errorDescription || errorParam);
           setStatus("Authentication failed");
-          setTimeout(() => navigate(`/auth`), 3000);
+          setTimeout(() => navigate("/auth"), 3000);
           return;
         }
+
+        // Supabase PKCE flow automatically exchanges the code when detectSessionInUrl is enabled
+        // We just need to wait for it to complete and verify the session
+        setStatus("Completing sign in...");
         
-        // For OAuth callbacks, Supabase automatically handles the exchange
-        // We just need to wait for it to complete
-        setStatus("Verifying credentials...");
+        // Small delay to let Supabase process the URL
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Give Supabase auth client time to process the callback
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Try to get the session
+        // Get the session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.error("Session error:", sessionError);
+          console.error("[OAuth Callback] Session error:", sessionError);
           setError(sessionError.message);
-          setStatus("Authentication failed");
-          setTimeout(() => navigate(`/auth`), 3000);
+          setStatus("Failed to establish session");
+          setTimeout(() => navigate("/auth"), 3000);
           return;
         }
         
-        if (session) {
-          console.log("Session established:", session.user?.email);
-          setStatus("Success! Redirecting to dashboard...");
-          
-          // Give the auth provider a moment to sync
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Force a page reload to ensure auth state is properly synced
-          window.location.href = "/";
-        } else {
-          console.log("No session found");
-          setError("Unable to establish session. Please try logging in again.");
-          setStatus("Session not established");
+        if (!session) {
+          console.error("[OAuth Callback] No session after callback");
+          setError("No session was established. Please try logging in again.");
+          setStatus("Authentication incomplete");
           setTimeout(() => navigate("/auth"), 3000);
+          return;
         }
-      } catch (error) {
-        console.error("Unexpected error during auth callback:", error);
-        setError("An unexpected error occurred");
+        
+        console.log("[OAuth Callback] Session established for:", session.user.email);
+        setSuccess(true);
+        setStatus("Success! Redirecting to dashboard...");
+        
+        // Navigate to dashboard
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1500);
+        
+      } catch (err: any) {
+        console.error("[OAuth Callback] Unexpected error:", err);
+        setError(err.message || "An unexpected error occurred");
         setStatus("Authentication failed");
         setTimeout(() => navigate("/auth"), 3000);
       }
@@ -81,17 +79,26 @@ export default function AuthCallback() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardContent className="pt-6">
-          <div className="text-center">
+          <div className="text-center space-y-4">
             {error ? (
               <>
-                <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
-                <p className="text-lg font-semibold mb-2">{status}</p>
-                <p className="text-sm text-muted-foreground">{error}</p>
+                <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+                <div>
+                  <p className="text-lg font-semibold mb-2">{status}</p>
+                  <p className="text-sm text-muted-foreground">{error}</p>
+                  <p className="text-xs text-muted-foreground mt-2">Redirecting back to login...</p>
+                </div>
+              </>
+            ) : success ? (
+              <>
+                <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
+                <p className="text-lg font-semibold">{status}</p>
               </>
             ) : (
               <>
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
                 <p className="text-lg font-semibold">{status}</p>
+                <p className="text-sm text-muted-foreground">Please wait...</p>
               </>
             )}
           </div>

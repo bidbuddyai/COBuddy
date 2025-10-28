@@ -12,29 +12,32 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { queryClient, apiRequest } from '@/lib/queryClient';
+import { useProject } from '@/contexts/ProjectContext';
 import type { ChangeOrder, SubcontractorChangeOrder, Project } from '@shared/schema';
 
 export function COLog() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const { selectedProjectId, setSelectedProjectId } = useProject();
   
   // State
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [editingCell, setEditingCell] = useState<{ coId: number, field: string } | null>(null);
   const [tempEditValue, setTempEditValue] = useState<string>('');
   const [importFile, setImportFile] = useState<File | null>(null);
 
   // Fetch projects
-  const { data: projects, isLoading: projectsLoading } = useQuery<{ data: Project[] }>({
+  const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ['/api/projects']
   });
 
   // Fetch change orders for selected project
-  const { data: changeOrders, isLoading: changeOrdersLoading, refetch: refetchChangeOrders } = useQuery<{ data: ChangeOrder[] }>({
-    queryKey: ['/api/change-orders', selectedProjectId],
+  const { data: changeOrdersData, isLoading: changeOrdersLoading, refetch: refetchChangeOrders } = useQuery<{ data: ChangeOrder[]; total: number }>({
+    queryKey: ['/api/change-orders', { projectId: selectedProjectId }],
     enabled: !!selectedProjectId
   });
+  
+  const changeOrders = changeOrdersData?.data || [];
 
   // Fetch SCOs for expanded change orders
   const { data: allScos } = useQuery<SubcontractorChangeOrder[]>({
@@ -272,7 +275,7 @@ export function COLog() {
               <SelectValue placeholder="Choose a project..." />
             </SelectTrigger>
             <SelectContent>
-              {projects?.data?.map((project) => (
+              {projects?.map((project) => (
                 <SelectItem 
                   key={project.id} 
                   value={project.id.toString()}
@@ -396,7 +399,7 @@ export function COLog() {
             <CardContent>
               {changeOrdersLoading ? (
                 <div className="text-center py-8">Loading change orders...</div>
-              ) : changeOrders?.data?.length === 0 ? (
+              ) : changeOrders?.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No change orders found. Create one or import from Excel.
                 </div>
@@ -416,7 +419,7 @@ export function COLog() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {changeOrders?.data?.map((co) => (
+                    {changeOrders?.map((co) => (
                       <>
                         <TableRow key={co.id} data-testid={`co-row-${co.id}`}>
                           <TableCell>
