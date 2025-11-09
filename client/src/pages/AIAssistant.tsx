@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Send, User, Loader2, FileText, DollarSign, Paperclip, X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Bot, Send, User, Loader2, FileText, DollarSign, Paperclip, X, ChevronUp } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useProject } from "@/contexts/ProjectContext";
@@ -44,9 +45,10 @@ export default function AIAssistant() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFileIds, setUploadedFileIds] = useState<number[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  const { toast} = useToast();
   const [, navigate] = useLocation();
   const { selectedProjectId } = useProject();
 
@@ -282,10 +284,10 @@ export default function AIAssistant() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="container mx-auto py-2 md:py-8 px-2 md:px-4 max-w-6xl">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 md:gap-4">
         {/* Main Chat */}
-        <Card className={`h-[calc(100vh-10rem)] ${draftCO ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+        <Card className={`h-[calc(100vh-8rem)] md:h-[calc(100vh-10rem)] ${draftCO ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
           <CardHeader className="border-b">
             <CardTitle className="flex items-center space-x-2">
               <Bot className="h-6 w-6 text-primary" />
@@ -391,8 +393,9 @@ export default function AIAssistant() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isLoading || isUploading}
                   data-testid="button-attach"
+                  className="h-11 w-11 flex-shrink-0"
                 >
-                  <Paperclip className="h-4 w-4" />
+                  <Paperclip className="h-5 w-5" />
                 </Button>
 
                 <Input
@@ -401,15 +404,16 @@ export default function AIAssistant() {
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
                   disabled={isLoading || isUploading}
-                  className="flex-1"
+                  className="flex-1 h-11 text-base"
                   data-testid="input-message"
                 />
                 <Button 
                   onClick={handleSendMessage} 
                   disabled={isLoading || isUploading || (!input.trim() && selectedFiles.length === 0)}
                   data-testid="button-send"
+                  className="h-11 w-11 flex-shrink-0"
                 >
-                  {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 </Button>
               </div>
             </div>
@@ -575,6 +579,183 @@ export default function AIAssistant() {
           </Card>
         )}
       </div>
+
+      {/* Mobile CO Preview Sheet */}
+      {draftCO && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]">
+          <Sheet open={showPreview} onOpenChange={setShowPreview}>
+            <SheetTrigger asChild>
+              <Button 
+                variant="default" 
+                className="w-full rounded-none h-12 flex items-center justify-between px-4"
+                data-testid="button-mobile-co-preview"
+              >
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="font-medium">Draft CO Preview</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-bold">${calculateDraftTotal().toFixed(2)}</span>
+                  <ChevronUp className="h-4 w-4" />
+                </div>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-[85vh]">
+              <SheetHeader>
+                <SheetTitle className="flex items-center space-x-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span>Draft CO Preview</span>
+                </SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="h-[calc(100%-4rem)] mt-4">
+                <div className="space-y-4 pb-4">
+                  {draftCO.projectName && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Project</p>
+                      <p className="font-medium">{draftCO.projectName}</p>
+                    </div>
+                  )}
+
+                  {draftCO.scope && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Scope</p>
+                      <p className="text-sm">{draftCO.scope}</p>
+                    </div>
+                  )}
+
+                  {draftCO.coType && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Type</p>
+                      <p className="text-sm font-medium">
+                        {draftCO.coType === 'estimation' ? '📋 Estimation CO' : '📄 T&M CO'}
+                      </p>
+                    </div>
+                  )}
+
+                  {draftCO.uploadedFiles && draftCO.uploadedFiles.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Uploaded Documents</p>
+                      <div className="space-y-1">
+                        {draftCO.uploadedFiles.map((fileId, idx) => (
+                          <div key={idx} className="text-xs bg-blue-50 p-2 rounded flex items-center">
+                            <FileText className="h-3 w-3 mr-2 text-blue-600" />
+                            <span>Document #{fileId}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {draftCO.parsedData && draftCO.parsedData.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Parsing Status</p>
+                      <div className="space-y-1">
+                        {draftCO.parsedData.map((doc: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${doc.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                            <p className="font-medium">{doc.filename}</p>
+                            <p>{doc.error || doc.status || 'Processed'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {draftCO.labor && draftCO.labor.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Labor</p>
+                      <div className="space-y-1">
+                        {draftCO.labor.map((item: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${item.confidence && item.confidence < 0.7 ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+                            <div className="flex items-start justify-between">
+                              <p className="font-medium flex-1">{item.description}</p>
+                              {item.confidence && item.confidence < 0.7 && (
+                                <span className="text-yellow-600 text-xs ml-2">⚠️</span>
+                              )}
+                            </div>
+                            <p className="text-muted-foreground">
+                              {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {draftCO.materials && draftCO.materials.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Materials</p>
+                      <div className="space-y-1">
+                        {draftCO.materials.map((item: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${item.confidence && item.confidence < 0.7 ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+                            <div className="flex items-start justify-between">
+                              <p className="font-medium flex-1">{item.description}</p>
+                              {item.confidence && item.confidence < 0.7 && (
+                                <span className="text-yellow-600 text-xs ml-2">⚠️</span>
+                              )}
+                            </div>
+                            <p className="text-muted-foreground">
+                              {item.quantity} {item.unit} @ ${item.rate} = ${item.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {draftCO.equipment && draftCO.equipment.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Equipment</p>
+                      <div className="space-y-1">
+                        {draftCO.equipment.map((item: any, idx) => (
+                          <div key={idx} className={`text-xs p-2 rounded ${item.confidence && item.confidence < 0.7 ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+                            <div className="flex items-start justify-between">
+                              <p className="font-medium flex-1">{item.description}</p>
+                              {item.confidence && item.confidence < 0.7 && (
+                                <span className="text-yellow-600 text-xs ml-2">⚠️</span>
+                              )}
+                            </div>
+                            <p className="text-muted-foreground">
+                              {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {draftCO.subcontractors && draftCO.subcontractors.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Subcontractors</p>
+                      <div className="space-y-1">
+                        {draftCO.subcontractors.map((item, idx) => (
+                          <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-muted-foreground">
+                              {item.scope} - ${item.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t pt-4 mt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="h-5 w-5 text-primary" />
+                        <span className="font-semibold">Total Estimate</span>
+                      </div>
+                      <span className="text-lg font-bold text-primary">
+                        ${calculateDraftTotal().toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
     </div>
   );
 }

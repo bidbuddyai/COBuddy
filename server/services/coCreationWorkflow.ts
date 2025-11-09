@@ -32,21 +32,18 @@ export interface DraftCO {
   title?: string;
   description?: string;
   
+  // T&M workflow fields
+  uploadedFiles?: number[]; // Array of document IDs
+  parsedData?: any[]; // Array of parsed document results
+  matchedRates?: any; // Matched rates from rate tables
+  confirmedData?: boolean; // Whether user confirmed the data
+  
   // Uploaded documents for T&M flow
   uploadedDocuments?: {
     id: number;
     filename: string;
     fileType: string;
   }[];
-  
-  // Parsed data from documents
-  parsedData?: {
-    labor?: any[];
-    materials?: any[];
-    equipment?: any[];
-    disposal?: any[];
-    subcontractors?: any[];
-  };
   
   labor?: {
     description: string;
