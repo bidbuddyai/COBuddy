@@ -13,6 +13,12 @@ import {
   validateDraftState,
 } from "@shared/types";
 import { semanticSearchRates, hybridSearchRates } from "./embeddingService";
+import { 
+  validateConstructionLogic, 
+  ValidationResult,
+  ProjectMarkups,
+  formatValidationForUser 
+} from "./supervisorAgent";
 
 const openai = new OpenAI();
 
@@ -166,7 +172,11 @@ interface ProcessMessageResult {
   toolsUsed: string[];
   draftUpdated: boolean;
   needsUserSelection?: UserSelection;
+  validation?: ValidationResult;
+  retryCount?: number;
 }
+
+const MAX_VALIDATION_RETRIES = 2;
 
 function buildSystemPrompt(context: SessionContext): string {
   const projectInfo = context.projectId && context.projectName
@@ -250,91 +260,12 @@ export class GuidedCOAssistant {
     const toolsUsed: string[] = [];
     let draftUpdated = false;
     let needsUserSelection: UserSelection | undefined = undefined;
+    let validationRetryCount = 0;
+    let lastValidation: ValidationResult | undefined = undefined;
+    let lastChangeOrderId: number | undefined = undefined;
 
-    let response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: this.conversationHistory as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-      tools: GUIDED_CO_TOOLS,
-      tool_choice: "auto",
-      temperature: 0.3,
-    });
-
-    let assistantMessage = response.choices[0].message;
-    const maxIterations = 10;
-    let iterations = 0;
-
-    while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && iterations < maxIterations) {
-      iterations++;
-
-      this.conversationHistory.push({
-        role: "assistant",
-        content: assistantMessage.content || "",
-        tool_calls: assistantMessage.tool_calls,
-      });
-
-      for (const toolCall of assistantMessage.tool_calls) {
-        const toolName = toolCall.function.name;
-        const toolArgs = JSON.parse(toolCall.function.arguments);
-        
-        toolsUsed.push(toolName);
-        console.log(`[GuidedCOAssistant] Executing tool: ${toolName}`, toolArgs);
-
-        let toolResult: unknown;
-
-        try {
-          switch (toolName) {
-            case "find_best_rate_match":
-              toolResult = await this.executeFindBestRateMatch(toolArgs);
-              const matchResult = toolResult as z.infer<typeof FindBestRateMatchOutputSchema>;
-              if (matchResult.needsUserConfirmation) {
-                needsUserSelection = {
-                  type: "rate_selection",
-                  options: matchResult.matches.map((m) => ({
-                    id: m.id,
-                    description: m.description,
-                    rate: m.rate,
-                    unit: m.unit,
-                    confidence: m.confidenceScore,
-                  })),
-                  originalQuery: toolArgs.rawDescription,
-                };
-              }
-              break;
-
-            case "update_draft_state":
-              toolResult = await this.executeUpdateDraftState(toolArgs);
-              const updateResult = toolResult as z.infer<typeof UpdateDraftStateOutputSchema>;
-              if (updateResult.success) {
-                draftUpdated = true;
-              }
-              break;
-
-            case "get_project_context":
-              toolResult = await this.executeGetProjectContext(toolArgs);
-              break;
-
-            case "calculate_totals":
-              toolResult = await this.executeCalculateTotals(toolArgs);
-              break;
-
-            default:
-              toolResult = { error: `Unknown tool: ${toolName}` };
-          }
-        } catch (error) {
-          console.error(`[GuidedCOAssistant] Tool error:`, error);
-          toolResult = {
-            error: error instanceof Error ? error.message : "Tool execution failed",
-          };
-        }
-
-        this.conversationHistory.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(toolResult),
-        });
-      }
-
-      response = await openai.chat.completions.create({
+    while (validationRetryCount <= MAX_VALIDATION_RETRIES) {
+      let response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: this.conversationHistory as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
         tools: GUIDED_CO_TOOLS,
@@ -342,22 +273,197 @@ export class GuidedCOAssistant {
         temperature: 0.3,
       });
 
-      assistantMessage = response.choices[0].message;
+      let assistantMessage = response.choices[0].message;
+      const maxToolIterations = 10;
+      let toolIterations = 0;
+
+      while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && toolIterations < maxToolIterations) {
+        toolIterations++;
+
+        this.conversationHistory.push({
+          role: "assistant",
+          content: assistantMessage.content || "",
+          tool_calls: assistantMessage.tool_calls,
+        });
+
+        for (const toolCall of assistantMessage.tool_calls) {
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments);
+          
+          toolsUsed.push(toolName);
+          console.log(`[GuidedCOAssistant] Executing tool: ${toolName}`, toolArgs);
+
+          let toolResult: unknown;
+
+          try {
+            switch (toolName) {
+              case "find_best_rate_match":
+                toolResult = await this.executeFindBestRateMatch(toolArgs);
+                const matchResult = toolResult as z.infer<typeof FindBestRateMatchOutputSchema>;
+                if (matchResult.needsUserConfirmation) {
+                  needsUserSelection = {
+                    type: "rate_selection",
+                    options: matchResult.matches.map((m) => ({
+                      id: m.id,
+                      description: m.description,
+                      rate: m.rate,
+                      unit: m.unit,
+                      confidence: m.confidenceScore,
+                    })),
+                    originalQuery: toolArgs.rawDescription,
+                  };
+                }
+                break;
+
+              case "update_draft_state":
+                toolResult = await this.executeUpdateDraftState(toolArgs);
+                const updateResult = toolResult as z.infer<typeof UpdateDraftStateOutputSchema>;
+                if (updateResult.success) {
+                  draftUpdated = true;
+                  lastChangeOrderId = updateResult.changeOrderId;
+                }
+                break;
+
+              case "get_project_context":
+                toolResult = await this.executeGetProjectContext(toolArgs);
+                break;
+
+              case "calculate_totals":
+                toolResult = await this.executeCalculateTotals(toolArgs);
+                break;
+
+              default:
+                toolResult = { error: `Unknown tool: ${toolName}` };
+            }
+          } catch (error) {
+            console.error(`[GuidedCOAssistant] Tool error:`, error);
+            toolResult = {
+              error: error instanceof Error ? error.message : "Tool execution failed",
+            };
+          }
+
+          this.conversationHistory.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(toolResult),
+          });
+        }
+
+        response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: this.conversationHistory as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+          tools: GUIDED_CO_TOOLS,
+          tool_choice: "auto",
+          temperature: 0.3,
+        });
+
+        assistantMessage = response.choices[0].message;
+      }
+
+      const finalContent = assistantMessage.content || "I've completed the requested actions.";
+
+      if (draftUpdated && lastChangeOrderId) {
+        const validation = await this.validateDraftBeforeResponse(lastChangeOrderId);
+        lastValidation = validation;
+
+        if (!validation.isValid && validation.shouldRetry && validationRetryCount < MAX_VALIDATION_RETRIES) {
+          validationRetryCount++;
+          console.warn(`[Supervisor] Validation failed (attempt ${validationRetryCount}/${MAX_VALIDATION_RETRIES}):`, 
+            validation.errors.map(e => e.message));
+
+          this.conversationHistory.push({
+            role: "user",
+            content: `SYSTEM VALIDATION ERROR - You violated a validation rule. Fix it before proceeding.\n\n${validation.retryPrompt}`,
+          });
+
+          continue;
+        }
+      }
+
+      this.conversationHistory.push({
+        role: "assistant",
+        content: finalContent,
+      });
+
+      return {
+        response: finalContent,
+        toolsUsed,
+        draftUpdated,
+        needsUserSelection,
+        validation: lastValidation,
+        retryCount: validationRetryCount,
+      };
     }
 
-    const finalContent = assistantMessage.content || "I've completed the requested actions.";
-    
+    const fallbackContent = "I've made some changes but there may be issues that need manual review.";
     this.conversationHistory.push({
       role: "assistant",
-      content: finalContent,
+      content: fallbackContent,
     });
 
     return {
-      response: finalContent,
+      response: fallbackContent,
       toolsUsed,
       draftUpdated,
       needsUserSelection,
+      validation: lastValidation,
+      retryCount: validationRetryCount,
     };
+  }
+
+  private async validateDraftBeforeResponse(changeOrderId: number): Promise<ValidationResult> {
+    try {
+      const [co] = await db
+        .select()
+        .from(changeOrders)
+        .where(eq(changeOrders.id, changeOrderId))
+        .limit(1);
+
+      if (!co || !co.draftState) {
+        return {
+          isValid: true,
+          errors: [],
+          warnings: [],
+          shouldRetry: false,
+        };
+      }
+
+      let projectMarkups: ProjectMarkups | undefined;
+      if (co.projectId) {
+        const [project] = await db
+          .select()
+          .from(projects)
+          .where(eq(projects.id, co.projectId))
+          .limit(1);
+
+        if (project?.markupPercentages) {
+          const markups = project.markupPercentages as any;
+          projectMarkups = {
+            labor: parseFloat(markups.labor || '0'),
+            materials: parseFloat(markups.materials || '0'),
+            equipmentOwned: parseFloat(markups.equipmentOwned || markups.equipment || '0'),
+            equipmentRented: parseFloat(markups.equipmentRented || markups.equipment || '0'),
+            disposal: parseFloat(markups.disposal || '0'),
+            import: parseFloat(markups.import || '0'),
+            subcontractors: parseFloat(markups.subcontractors || '0'),
+          };
+        }
+      }
+
+      const validation = validateConstructionLogic(co.draftState, projectMarkups);
+
+      console.log(`[Supervisor] Validation result: isValid=${validation.isValid}, errors=${validation.errors.length}, warnings=${validation.warnings.length}`);
+
+      return validation;
+    } catch (error) {
+      console.error(`[Supervisor] Validation error:`, error);
+      return {
+        isValid: true,
+        errors: [],
+        warnings: [],
+        shouldRetry: false,
+      };
+    }
   }
 
   private async executeFindBestRateMatch(
