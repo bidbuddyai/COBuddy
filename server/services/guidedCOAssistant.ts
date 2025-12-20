@@ -11,6 +11,8 @@ import {
   LineItem,
   createEmptyDraftState,
   validateDraftState,
+  ChangeOrderManifest,
+  createManifestFromDraft,
 } from "@shared/types";
 import { semanticSearchRates, hybridSearchRates } from "./embeddingService";
 import { 
@@ -174,6 +176,7 @@ interface ProcessMessageResult {
   needsUserSelection?: UserSelection;
   validation?: ValidationResult;
   retryCount?: number;
+  manifest?: ChangeOrderManifest;
 }
 
 const MAX_VALIDATION_RETRIES = 2;
@@ -385,6 +388,11 @@ export class GuidedCOAssistant {
         content: finalContent,
       });
 
+      let manifest: ChangeOrderManifest | undefined;
+      if (draftUpdated && lastChangeOrderId) {
+        manifest = await this.generateManifest(lastChangeOrderId);
+      }
+
       return {
         response: finalContent,
         toolsUsed,
@@ -392,6 +400,7 @@ export class GuidedCOAssistant {
         needsUserSelection,
         validation: lastValidation,
         retryCount: validationRetryCount,
+        manifest,
       };
     }
 
@@ -401,6 +410,11 @@ export class GuidedCOAssistant {
       content: fallbackContent,
     });
 
+    let manifest: ChangeOrderManifest | undefined;
+    if (draftUpdated && lastChangeOrderId) {
+      manifest = await this.generateManifest(lastChangeOrderId);
+    }
+
     return {
       response: fallbackContent,
       toolsUsed,
@@ -408,7 +422,62 @@ export class GuidedCOAssistant {
       needsUserSelection,
       validation: lastValidation,
       retryCount: validationRetryCount,
+      manifest,
     };
+  }
+
+  private async generateManifest(changeOrderId: number): Promise<ChangeOrderManifest | undefined> {
+    try {
+      const [co] = await db
+        .select()
+        .from(changeOrders)
+        .where(eq(changeOrders.id, changeOrderId))
+        .limit(1);
+
+      if (!co || !co.draftState) {
+        return undefined;
+      }
+
+      const draft = co.draftState as DraftState;
+
+      let project: any = null;
+      if (co.projectId) {
+        const [p] = await db
+          .select()
+          .from(projects)
+          .where(eq(projects.id, co.projectId))
+          .limit(1);
+        project = p;
+      }
+
+      const markups = project?.markupPercentages as any || {};
+      const markupPercentages = {
+        labor: parseFloat(markups.labor || '0'),
+        materials: parseFloat(markups.materials || '0'),
+        equipment: parseFloat(markups.equipment || '0'),
+        subcontractors: parseFloat(markups.subcontractors || '0'),
+        disposal: parseFloat(markups.disposal || '0'),
+        import: parseFloat(markups.import || '0'),
+      };
+
+      const header = {
+        coNumber: co.number || `DRAFT-${co.id}`,
+        projectNumber: project?.projectNumber || '',
+        projectName: project?.name || '',
+        clientName: project?.gcName || null,
+        preparedBy: this.context.userName,
+        preparedDate: new Date().toISOString().split('T')[0],
+        submittedDate: null,
+        status: co.status || 'draft',
+        description: draft.description || co.description || null,
+        scope: draft.scope || null,
+      };
+
+      return createManifestFromDraft(draft, header, markupPercentages);
+    } catch (error) {
+      console.error('[GuidedCOAssistant] Error generating manifest:', error);
+      return undefined;
+    }
   }
 
   private async validateDraftBeforeResponse(changeOrderId: number): Promise<ValidationResult> {

@@ -13,14 +13,16 @@ Document categorization: Invoices from companies like Incompli are subcontractor
 - **Semantic Search (pgvector)**: Added pgvector extension for vector similarity search on rate tables. Rate items now have embeddings generated via OpenAI text-embedding-3-small.
 - **Rate Items Table**: Created new `rateItems` table to flatten rate table data for individual item search with embeddings.
 - **Embedding Service**: New `embeddingService.ts` with semantic and hybrid search capabilities. Includes construction-specific synonym mapping (drywall↔sheetrock, mudding↔taping, etc.).
-- **Supervisor Agent**: Implemented `supervisorAgent.ts` for AI output validation. Checks for $0.00 rates, missing classifications, calculation errors. Includes retry logic with structured feedback.
+- **Supervisor Agent**: Implemented `supervisorAgent.ts` for AI output validation. Checks for $0.00 rates, missing classifications, calculation errors. Includes retry logic with structured feedback (max 2 retries).
 - **AI Tools with Function Calling**: Created strict OpenAI function calling tools in `aiTools.ts`:
   - `search_rate_table` - Uses semantic search (prevents hallucination)
   - `update_draft_line_items` - Persists to draftState JSONB
   - `calculate_totals` - Applies project markups
   - `get_project_context` - Retrieves project details
 - **Draft State Management**: Added `draftState` JSONB column to changeOrders for AI workflow state machine. All draft updates are persisted to database.
-- **ChangeOrderManifest**: Strict Zod schemas for Excel/PDF exports ensuring consistency between chat and generated documents.
+- **ChangeOrderManifest**: Strict Zod schemas in `shared/types.ts` for Excel/PDF exports ensuring consistency between chat and generated documents. Contains header, categories (with line items), totals, markups, and signature block.
+- **Live PDF Preview**: New `LiveCOPreview.tsx` component using `@react-pdf/renderer` to render real-time PDF preview in side panel. Updates instantly when AI modifies the draft.
+- **Manifest Synchronization**: AI assistant now returns the full ChangeOrderManifest object with each response when draft is updated. `createManifestFromDraft()` converts DraftState to manifest with per-category rollups and markup calculations.
 - **Type Safety**: All AI outputs validated using Zod schemas via zod-to-json-schema before processing.
 
 ## Previous Changes (October 28, 2025)
