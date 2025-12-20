@@ -6,7 +6,7 @@ import { storage } from "./storage";
 // import { setupAuth, authenticateSupabaseUser } from "./auth";
 import { authenticateSupabaseUser } from "./middleware/supabaseAuth";
 import { uploadMultiple, upload } from "./middleware/upload";
-import { processDocument, matchRatesToExtractedData } from "./services/documentProcessor";
+import { processDocument, processAndMatchDocument } from "./services/documentProcessor";
 import { generateChangeOrderExcel } from "./services/excelGenerator";
 import { generateChangeOrderPDF, generateChangeOrderLogPDF } from "./services/pdfGenerator";
 import * as pdfGenerator from "./services/pdfGenerator";
@@ -17,6 +17,7 @@ import { aiAssistantService } from "./services/aiAssistant";
 import { numberingService } from "./services/numberingService";
 import { excelCoLogService } from "./services/excelCoLogService";
 import { aggregationService } from "./services/aggregationService";
+import { runEmbeddingMigration } from "./scripts/migrateEmbeddings";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1588,6 +1589,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting company CO Log summary:', error);
       res.status(500).json({ message: 'Failed to get company CO Log summary' });
+    }
+  });
+
+  app.post('/api/admin/migrate-embeddings', authenticateSupabaseUser, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('[Admin] Starting embedding migration...');
+      const result = await runEmbeddingMigration();
+      
+      res.json({
+        success: result.success,
+        processed: result.processed,
+        errors: result.errors,
+        message: result.success 
+          ? `Successfully generated embeddings for ${result.processed} rate items` 
+          : `Migration completed with ${result.errors.length} errors`,
+      });
+    } catch (error) {
+      console.error('Error running embedding migration:', error);
+      res.status(500).json({ 
+        message: 'Failed to run embedding migration',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

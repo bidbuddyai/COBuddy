@@ -12,6 +12,7 @@ import {
   createEmptyDraftState,
   validateDraftState,
 } from "@shared/types";
+import { semanticSearchRates, hybridSearchRates } from "./embeddingService";
 
 const openai = new OpenAI();
 
@@ -363,55 +364,88 @@ export class GuidedCOAssistant {
     args: z.infer<typeof FindBestRateMatchInputSchema>
   ): Promise<z.infer<typeof FindBestRateMatchOutputSchema>> {
     const { rawDescription, rateType, limit = 3 } = args;
-    const searchTerm = rawDescription.toLowerCase().trim();
 
-    const results = await db.execute(sql`
-      SELECT 
-        ri.id,
-        ri.rate_table_id as "rateTableId",
-        ri.description,
-        ri.classification,
-        ri.unit,
-        ri.rate,
-        ri.overtime_rate as "overtimeRate",
-        ri.company_id as "companyId",
-        GREATEST(
-          COALESCE(similarity(LOWER(ri.description), ${searchTerm}), 0),
-          COALESCE(similarity(LOWER(COALESCE(ri.classification, '')), ${searchTerm}), 0),
-          COALESCE(similarity(LOWER(ri.searchable_text), ${searchTerm}), 0)
-        ) * 100 as confidence_score
-      FROM rate_items ri
-      WHERE 
-        ri.type = ${rateType}
-        AND ri.is_active = true
-        AND (ri.company_id = ${this.context.companyId} OR ri.company_id IS NULL)
-        AND (
-          LOWER(ri.description) ILIKE ${"%" + searchTerm + "%"}
-          OR LOWER(ri.classification) ILIKE ${"%" + searchTerm + "%"}
-          OR LOWER(ri.searchable_text) ILIKE ${"%" + searchTerm + "%"}
-          OR similarity(LOWER(ri.description), ${searchTerm}) > 0.2
-          OR similarity(LOWER(COALESCE(ri.classification, '')), ${searchTerm}) > 0.2
-        )
-      ORDER BY confidence_score DESC
-      LIMIT ${limit}
-    `);
+    console.log(`[GuidedCOAssistant] Semantic search for: "${rawDescription}" (type: ${rateType})`);
 
-    const rows = (results as any).rows || results;
-    
-    const matches = (rows as any[]).map((row) => ({
-      id: row.id,
-      rateTableId: row.rateTableId,
-      description: row.description,
-      classification: row.classification,
-      unit: row.unit,
-      rate: parseFloat(row.rate),
-      overtimeRate: row.overtimeRate ? parseFloat(row.overtimeRate) : null,
-      confidenceScore: Math.min(100, Math.round(parseFloat(row.confidence_score || "0"))),
-      source: row.companyId ? ("company" as const) : ("public" as const),
-    }));
+    try {
+      const searchResults = await hybridSearchRates(
+        rawDescription,
+        rateType,
+        this.context.companyId,
+        limit
+      );
 
-    if (matches.length === 0) {
-      const fallbackResults = await db.execute(sql`
+      if (searchResults.length === 0) {
+        console.log(`[GuidedCOAssistant] No semantic matches found, trying fallback...`);
+        
+        const fallbackResults = await db.execute(sql`
+          SELECT 
+            ri.id,
+            ri.rate_table_id as "rateTableId",
+            ri.description,
+            ri.classification,
+            ri.unit,
+            ri.rate,
+            ri.overtime_rate as "overtimeRate",
+            ri.company_id as "companyId"
+          FROM rate_items ri
+          WHERE 
+            ri.type = ${rateType}
+            AND ri.is_active = true
+            AND (ri.company_id = ${this.context.companyId} OR ri.company_id IS NULL)
+          ORDER BY 
+            CASE WHEN ri.company_id IS NOT NULL THEN 0 ELSE 1 END,
+            ri.description
+          LIMIT ${limit}
+        `);
+
+        const fallbackRows = (fallbackResults as any).rows || fallbackResults;
+        const fallbackMatches = (fallbackRows as any[]).map((row) => ({
+          id: row.id,
+          rateTableId: row.rateTableId,
+          description: row.description,
+          classification: row.classification,
+          unit: row.unit,
+          rate: parseFloat(row.rate),
+          overtimeRate: row.overtimeRate ? parseFloat(row.overtimeRate) : null,
+          confidenceScore: 30,
+          source: row.companyId ? ("company" as const) : ("public" as const),
+        }));
+
+        return {
+          matches: fallbackMatches,
+          needsUserConfirmation: true,
+          recommendedMatchId: null,
+        };
+      }
+
+      const matches = searchResults.map((result) => ({
+        id: result.id,
+        rateTableId: result.rateTableId,
+        description: result.description,
+        classification: result.classification,
+        unit: result.unit,
+        rate: parseFloat(result.rate),
+        overtimeRate: result.overtimeRate ? parseFloat(result.overtimeRate) : null,
+        confidenceScore: Math.min(100, Math.round(result.similarity * 100)),
+        source: result.source,
+      }));
+
+      const highestConfidence = matches[0]?.confidenceScore ?? 0;
+      const needsUserConfirmation = highestConfidence < 80;
+
+      console.log(`[GuidedCOAssistant] Found ${matches.length} matches. Top confidence: ${highestConfidence}%`);
+
+      return {
+        matches,
+        needsUserConfirmation,
+        recommendedMatchId: needsUserConfirmation ? null : matches[0]?.id ?? null,
+      };
+    } catch (error) {
+      console.error(`[GuidedCOAssistant] Semantic search error, falling back to text:`, error);
+      
+      const searchTerm = rawDescription.toLowerCase().trim();
+      const results = await db.execute(sql`
         SELECT 
           ri.id,
           ri.rate_table_id as "rateTableId",
@@ -420,20 +454,28 @@ export class GuidedCOAssistant {
           ri.unit,
           ri.rate,
           ri.overtime_rate as "overtimeRate",
-          ri.company_id as "companyId"
+          ri.company_id as "companyId",
+          GREATEST(
+            COALESCE(similarity(LOWER(ri.description), ${searchTerm}), 0),
+            COALESCE(similarity(LOWER(COALESCE(ri.classification, '')), ${searchTerm}), 0)
+          ) * 100 as confidence_score
         FROM rate_items ri
         WHERE 
           ri.type = ${rateType}
           AND ri.is_active = true
           AND (ri.company_id = ${this.context.companyId} OR ri.company_id IS NULL)
-        ORDER BY 
-          CASE WHEN ri.company_id IS NOT NULL THEN 0 ELSE 1 END,
-          ri.description
+          AND (
+            LOWER(ri.description) ILIKE ${"%" + searchTerm + "%"}
+            OR LOWER(ri.classification) ILIKE ${"%" + searchTerm + "%"}
+            OR similarity(LOWER(ri.description), ${searchTerm}) > 0.2
+          )
+        ORDER BY confidence_score DESC
         LIMIT ${limit}
       `);
 
-      const fallbackRows = (fallbackResults as any).rows || fallbackResults;
-      const fallbackMatches = (fallbackRows as any[]).map((row) => ({
+      const rows = (results as any).rows || results;
+      
+      const matches = (rows as any[]).map((row) => ({
         id: row.id,
         rateTableId: row.rateTableId,
         description: row.description,
@@ -441,25 +483,19 @@ export class GuidedCOAssistant {
         unit: row.unit,
         rate: parseFloat(row.rate),
         overtimeRate: row.overtimeRate ? parseFloat(row.overtimeRate) : null,
-        confidenceScore: 30,
+        confidenceScore: Math.min(100, Math.round(parseFloat(row.confidence_score || "0"))),
         source: row.companyId ? ("company" as const) : ("public" as const),
       }));
 
+      const highestConfidence = matches[0]?.confidenceScore ?? 0;
+      const needsUserConfirmation = highestConfidence < 80 || matches.length === 0;
+
       return {
-        matches: fallbackMatches,
-        needsUserConfirmation: true,
-        recommendedMatchId: null,
+        matches,
+        needsUserConfirmation,
+        recommendedMatchId: needsUserConfirmation ? null : matches[0]?.id ?? null,
       };
     }
-
-    const highestConfidence = matches[0]?.confidenceScore ?? 0;
-    const needsUserConfirmation = highestConfidence < 80;
-
-    return {
-      matches,
-      needsUserConfirmation,
-      recommendedMatchId: needsUserConfirmation ? null : matches[0]?.id ?? null,
-    };
   }
 
   private async executeUpdateDraftState(
