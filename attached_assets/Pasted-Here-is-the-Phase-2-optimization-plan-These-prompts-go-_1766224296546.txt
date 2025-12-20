@@ -1,0 +1,73 @@
+Here is the "Phase 2" optimization plan. These prompts go deeper into the logic to fix specific failure points like hallucinating prices, misinterpreting messy invoices, and forgetting context.
+
+I have also included a section on "Missing Tools"—integrations that will instantly make the AI smarter and more reliable.
+
+Phase 5: The "Semantic Search" Prompt (Fixing Rate Matching)
+Why it fails now: Simple text matching fails when an invoice says "Sheetrock Install" but your rate table says "Drywall Labor." The Fix: Use pgvector (Vector Search) to find meanings, not just words.
+
+Prompt:
+
+Plaintext
+We need to upgrade the `rateMatching` engine to use Semantic Search because exact text matching is failing on our construction terms.
+
+1.  **Database Upgrade:** Please modify `schema.ts` to add the `pgvector` extension to our Replit PostgreSQL database.
+2.  **Embeddings:** Create a helper service `generateEmbedding(text)` using `openai-text-embedding-3-small`.
+3.  **Migration:** Write a script that runs ONCE to generate embeddings for every `description` in our `rateTables` and stores them in a new `embedding` vector column.
+4.  **Search Logic:** Rewrite the `find_best_rate_match` tool. Instead of just SQL `ILIKE`, it must now perform a Cosine Similarity search:
+    -   Convert user query to vector.
+    -   Select items from `rateTables` where distance < 0.5 (threshold).
+    -   Return matches sorted by similarity.
+
+This ensures that if a user types "Mudding," the system correctly finds "Drywall Finisher" rates.
+Phase 6: The "Supervisor" Prompt (Self-Correction)
+Why it fails now: The AI makes a mistake (like adding $0.00 for a rate) and confidentially presents it as fact. The Fix: A "Check Your Work" loop before the user sees anything.
+
+Prompt:
+
+Plaintext
+I want to implement a "Supervisor Agent" pattern for the `coCreationWorkflow`.
+
+Modify the main `chat` handler to run a validation loop *before* responding to the user.
+1.  **Draft Check:** After the AI generates a response or tool call, pass the *intended* output to a specialized internal function called `validate_construction_logic`.
+2.  **Validation Rules:** This function checks:
+    -   Are any `unit_price` fields $0.00? (Flag as warning).
+    -   Is `labor_hours` > 0 but `labor_rate` missing?
+    -   Is the `markup_percentage` applied correctly based on the `project_id` settings?
+3.  **Retry Logic:** If validation fails, the system must NOT show the response to the user. Instead, feed the error back to the AI with the system prompt: "You violated a validation rule: [Error]. Fix it."
+4.  Only return the final response once it passes validation or after 2 retry attempts.
+Phase 7: The "PDF Alignment" Prompt (Output Fidelity)
+Why it fails now: The chat says one thing, but the Excel/PDF export looks totally different. The Fix: Force the AI to "fill a form" rather than "write a letter."
+
+Prompt:
+
+Plaintext
+We need to fix the disconnect between the Chat and the Export.
+
+Create a shared TypeScript interface called `ChangeOrderManifest`.
+1.  **Strict Typing:** This interface must define every single field needed for the Excel export (Header, Subtotal, Markups, Grand Total, Signature Block).
+2.  **Live State:** In the frontend, replace the current "CO Preview" with a live-rendering PDF viewer using `@react-pdf/renderer`.
+3.  **Synchronization:** When the AI updates the draft, it must return the FULL `ChangeOrderManifest` object.
+4.  **Visual Feedback:** The React frontend should take this object and render it immediately in the side panel. If the AI changes a quantity, the user sees the "Grand Total" update in the PDF preview instantly.
+🛠️ Vital Integrations (The "Missing Tools")
+If you want this to actually work in production, you should add these specific tools to your stack. Tell Replit to install them:
+
+1. Helicone or Langfuse (AI Observability)
+The Problem: You don't know why the AI hallucinates. Is it the prompt? The temperature? The context limit?
+
+The Fix: These are middleware loggers.
+
+Command to Replit: "Install the helicone package and wrap our OpenAI client. I need to see the exact traces of what the AI is sending and receiving so I can debug the system prompts."
+
+2. Zod-to-JSON-Schema (Structured Output)
+The Problem: The AI sometimes returns malformed JSON that breaks your app.
+
+The Fix: Force the AI to output only valid JSON that matches your schema.
+
+Command to Replit: "Switch our OpenAI calls to use response_format: { type: "json_object" } and use the zod-to-json-schema library to convert our ChangeOrderDraft Zod schema into the strict JSON schema required by OpenAI. This prevents parsing errors."
+
+3. Unstructured.io (Better than Azure for messy docs)
+The Problem: Azure Form Recognizer is great for strict forms, but bad at "messy" field notes or handwritten T&M tags.
+
+The Fix: Unstructured.io is an open-source library specifically for "messy" ETL.
+
+Command to Replit: "Let's try using the unstructured library for parsing the uploaded T&M sheets. It handles table extraction from mixed-media PDFs better than standard OCR."

@@ -108,7 +108,8 @@ export const changeOrders = pgTable("change_orders", {
   disposalAmount: decimal("disposal_amount", { precision: 10, scale: 2 }),
   importAmount: decimal("import_amount", { precision: 10, scale: 2 }),
   subcontractorAmount: decimal("subcontractor_amount", { precision: 10, scale: 2 }),
-  data: jsonb("data"), // Detailed breakdown data
+  data: jsonb("data"), // Detailed breakdown data (legacy - use draftState for AI workflow)
+  draftState: jsonb("draft_state"), // AI workflow state machine - validated by DraftStateSchema
   backupDocumentIds: jsonb("backup_document_ids"), // Array of document IDs used as backup
   // CO Log fields
   ccoNumber: varchar("cco_number"), // Client Change Order number
