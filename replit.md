@@ -9,14 +9,28 @@ App focus: Everything must be project-centric with project selection/filtering.
 Important features: Professional dashboard with sidebar navigation, not simplified views.
 Document categorization: Invoices from companies like Incompli are subcontractor entries, not labor. Invoices are typically for subcontractors, equipment rentals, or operated equipment.
 
-## Recent Changes (October 28, 2025)
+## Recent Changes (December 20, 2025) - Phase 2 AI Optimization
+- **Semantic Search (pgvector)**: Added pgvector extension for vector similarity search on rate tables. Rate items now have embeddings generated via OpenAI text-embedding-3-small.
+- **Rate Items Table**: Created new `rateItems` table to flatten rate table data for individual item search with embeddings.
+- **Embedding Service**: New `embeddingService.ts` with semantic and hybrid search capabilities. Includes construction-specific synonym mapping (drywall↔sheetrock, mudding↔taping, etc.).
+- **Supervisor Agent**: Implemented `supervisorAgent.ts` for AI output validation. Checks for $0.00 rates, missing classifications, calculation errors. Includes retry logic with structured feedback.
+- **AI Tools with Function Calling**: Created strict OpenAI function calling tools in `aiTools.ts`:
+  - `search_rate_table` - Uses semantic search (prevents hallucination)
+  - `update_draft_line_items` - Persists to draftState JSONB
+  - `calculate_totals` - Applies project markups
+  - `get_project_context` - Retrieves project details
+- **Draft State Management**: Added `draftState` JSONB column to changeOrders for AI workflow state machine. All draft updates are persisted to database.
+- **ChangeOrderManifest**: Strict Zod schemas for Excel/PDF exports ensuring consistency between chat and generated documents.
+- **Type Safety**: All AI outputs validated using Zod schemas via zod-to-json-schema before processing.
+
+## Previous Changes (October 28, 2025)
 - **Database Migration**: Migrated from Supabase to Replit PostgreSQL (primary database). Supabase preserved as backup.
 - **Authentication**: Using Supabase Auth with Microsoft OAuth configured. Session management via `authenticateSupabaseUser` middleware.
 - **Project Context**: Implemented global ProjectContext with localStorage persistence for maintaining selected project across page refreshes.
 - **Schema Updates**: Added `lastExportedAt` and `exportedFiles` fields to changeOrders table for export tracking.
 - **Type Safety**: Resolved all TypeScript compilation errors across the codebase.
 - **API Standardization**: Ensured consistent response formats between frontend and backend (`{ data, total }` envelopes).
-- **Guided CO Creation**: Implemented complete multi-step guided workflow with AI estimation, knowledge base querying, and live CO preview. Fixed critical bug where draft data wasn't included on all conversation turns by restructuring response data handling in aiAssistant.ts to ALWAYS merge draft+conversationId regardless of workflow state changes.
+- **Guided CO Creation**: Implemented complete multi-step guided workflow with AI estimation, knowledge base querying, and live CO preview.
 
 ## System Architecture
 

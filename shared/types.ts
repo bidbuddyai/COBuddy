@@ -310,6 +310,243 @@ export type GetProjectContextInput = z.infer<typeof GetProjectContextInputSchema
 export type GetProjectContextOutput = z.infer<typeof GetProjectContextOutputSchema>;
 
 // =============================================================================
+// CHANGE ORDER MANIFEST - Strict typing for Excel/PDF exports
+// =============================================================================
+
+export const ChangeOrderManifestHeaderSchema = z.object({
+  coNumber: z.string(),
+  projectNumber: z.string(),
+  projectName: z.string(),
+  clientName: z.string().nullable(),
+  preparedBy: z.string().nullable(),
+  preparedDate: z.string(), // ISO date
+  submittedDate: z.string().nullable(),
+  status: z.string(),
+  description: z.string().nullable(),
+  scope: z.string().nullable(),
+});
+
+export const ManifestLineItemSchema = z.object({
+  lineNumber: z.number(),
+  description: z.string(),
+  classification: z.string().nullable(),
+  quantity: z.number(),
+  unit: z.string(),
+  unitRate: z.number(),
+  amount: z.number(),
+  source: z.string(), // "rate_table", "document", "manual"
+  notes: z.string().nullable(),
+});
+
+export const ManifestCategorySummarySchema = z.object({
+  category: z.string(),
+  items: z.array(ManifestLineItemSchema),
+  subtotal: z.number(),
+  markupPercent: z.number(),
+  markupAmount: z.number(),
+  categoryTotal: z.number(),
+});
+
+export const ManifestTotalsSchema = z.object({
+  laborSubtotal: z.number(),
+  laborMarkup: z.number(),
+  laborTotal: z.number(),
+  
+  equipmentSubtotal: z.number(),
+  equipmentMarkup: z.number(),
+  equipmentTotal: z.number(),
+  
+  materialsSubtotal: z.number(),
+  materialsMarkup: z.number(),
+  materialsTotal: z.number(),
+  
+  subcontractorsSubtotal: z.number(),
+  subcontractorsMarkup: z.number(),
+  subcontractorsTotal: z.number(),
+  
+  disposalSubtotal: z.number(),
+  disposalMarkup: z.number(),
+  disposalTotal: z.number(),
+  
+  importSubtotal: z.number(),
+  importMarkup: z.number(),
+  importTotal: z.number(),
+  
+  grandSubtotal: z.number(),
+  grandMarkup: z.number(),
+  grandTotal: z.number(),
+});
+
+export const SignatureBlockSchema = z.object({
+  preparedByName: z.string().nullable(),
+  preparedByTitle: z.string().nullable(),
+  preparedByDate: z.string().nullable(),
+  approvedByName: z.string().nullable(),
+  approvedByTitle: z.string().nullable(),
+  approvedByDate: z.string().nullable(),
+  clientApprovedByName: z.string().nullable(),
+  clientApprovedByTitle: z.string().nullable(),
+  clientApprovedByDate: z.string().nullable(),
+});
+
+export const ChangeOrderManifestSchema = z.object({
+  version: z.number().default(1),
+  generatedAt: z.string(), // ISO timestamp
+  
+  header: ChangeOrderManifestHeaderSchema,
+  
+  categories: z.object({
+    labor: ManifestCategorySummarySchema,
+    equipment: ManifestCategorySummarySchema,
+    materials: ManifestCategorySummarySchema,
+    subcontractors: ManifestCategorySummarySchema,
+    disposal: ManifestCategorySummarySchema,
+    import: ManifestCategorySummarySchema,
+  }),
+  
+  totals: ManifestTotalsSchema,
+  
+  signatureBlock: SignatureBlockSchema,
+  
+  backupDocuments: z.array(z.object({
+    id: z.number(),
+    filename: z.string(),
+    type: z.string(),
+    uploadedAt: z.string(),
+  })).default([]),
+  
+  notes: z.string().nullable(),
+  termsAndConditions: z.string().nullable(),
+});
+
+export type ChangeOrderManifest = z.infer<typeof ChangeOrderManifestSchema>;
+export type ManifestHeader = z.infer<typeof ChangeOrderManifestHeaderSchema>;
+export type ManifestLineItem = z.infer<typeof ManifestLineItemSchema>;
+export type ManifestCategorySummary = z.infer<typeof ManifestCategorySummarySchema>;
+export type ManifestTotals = z.infer<typeof ManifestTotalsSchema>;
+export type SignatureBlock = z.infer<typeof SignatureBlockSchema>;
+
+export function createEmptyManifestCategorySummary(category: string): ManifestCategorySummary {
+  return {
+    category,
+    items: [],
+    subtotal: 0,
+    markupPercent: 0,
+    markupAmount: 0,
+    categoryTotal: 0,
+  };
+}
+
+export function createManifestFromDraft(
+  draft: DraftState,
+  header: ManifestHeader,
+  markups: {
+    labor: number;
+    materials: number;
+    equipment: number;
+    subcontractors: number;
+    disposal: number;
+    import: number;
+  }
+): ChangeOrderManifest {
+  const mapItemsToManifest = (items: any[], category: string): ManifestLineItem[] => {
+    return items.map((item, index) => ({
+      lineNumber: index + 1,
+      description: item.description,
+      classification: item.classification || null,
+      quantity: item.quantity || item.hours || 1,
+      unit: item.unit,
+      unitRate: item.unitRate,
+      amount: item.amount,
+      source: item.confidence?.source || "manual",
+      notes: item.notes || null,
+    }));
+  };
+
+  const calculateCategorySummary = (
+    items: any[],
+    category: string,
+    markupPercent: number
+  ): ManifestCategorySummary => {
+    const manifestItems = mapItemsToManifest(items, category);
+    const subtotal = manifestItems.reduce((sum, item) => sum + item.amount, 0);
+    const markupAmount = subtotal * (markupPercent / 100);
+    
+    return {
+      category,
+      items: manifestItems,
+      subtotal,
+      markupPercent,
+      markupAmount,
+      categoryTotal: subtotal + markupAmount,
+    };
+  };
+
+  const labor = calculateCategorySummary(draft.lineItems.labor, "Labor", markups.labor);
+  const equipment = calculateCategorySummary(draft.lineItems.equipment, "Equipment", markups.equipment);
+  const materials = calculateCategorySummary(draft.lineItems.materials, "Materials", markups.materials);
+  const subcontractors = calculateCategorySummary(draft.lineItems.subcontractors, "Subcontractors", markups.subcontractors);
+  const disposal = calculateCategorySummary(draft.lineItems.disposal, "Disposal", markups.disposal);
+  const importCat = calculateCategorySummary(draft.lineItems.import, "Import/Trucking", markups.import);
+
+  const grandSubtotal = labor.subtotal + equipment.subtotal + materials.subtotal + 
+                        subcontractors.subtotal + disposal.subtotal + importCat.subtotal;
+  const grandMarkup = labor.markupAmount + equipment.markupAmount + materials.markupAmount +
+                      subcontractors.markupAmount + disposal.markupAmount + importCat.markupAmount;
+
+  return {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    header,
+    categories: {
+      labor,
+      equipment,
+      materials,
+      subcontractors,
+      disposal,
+      import: importCat,
+    },
+    totals: {
+      laborSubtotal: labor.subtotal,
+      laborMarkup: labor.markupAmount,
+      laborTotal: labor.categoryTotal,
+      equipmentSubtotal: equipment.subtotal,
+      equipmentMarkup: equipment.markupAmount,
+      equipmentTotal: equipment.categoryTotal,
+      materialsSubtotal: materials.subtotal,
+      materialsMarkup: materials.markupAmount,
+      materialsTotal: materials.categoryTotal,
+      subcontractorsSubtotal: subcontractors.subtotal,
+      subcontractorsMarkup: subcontractors.markupAmount,
+      subcontractorsTotal: subcontractors.categoryTotal,
+      disposalSubtotal: disposal.subtotal,
+      disposalMarkup: disposal.markupAmount,
+      disposalTotal: disposal.categoryTotal,
+      importSubtotal: importCat.subtotal,
+      importMarkup: importCat.markupAmount,
+      importTotal: importCat.categoryTotal,
+      grandSubtotal,
+      grandMarkup,
+      grandTotal: grandSubtotal + grandMarkup,
+    },
+    signatureBlock: {
+      preparedByName: null,
+      preparedByTitle: null,
+      preparedByDate: null,
+      approvedByName: null,
+      approvedByTitle: null,
+      approvedByDate: null,
+      clientApprovedByName: null,
+      clientApprovedByTitle: null,
+      clientApprovedByDate: null,
+    },
+    backupDocuments: [],
+    notes: null,
+    termsAndConditions: null,
+  };
+}
+
+// =============================================================================
 // VALIDATION HELPERS
 // =============================================================================
 

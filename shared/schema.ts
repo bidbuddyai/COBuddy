@@ -10,9 +10,25 @@ import {
   decimal,
   boolean,
   uuid,
+  vector,
+  customType,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Custom vector type for pgvector (1536 dimensions for OpenAI text-embedding-3-small)
+const vector1536 = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return "vector(1536)";
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value: string): number[] {
+    return JSON.parse(value.replace(/^\[/, "[").replace(/\]$/, "]"));
+  },
+});
 
 // Session storage table for authentication
 export const sessions = pgTable(
@@ -63,11 +79,43 @@ export const rateTables = pgTable("rate_tables", {
   data: jsonb("data").notNull(), // Structured rate data
   sourceFile: varchar("source_file"),
   companyId: integer("company_id").references(() => companies.id), // Nullable for public rates (Caltrans)
+  // Semantic search fields
+  searchableText: text("searchable_text"), // Concatenated searchable content from data
+  embedding: vector1536("embedding"), // OpenAI text-embedding-3-small (1536 dimensions)
+  embeddingUpdatedAt: timestamp("embedding_updated_at"),
   extractedAt: timestamp("extracted_at").defaultNow(),
   reviewedBy: varchar("reviewed_by").references(() => users.id),
   reviewedAt: timestamp("reviewed_at"),
   isApproved: boolean("is_approved").default(false),
 });
+
+// Individual rate items for semantic search (flattened from rateTables.data)
+export const rateItems = pgTable("rate_items", {
+  id: serial("id").primaryKey(),
+  rateTableId: integer("rate_table_id").references(() => rateTables.id).notNull(),
+  type: varchar("type").notNull(), // labor, equipment, material, disposal, import
+  description: text("description").notNull(), // Primary searchable field
+  classification: varchar("classification"), // Labor classification, equipment type, etc.
+  unit: varchar("unit").notNull(), // hour, day, ton, each, etc.
+  rate: decimal("rate", { precision: 12, scale: 4 }).notNull(),
+  overtimeRate: decimal("overtime_rate", { precision: 12, scale: 4 }),
+  // Semantic search
+  searchableText: text("searchable_text"), // description + classification + synonyms
+  embedding: vector1536("embedding"), // OpenAI text-embedding-3-small
+  embeddingUpdatedAt: timestamp("embedding_updated_at"),
+  // Metadata
+  effectiveDate: timestamp("effective_date"),
+  expirationDate: timestamp("expiration_date"),
+  region: varchar("region"),
+  companyId: integer("company_id").references(() => companies.id),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_rate_items_type").on(table.type),
+  index("idx_rate_items_company").on(table.companyId),
+  index("idx_rate_items_active").on(table.isActive),
+]);
 
 // Projects
 export const projects = pgTable("projects", {
@@ -319,6 +367,14 @@ export const insertRateTableSchema = createInsertSchema(rateTables).omit({
   id: true,
   extractedAt: true,
   reviewedAt: true,
+  embeddingUpdatedAt: true,
+});
+
+export const insertRateItemSchema = createInsertSchema(rateItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  embeddingUpdatedAt: true,
 });
 
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
@@ -370,6 +426,8 @@ export type Document = typeof documents.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type RateTable = typeof rateTables.$inferSelect;
 export type InsertRateTable = z.infer<typeof insertRateTableSchema>;
+export type RateItem = typeof rateItems.$inferSelect;
+export type InsertRateItem = z.infer<typeof insertRateItemSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type ChatConversation = typeof chatConversations.$inferSelect;
