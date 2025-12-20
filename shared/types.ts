@@ -595,3 +595,69 @@ export function createEmptyDraftState(step: WorkflowStep = "PROJECT_SELECTION"):
     lastUpdatedAt: new Date().toISOString(),
   };
 }
+
+// =============================================================================
+// PROCESSED DOCUMENT SCHEMA - T&M Document Processing Output
+// =============================================================================
+
+export const ExtractedLineItemSchema = z.object({
+  id: z.string(),
+  rawDescription: z.string(),
+  normalizedDescription: z.string(),
+  category: z.enum(["labor", "equipment", "material", "disposal", "subcontractor"]),
+  quantity: z.number(),
+  unit: z.string(),
+  extractedRate: z.number().nullable(),
+  matchedRateId: z.number().nullable(),
+  matchedRate: z.number().nullable(),
+  matchedDescription: z.string().nullable(),
+  confidenceScore: z.number().min(0).max(100),
+  requiresReview: z.boolean(),
+  classification: z.string().nullable(),
+  date: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+
+export type ExtractedLineItem = z.infer<typeof ExtractedLineItemSchema>;
+
+export const ProcessedDocumentSchema = z.object({
+  documentId: z.number(),
+  filename: z.string(),
+  documentType: z.enum(["tm_sheet", "invoice", "quote", "rate_table", "other"]),
+  processedAt: z.string(),
+  ocrConfidence: z.number().min(0).max(1),
+  
+  metadata: z.object({
+    vendor: z.string().nullable(),
+    invoiceNumber: z.string().nullable(),
+    invoiceDate: z.string().nullable(),
+    projectReference: z.string().nullable(),
+    totalFromDocument: z.number().nullable(),
+  }),
+  
+  laborItems: z.array(ExtractedLineItemSchema),
+  equipmentItems: z.array(ExtractedLineItemSchema),
+  materialItems: z.array(ExtractedLineItemSchema),
+  disposalItems: z.array(ExtractedLineItemSchema),
+  subcontractorItems: z.array(ExtractedLineItemSchema),
+  
+  summary: z.object({
+    totalItems: z.number(),
+    autoMatchedItems: z.number(),
+    itemsRequiringReview: z.number(),
+    laborSubtotal: z.number(),
+    equipmentSubtotal: z.number(),
+    materialSubtotal: z.number(),
+    disposalSubtotal: z.number(),
+    subcontractorSubtotal: z.number(),
+    grandTotal: z.number(),
+  }),
+  
+  errors: z.array(z.object({
+    field: z.string(),
+    message: z.string(),
+    severity: z.enum(["warning", "error"]),
+  })).default([]),
+});
+
+export type ProcessedDocument = z.infer<typeof ProcessedDocumentSchema>;
