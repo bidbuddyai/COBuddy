@@ -3,11 +3,10 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useSupabaseAuth, AuthProvider } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/hooks/use-auth";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import Layout from "@/components/Layout";
 import Landing from "@/pages/Landing";
-import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Upload from "@/pages/Upload";
 import ChangeOrders from "@/pages/ChangeOrders";
@@ -21,22 +20,16 @@ import Settings from "@/pages/Settings";
 import AIAssistant from "@/pages/AIAssistant";
 import Company from "@/pages/Company";
 import { COLog } from "@/pages/COLog";
-import AuthPage from "@/pages/auth-page";
-import AuthCallback from "@/pages/auth-callback";
 import NotFound from "@/pages/not-found";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
 import LogoViewer from "@/pages/logo-viewer";
 
 function Router() {
-  const { user, isLoading } = useSupabaseAuth();
-  const isAuthenticated = !!user;
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   return (
     <Switch>
-      {/* Auth callback route should always be available */}
-      <Route path="/auth/callback" component={AuthCallback} />
-      
       {isLoading ? (
         // Show a loading screen while checking auth status
         <div className="min-h-screen flex items-center justify-center">
@@ -48,7 +41,13 @@ function Router() {
       ) : !isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
-          <Route path="/auth" component={AuthPage} />
+          <Route path="/auth">
+            {() => {
+              // Redirect to Replit Auth login
+              window.location.href = "/api/login";
+              return null;
+            }}
+          </Route>
         </>
       ) : (
         <>
@@ -81,14 +80,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ProjectProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </ProjectProvider>
-      </AuthProvider>
+      <ProjectProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </ProjectProvider>
     </QueryClientProvider>
   );
 }

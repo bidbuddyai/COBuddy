@@ -2,9 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-// import { setupAuth, authenticateSupabaseUser } from "./replitAuth";
-// import { setupAuth, authenticateSupabaseUser } from "./auth";
-import { authenticateSupabaseUser } from "./middleware/supabaseAuth";
+import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import { uploadMultiple, upload } from "./middleware/upload";
 import { processDocument, processAndMatchDocument } from "./services/documentProcessor";
 import { generateChangeOrderExcel } from "./services/excelGenerator";
@@ -20,10 +18,11 @@ import { aggregationService } from "./services/aggregationService";
 import { runEmbeddingMigration } from "./scripts/migrateEmbeddings";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  // setupAuth(app); // Commented out - using Supabase auth instead
+  // Setup Replit Auth
+  await setupAuth(app);
+  registerAuthRoutes(app);
 
-  // User routes for Supabase
+  // User routes (keeping for backward compatibility)
   app.get('/api/users/:id', async (req: any, res) => {
     try {
       const user = await storage.getUser(req.params.id);
@@ -96,10 +95,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // User profile and settings routes
-  app.put('/api/users/profile', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/users/profile', isAuthenticated, async (req: any, res) => {
     try {
       const { firstName, lastName, email, role } = req.body;
-      const userId = req.user.id;
+      const userId = req.user?.id;
       
       const updatedUser = await storage.updateUser(userId, {
         firstName,
@@ -115,9 +114,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/users/settings/notifications', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/users/settings/notifications', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.id;
       
       // In a real app, you'd store these in a user_preferences table
       // For now, we'll just acknowledge the update
@@ -133,9 +132,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/users/settings/preferences', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/users/settings/preferences', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.id;
       
       // In a real app, you'd store these in a user_preferences table
       console.log('Updating preferences for user:', userId, req.body);
@@ -150,9 +149,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/users/settings/integrations', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/users/settings/integrations', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.id;
       
       // In a real app, you'd store these in a user_preferences table
       console.log('Updating integrations for user:', userId, req.body);
@@ -168,7 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Company routes
-  app.get('/api/companies/current', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/companies/current', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -184,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/companies/current', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/companies/current', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -201,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/companies/users', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/companies/users', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -217,7 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/companies/users/:userId/role', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/companies/users/:userId/role', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       const { userId } = req.params;
@@ -241,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete('/api/companies/users/:userId', authenticateSupabaseUser, async (req: any, res) => {
+  app.delete('/api/companies/users/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       const { userId } = req.params;
@@ -270,7 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/companies/invite', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/companies/invite', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       const { email, role } = req.body;
@@ -306,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/companies/invitations', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/companies/invitations', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -322,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete('/api/companies/invitations/:invitationId', authenticateSupabaseUser, async (req: any, res) => {
+  app.delete('/api/companies/invitations/:invitationId', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -338,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/companies/setup', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/companies/setup', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -371,7 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get('/api/dashboard/stats', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
       const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
       const stats = await storage.getDashboardStats(projectId);
@@ -383,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project routes
-  app.get('/api/projects', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       const projects = await storage.getProjects(user?.companyId);
@@ -394,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const user = req.user;
@@ -417,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -450,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Change order routes
-  app.get('/api/change-orders', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/change-orders', isAuthenticated, async (req: any, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
@@ -465,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/change-orders', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/change-orders', isAuthenticated, async (req: any, res) => {
     try {
       // Convert decimal amounts to strings for Drizzle ORM
       const processedBody = { ...req.body };
@@ -489,7 +488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const changeOrderData = insertChangeOrderSchema.parse({
         ...processedBody,
         number: changeOrderNumber,
-        createdBy: req.user.id, // user.id is already a string (UUID)
+        createdBy: req.user?.id, // user.id is already a string (UUID)
       });
       
       const changeOrder = await storage.createChangeOrder(changeOrderData);
@@ -500,7 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/change-orders/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/change-orders/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -516,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/change-orders/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/change-orders/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const updateData = req.body;
@@ -530,7 +529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate Excel for change order
-  app.get('/api/change-orders/:id/excel', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/change-orders/:id/excel', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -551,7 +550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate PDF for change order
-  app.get('/api/change-orders/:id/pdf', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/change-orders/:id/pdf', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -572,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export all change orders for a project
-  app.get('/api/projects/:projectId/change-orders/export', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/projects/:projectId/change-orders/export', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.params;
       const { format } = req.query;
@@ -682,7 +681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Change Order Logs - Construction PM Communication & Documentation
-  app.get('/api/projects/:projectId/co-logs', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/projects/:projectId/co-logs', isAuthenticated, async (req: any, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const changeOrderId = req.query.changeOrderId ? parseInt(req.query.changeOrderId) : undefined;
@@ -695,7 +694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/co-logs/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/co-logs/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const log = await storage.getChangeOrderLog(id);
@@ -711,7 +710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/co-logs', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/co-logs', isAuthenticated, async (req: any, res) => {
     try {
       const { body, user } = req;
       
@@ -740,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/co-logs/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/co-logs/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const updateData = req.body;
@@ -753,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityType: 'change_order_log',
         entityId: log.id,
         newData: updateData,
-        userId: req.user.id,
+        userId: req.user?.id,
       });
       
       res.json(log);
@@ -763,7 +762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects/:projectId/co-logs/by-type/:logType', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/projects/:projectId/co-logs/by-type/:logType', isAuthenticated, async (req: any, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const logType = req.params.logType;
@@ -777,7 +776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export endpoints for AI assistant
-  app.post('/api/change-orders/:id/export/excel', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/change-orders/:id/export/excel', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -812,7 +811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/change-orders/:id/export/pdf', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/change-orders/:id/export/pdf', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const changeOrder = await storage.getChangeOrder(id);
@@ -848,7 +847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload and processing
-  app.post('/api/documents/upload', authenticateSupabaseUser, uploadMultiple, async (req: any, res) => {
+  app.post('/api/documents/upload', isAuthenticated, uploadMultiple, async (req: any, res) => {
     try {
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
@@ -856,7 +855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const uploadedDocuments: any[] = [];
-      const userId = req.user.id;
+      const userId = req.user?.id;
       
       // First, create all document records
       for (const file of files) {
@@ -867,7 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           size: file.size,
           type: req.body.type || 'tm_sheet',
           projectId: req.body.projectId ? parseInt(req.body.projectId) : undefined,
-          uploadedBy: req.user.id, // user.id is already a string (UUID)
+          uploadedBy: req.user?.id, // user.id is already a string (UUID)
         });
         
         const document = await storage.createDocument(documentData);
@@ -940,7 +939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/documents', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/documents', isAuthenticated, async (req: any, res) => {
     try {
       const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
       const documents = await storage.getDocuments(projectId);
@@ -951,7 +950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/documents/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const document = await storage.getDocument(id);
@@ -968,7 +967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update document extracted data
-  app.patch('/api/documents/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.patch('/api/documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const { extractedData, isReusable, isBackup } = req.body;
@@ -993,7 +992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reprocess document
-  app.post('/api/documents/:id/reprocess', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/documents/:id/reprocess', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const document = await storage.getDocument(id);
@@ -1018,7 +1017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Process document with AI vision
-  app.post('/api/documents/:id/process', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/documents/:id/process', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const document = await storage.getDocument(id);
@@ -1043,7 +1042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete document
-  app.delete('/api/documents/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.delete('/api/documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const document = await storage.getDocument(id);
@@ -1063,7 +1062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rate table routes
-  app.get('/api/rate-tables', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/rate-tables', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -1085,7 +1084,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Protected route - require admin role
-  app.put('/api/rate-tables/:id/approve', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/rate-tables/:id/approve', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -1103,7 +1102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update rate table data
-  app.put('/api/rate-tables/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/rate-tables/:id', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -1123,7 +1122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Chat routes
-  app.post('/api/chat', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/chat', isAuthenticated, async (req: any, res) => {
     try {
       const { message, conversationId } = req.body;
       
@@ -1178,9 +1177,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/chat/conversations', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/chat/conversations', isAuthenticated, async (req: any, res) => {
     try {
-      const conversations = await storage.getChatConversations(req.user.id);
+      const conversations = await storage.getChatConversations(req.user?.id);
       res.json(conversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -1189,7 +1188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Assistant Chat endpoint (enhanced version with actions)
-  app.post('/api/ai/chat', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/ai/chat', isAuthenticated, async (req: any, res) => {
     try {
       const { message, context, requestActions, conversationId } = req.body;
       
@@ -1199,7 +1198,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get comprehensive context for AI
       const userId = req.user?.id;
-      const userCompanyId = req.user?.companyId;
+      const dbUser = userId ? await storage.getUser(userId) : null;
+      const userCompanyId = dbUser?.companyId ?? undefined;
       
       // Get rate context
       const rateTablesData = await storage.getRateTables(userCompanyId);
@@ -1263,7 +1263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Change order generation from T&M data
-  app.post('/api/change-orders/generate', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/change-orders/generate', isAuthenticated, async (req: any, res) => {
     try {
       const { documentId, projectInfo } = req.body;
       
@@ -1290,7 +1290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics routes
-  app.get('/api/analytics/:projectId', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/analytics/:projectId', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.params;
       
@@ -1304,7 +1304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload Caltrans rates (admin only)
-  app.post('/api/rate-tables/caltrans/upload', authenticateSupabaseUser, upload.single('file'), async (req: any, res) => {
+  app.post('/api/rate-tables/caltrans/upload', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -1329,7 +1329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Caltrans rates specifically
-  app.get('/api/rate-tables/caltrans', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/rate-tables/caltrans', isAuthenticated, async (req: any, res) => {
     try {
       const { getCaltransRates } = await import('./services/caltransRateImporter.js');
       const caltransRates = await getCaltransRates();
@@ -1343,7 +1343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============= CO LOG ENDPOINTS =============
   
   // --- Subcontractor endpoints ---
-  app.get('/api/subcontractors', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/subcontractors', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       if (!user.companyId) {
@@ -1358,7 +1358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/subcontractors', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/subcontractors', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       if (!user.companyId) {
@@ -1378,7 +1378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/subcontractors/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/subcontractors/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const subcontractor = await storage.updateSubcontractor(id, req.body);
@@ -1390,7 +1390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // --- Subcontractor Change Order endpoints ---
-  app.get('/api/subcontractor-change-orders', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/subcontractor-change-orders', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId, gcChangeOrderId, subcontractorId } = req.query;
       
@@ -1407,11 +1407,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/subcontractor-change-orders', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/subcontractor-change-orders', isAuthenticated, async (req: any, res) => {
     try {
       const scoData = {
         ...req.body,
-        createdBy: req.user.id
+        createdBy: req.user?.id
       };
       
       // Generate SCO number if not provided
@@ -1431,7 +1431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/subcontractor-change-orders/:id', authenticateSupabaseUser, async (req: any, res) => {
+  app.put('/api/subcontractor-change-orders/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const sco = await storage.updateSubcontractorChangeOrder(id, req.body);
@@ -1443,7 +1443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // --- CO Log Import/Export endpoints ---
-  app.get('/api/co-logs/export', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/co-logs/export', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.query;
       
@@ -1462,7 +1462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/co-logs/import', authenticateSupabaseUser, upload.single('file'), async (req: any, res) => {
+  app.post('/api/co-logs/import', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       const file = req.file;
       const { projectId } = req.body;
@@ -1478,7 +1478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await excelCoLogService.importCoLog(
         parseInt(projectId),
         file.buffer,
-        req.user.id
+        req.user?.id
       );
       
       res.json(result);
@@ -1502,7 +1502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // --- Numbering sequence endpoints ---
-  app.post('/api/numbering/next', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/numbering/next', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId, sequenceType, subcontractorId } = req.body;
       
@@ -1519,7 +1519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // --- CO Log aggregation endpoint ---
-  app.get('/api/co-logs/summary', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/co-logs/summary', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.query;
       
@@ -1560,7 +1560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // --- Advanced aggregation endpoints ---
-  app.get('/api/co-logs/advanced-summary', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/co-logs/advanced-summary', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.query;
       
@@ -1576,7 +1576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/co-logs/company-summary', authenticateSupabaseUser, async (req: any, res) => {
+  app.get('/api/co-logs/company-summary', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
@@ -1592,7 +1592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/migrate-embeddings', authenticateSupabaseUser, async (req: any, res) => {
+  app.post('/api/admin/migrate-embeddings', isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       

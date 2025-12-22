@@ -23,14 +23,14 @@ export default function Landing() {
           <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
             Transform your T&M sheets into professional change orders with AI-powered document processing and intelligent rate matching.
           </p>
-          <Link href="/auth">
+          <a href="/api/login">
             <Button 
               size="lg" 
               className="bg-[#03512A] hover:bg-[#024020] text-white px-8 py-3 text-lg"
             >
               Get Started
             </Button>
-          </Link>
+          </a>
         </div>
 
         {/* Features Grid */}

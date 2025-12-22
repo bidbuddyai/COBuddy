@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useSupabaseAuth } from './useSupabaseAuth';
+import { useAuth } from './use-auth';
 
 type MessageHandler = (data: any) => void;
 
 export function useWebSocket() {
-  const { user } = useSupabaseAuth();
+  const { user } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const messageHandlersRef = useRef<Set<MessageHandler>>(new Set());

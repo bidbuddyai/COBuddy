@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/useTheme";
 import COBuddyIcon from "@assets/icon_1752387185212.png";
 import { 
@@ -41,7 +41,7 @@ const navigation = [
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const [location] = useLocation();
-  const { user } = useSupabaseAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const handleLinkClick = () => {
@@ -129,6 +129,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
               variant="ghost"
               size="icon"
               className="p-1 text-gray-400 hover:text-gray-600"
+              onClick={() => window.location.href = '/api/logout'}
             >
               <LogOut className="h-4 w-4" />
             </Button>

@@ -25,9 +25,12 @@ Document categorization: Invoices from companies like Incompli are subcontractor
 - **Manifest Synchronization**: AI assistant now returns the full ChangeOrderManifest object with each response when draft is updated. `createManifestFromDraft()` converts DraftState to manifest with per-category rollups and markup calculations.
 - **Type Safety**: All AI outputs validated using Zod schemas via zod-to-json-schema before processing.
 
+## Previous Changes (December 22, 2025)
+- **Authentication Migration**: Migrated from Supabase Auth to Replit Auth (OpenID Connect). Using Replit's built-in authentication with support for Google, GitHub, and email login. Session management via `isAuthenticated` middleware in `server/replit_integrations/auth/`.
+- **Auth Flow**: Login via `/api/login`, logout via `/api/logout`, user data at `/api/auth/user`. Frontend uses `useAuth()` hook from `@/hooks/use-auth.ts`.
+
 ## Previous Changes (October 28, 2025)
-- **Database Migration**: Migrated from Supabase to Replit PostgreSQL (primary database). Supabase preserved as backup.
-- **Authentication**: Using Supabase Auth with Microsoft OAuth configured. Session management via `authenticateSupabaseUser` middleware.
+- **Database Migration**: Migrated from Supabase to Replit PostgreSQL (primary database).
 - **Project Context**: Implemented global ProjectContext with localStorage persistence for maintaining selected project across page refreshes.
 - **Schema Updates**: Added `lastExportedAt` and `exportedFiles` fields to changeOrders table for export tracking.
 - **Type Safety**: Resolved all TypeScript compilation errors across the codebase.
@@ -40,8 +43,8 @@ Document categorization: Invoices from companies like Incompli are subcontractor
 The application is a full-stack TypeScript application, utilizing:
 - **Frontend**: React with TypeScript and Vite.
 - **Backend**: Express.js with TypeScript.
-- **Database**: Replit PostgreSQL (primary) with Drizzle ORM. Supabase database preserved as backup.
-- **Authentication**: Supabase Auth with Microsoft OAuth integration.
+- **Database**: Replit PostgreSQL with Drizzle ORM.
+- **Authentication**: Replit Auth (OpenID Connect) with session-based authentication.
 - **AI Integration**: OpenAI GPT-4 Vision for document processing and chat assistance.
 - **UI Framework**: Radix UI components styled with Tailwind CSS.
 

@@ -3,7 +3,7 @@ import Sidebar from "./Sidebar";
 import AIAssistantBubble from "./AIAssistantBubble";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/hooks/use-auth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLocation } from "wouter";
 
@@ -13,7 +13,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isLoading } = useSupabaseAuth();
+  const { user, isLoading } = useAuth();
   const isMobile = useIsMobile();
   const [location] = useLocation();
 
