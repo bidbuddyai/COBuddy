@@ -1,5 +1,4 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { supabase } from "./supabase";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -13,21 +12,14 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Get the current session token
-  const { data: { session } } = await supabase.auth.getSession();
   const headers: HeadersInit = {};
   
-  // Don't set Content-Type for FormData - browser will set it with boundary
   let body: any;
   if (data instanceof FormData) {
     body = data;
   } else if (data) {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(data);
-  }
-  
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`;
   }
 
   const res = await fetch(url, {
@@ -49,7 +41,6 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     let url = queryKey[0] as string;
     
-    // Handle query parameters from queryKey
     if (queryKey.length > 1 && typeof queryKey[1] === 'object' && queryKey[1] !== null) {
       const params = new URLSearchParams();
       const queryParams = queryKey[1] as Record<string, any>;
@@ -64,17 +55,8 @@ export const getQueryFn: <T>(options: {
         url += '?' + params.toString();
       }
     }
-    
-    // Get the current session token for queries too
-    const { data: { session } } = await supabase.auth.getSession();
-    const headers: HeadersInit = {};
-    
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
-    }
 
     const res = await fetch(url, {
-      headers,
       credentials: "include",
     });
 
