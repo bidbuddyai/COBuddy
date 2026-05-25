@@ -18,10 +18,23 @@ import DocumentViewer from '@/components/DocumentViewer';
 import ChangeOrderForm from '@/components/ChangeOrderForm';
 import { useDocumentProgress } from '@/hooks/useWebSocket';
 import { COBuddyThinkingAnimation, PulsingCOBuddy } from '@/components/PlayfulLoadingAnimations';
-import { useLocation } from 'wouter';
+import { useLocation, useParams } from 'wouter';
 
 export default function Documents() {
-  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
+  const { projectId } = useParams<{ projectId?: string }>();
+  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(
+    projectId ? parseInt(projectId, 10) : undefined
+  );
+
+  // Sync selectedProjectId when URL route parameter changes
+  useEffect(() => {
+    if (projectId) {
+      const parsed = parseInt(projectId, 10);
+      if (!isNaN(parsed) && parsed !== selectedProjectId) {
+        setSelectedProjectId(parsed);
+      }
+    }
+  }, [projectId]);
   const [activeTab, setActiveTab] = useState('all');
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
