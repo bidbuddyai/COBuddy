@@ -257,7 +257,7 @@ export default function ChangeOrderLogs() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            <Link href={`/documents?project=${projectId}`}>
+            <Link href={`/projects/${projectId}/documents`}>
               <Button className="bg-emerald-600 dark:bg-emerald-500 text-white hover:bg-emerald-700 dark:hover:bg-emerald-400 w-full sm:w-auto border-none">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload T&M

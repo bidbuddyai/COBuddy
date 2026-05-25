@@ -118,7 +118,11 @@ export default function FileUpload({
       
       // Redirect to documents page with selected document IDs
       const documentIds = data.map(file => file.id).join(',');
-      setLocation(`/documents?selected=${documentIds}`);
+      if (projectId) {
+        setLocation(`/projects/${projectId}/documents?selected=${documentIds}`);
+      } else {
+        setLocation(`/documents?selected=${documentIds}`);
+      }
     },
     onError: (error) => {
       toast({

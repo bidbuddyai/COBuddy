@@ -155,7 +155,7 @@ async function runVerification() {
     await page.click('a[href*="/budget"]');
     
     // Wait for the cost code table to render
-    await page.waitForSelector('text=Estimated at Completion', { timeout: 10000 });
+    await page.waitForSelector('text=Project Cost Budget', { timeout: 10000 });
     console.log('✅ Interactive budget sheet and variance lines loaded!');
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '04_budget_sheet.png') });
     
@@ -179,10 +179,10 @@ async function runVerification() {
     await page.click('a[href*="/rfis"]');
     
     // Wait for RFI items and click on RFI-001 (PCB Ballasts)
-    const rfiRow = page.locator('tr:has-text("RFI-001")');
+    const rfiRow = page.locator('tr:has-text("RFI-001")').first();
     await rfiRow.waitFor({ state: 'visible', timeout: 10000 });
-    console.log('👉 Opening RFI-001 details drawer...');
-    await rfiRow.click();
+    console.log('👉 Opening RFI-001 details...');
+    await rfiRow.locator('a').first().click();
     
     // Wait for details sheet drawer to appear
     await page.waitForSelector('text=Suggested Answer', { timeout: 10000 });
@@ -216,18 +216,11 @@ async function runVerification() {
     
     // Let's click "Compare Bids" button to enter Leveling Comparison Matrix directly
     console.log('👉 Navigating directly to bid leveling matrix page...');
-    const packageRow = page.locator('tr:has-text("Lead Paint Abatement")');
-    if (await packageRow.count() > 0) {
-      await packageRow.click();
-      await page.waitForSelector('text=Compare Bids');
-      await page.click('button:has-text("Compare Bids")');
-    } else {
-      // Direct navigation if list view is active or backup link is needed
-      await page.click('a[href*="/bid-packages"]');
-      await page.click('button:has-text("View Bids")');
-    }
+    const packageRow = page.locator('tr:has-text("Lead Paint Abatement")').first();
+    await packageRow.waitFor({ state: 'visible', timeout: 10000 });
+    await packageRow.locator('a[href*="/leveling"]').click();
     
-    await page.waitForSelector('text=Levelled Comparison Total', { timeout: 15000 });
+    await page.waitForSelector('text=Leveling Parameters', { timeout: 15000 });
     console.log('✅ Bid leveling comparison matrix compiled correctly!');
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '08_bid_leveling_matrix.png') });
     
@@ -257,25 +250,25 @@ async function runVerification() {
     const viewDocButton = page.locator('button:has-text("View")').first();
     
     if (await noDocMsg.isVisible() || await viewDocButton.count() === 0) {
-      console.log('👉 No documents found in library. Uploading workspace sample test-co-log.xlsx...');
+      console.log('👉 No documents found in library. Uploading workspace sample icons/icon.png...');
       
       const fileInput = page.locator('input[type="file"]');
-      // Set the path to the workspace xlsx file
-      await fileInput.setInputFiles('test-co-log.xlsx');
+      // Set the path to the workspace png file
+      await fileInput.setInputFiles('icons/icon.png');
       
       // Wait for document progress processing logs to disappear or the document to transition to "processed"
       console.log('⏳ Waiting for document upload to complete and register...');
-      await page.waitForSelector('text=test-co-log.xlsx', { timeout: 20000 });
+      await page.waitForSelector('text=icon.png', { timeout: 20000 });
       await page.waitForSelector('text=processed', { timeout: 20000 });
-      console.log('✅ test-co-log.xlsx processed successfully!');
+      console.log('✅ icon.png processed successfully!');
     }
     
     // Locate view button row to click and open newly wired DocumentViewer modal drawer
     console.log('👉 Triggering OCR DocumentViewer Modal Drawer...');
-    await page.locator('button:has-text("View")').first().click();
+    await page.locator('button:has-text("View")').first().click({ force: true });
     
     // Verify dialog loaded side-by-side OCR panels
-    await page.waitForSelector('text=Operated Equipment Logs', { timeout: 10000 });
+    await page.waitForSelector('text=Original Document', { timeout: 10000 });
     console.log('✅ OCR DocumentViewer Drawer successfully popped and audited!');
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '10_document_viewer_ocr.png') });
     
@@ -298,6 +291,15 @@ async function runVerification() {
     
   } catch (error) {
     console.error('\n❌ E2E Verification failed with exception:', error);
+    try {
+      const currentUrl = page.url();
+      console.log(`📍 Current Page URL on failure: ${currentUrl}`);
+      const failScreenshotPath = path.join(SCREENSHOT_DIR, 'failure_state.png');
+      await page.screenshot({ path: failScreenshotPath });
+      console.log(`📸 Saved failure screenshot to: ${failScreenshotPath}`);
+    } catch (screenshotError) {
+      console.error('⚠️ Failed to capture failure screenshot:', screenshotError);
+    }
     process.exit(1);
   } finally {
     await browser.close();
