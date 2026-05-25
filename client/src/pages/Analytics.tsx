@@ -91,7 +91,7 @@ export default function Analytics() {
         <div className="flex items-center justify-center h-64">
           <PlayfulLoadingAnimation 
             stage="analyzing" 
-            message="CO Buddy is crunching the numbers..."
+            message="ProjectBuddy is analyzing project operations..."
             size="lg"
           />
         </div>
@@ -103,7 +103,7 @@ export default function Analytics() {
     );
   }
 
-  const COLORS = ['#03512A', '#22C55E', '#86EFAC', '#DCFCE7', '#FCA5A5'];
+  const COLORS = ['#047857', '#10B981', '#34D399', '#A7F3D0', '#FCA5A5'];
 
   return (
     <div className="p-6 space-y-6">
@@ -214,7 +214,7 @@ export default function Analytics() {
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip formatter={(value) => [`${value}`, 'Change Orders']} />
-                <Bar dataKey="changeOrders" fill="#03512A" />
+                <Bar dataKey="changeOrders" fill="#047857" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

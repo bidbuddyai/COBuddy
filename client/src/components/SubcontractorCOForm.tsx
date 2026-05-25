@@ -73,8 +73,8 @@ export function SubcontractorCOForm({
       scoNumber: sco.scoNumber || undefined,
       amountSubmitted: sco.amountSubmitted || '0',
       amountApproved: sco.amountApproved || '0',
-      submittedDate: sco.submittedDate ? new Date(sco.submittedDate) : undefined,
-      approvedDate: sco.approvedDate ? new Date(sco.approvedDate) : null,
+      submittedDate: sco.dateSubmitted ? new Date(sco.dateSubmitted) : undefined,
+      approvedDate: sco.dateApproved ? new Date(sco.dateApproved) : null,
       status: sco.status as any,
       notes: sco.notes || undefined,
     } : {

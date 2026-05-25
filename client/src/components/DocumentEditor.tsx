@@ -441,7 +441,7 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
                 <Checkbox
                   id="reusable"
                   checked={isReusable}
-                  onCheckedChange={setIsReusable}
+                  onCheckedChange={(checked) => setIsReusable(checked === true)}
                 />
                 <Label htmlFor="reusable" className="cursor-pointer">
                   Mark as Reusable Template
@@ -451,7 +451,7 @@ export default function DocumentEditor({ document, isOpen, onClose }: DocumentEd
                 <Checkbox
                   id="backup"
                   checked={isBackup}
-                  onCheckedChange={setIsBackup}
+                  onCheckedChange={(checked) => setIsBackup(checked === true)}
                 />
                 <Label htmlFor="backup" className="cursor-pointer">
                   Mark as Backup Document

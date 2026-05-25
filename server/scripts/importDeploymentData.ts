@@ -26,7 +26,7 @@ async function importDeploymentData() {
         try {
           await db.execute(statement + ";");
           console.log(`✅ Executed statement ${i + 1}/${statements.length}`);
-        } catch (error) {
+        } catch (error: any) {
           console.log(`⚠️  Statement ${i + 1} failed (might already exist):`, error.message);
         }
       }

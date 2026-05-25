@@ -142,7 +142,7 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
+    const user: any = {};
     updateUserSession(user, tokens);
     await upsertUser(tokens.claims());
     verified(null, user);
@@ -175,7 +175,8 @@ export async function setupAuth(app: Express) {
     const strategyName = `replitauth:${req.hostname}`;
     
     // Check if strategy exists, otherwise use the default Replit domain
-    if (!passport._strategy(strategyName)) {
+    const passportAny = passport as any;
+    if (!passportAny._strategies || !passportAny._strategies[strategyName]) {
       const defaultDomain = replitDomains[0];
       res.redirect(`https://${defaultDomain}/api/login`);
       return;
@@ -191,7 +192,8 @@ export async function setupAuth(app: Express) {
     const strategyName = `replitauth:${req.hostname}`;
     
     // Check if strategy exists
-    if (!passport._strategy(strategyName)) {
+    const passportAny = passport as any;
+    if (!passportAny._strategies || !passportAny._strategies[strategyName]) {
       res.redirect("/api/login");
       return;
     }

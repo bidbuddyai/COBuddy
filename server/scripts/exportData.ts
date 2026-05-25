@@ -46,8 +46,9 @@ async function exportData() {
     if (companiesData.length > 0) {
       sqlStatements.push("-- Companies");
       for (const company of companiesData) {
+        const c = company as any;
         sqlStatements.push(
-          `INSERT INTO companies (id, name, domain, "logoUrl", "createdAt", "updatedAt") VALUES (${company.id}, '${company.name}', '${company.domain}', ${company.logoUrl ? `'${company.logoUrl}'` : 'NULL'}, '${company.createdAt}', '${company.updatedAt}') ON CONFLICT (id) DO NOTHING;`
+          `INSERT INTO companies (id, name, domain, "logoUrl", "createdAt", "updatedAt") VALUES (${c.id}, '${c.name}', '${c.domain}', ${c.logoUrl ? `'${c.logoUrl}'` : 'NULL'}, '${c.createdAt}', '${c.updatedAt}') ON CONFLICT (id) DO NOTHING;`
         );
       }
     }
@@ -56,8 +57,9 @@ async function exportData() {
     if (usersData.length > 0) {
       sqlStatements.push("\n-- Users");
       for (const user of usersData) {
+        const u = user as any;
         sqlStatements.push(
-          `INSERT INTO users (id, email, "firstName", "lastName", role, "companyId", "createdAt", "updatedAt") VALUES ('${user.id}', '${user.email}', ${user.firstName ? `'${user.firstName}'` : 'NULL'}, ${user.lastName ? `'${user.lastName}'` : 'NULL'}, '${user.role}', ${user.companyId}, '${user.createdAt}', '${user.updatedAt}') ON CONFLICT (id) DO NOTHING;`
+          `INSERT INTO users (id, email, "firstName", "lastName", role, "companyId", "createdAt", "updatedAt") VALUES ('${u.id}', '${u.email}', ${u.firstName ? `'${u.firstName}'` : 'NULL'}, ${u.lastName ? `'${u.lastName}'` : 'NULL'}, '${u.role}', ${u.companyId}, '${u.createdAt}', '${u.updatedAt}') ON CONFLICT (id) DO NOTHING;`
         );
       }
     }
@@ -66,9 +68,10 @@ async function exportData() {
     if (rateTablesData.length > 0) {
       sqlStatements.push("\n-- Rate Tables");
       for (const table of rateTablesData) {
-        const ratesJson = table.rates ? JSON.stringify(table.rates).replace(/'/g, "''") : '[]';
+        const t = table as any;
+        const ratesJson = t.rates ? JSON.stringify(t.rates).replace(/'/g, "''") : '[]';
         sqlStatements.push(
-          `INSERT INTO rate_tables (id, name, type, rates, "extractedFrom", "companyId", status, "approvedAt", "reviewedBy", "createdAt", "updatedAt") VALUES (${table.id}, '${table.name}', '${table.type}', '${ratesJson}'::jsonb, ${table.extractedFrom ? `'${table.extractedFrom}'` : 'NULL'}, ${table.companyId || 'NULL'}, '${table.status}', ${table.approvedAt ? `'${table.approvedAt}'` : 'NULL'}, ${table.reviewedBy ? `'${table.reviewedBy}'` : 'NULL'}, '${table.createdAt}', '${table.updatedAt}') ON CONFLICT (id) DO NOTHING;`
+          `INSERT INTO rate_tables (id, name, type, rates, "extractedFrom", "companyId", status, "approvedAt", "reviewedBy", "createdAt", "updatedAt") VALUES (${t.id}, '${t.name}', '${t.type}', '${ratesJson}'::jsonb, ${t.extractedFrom ? `'${t.extractedFrom}'` : 'NULL'}, ${t.companyId || 'NULL'}, '${t.status}', ${t.approvedAt ? `'${t.approvedAt}'` : 'NULL'}, ${t.reviewedBy ? `'${t.reviewedBy}'` : 'NULL'}, '${t.createdAt}', '${t.updatedAt}') ON CONFLICT (id) DO NOTHING;`
         );
       }
     }

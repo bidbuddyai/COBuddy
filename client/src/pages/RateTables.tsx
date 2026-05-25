@@ -45,7 +45,7 @@ function CaltransUploader() {
       });
       
       queryClient.invalidateQueries({ queryKey: ["/api/rate-tables"] });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to upload Caltrans rates",
@@ -113,7 +113,7 @@ export default function RateTables() {
   const queryClient = useQueryClient();
   
   // Get user data to check if admin
-  const { data: user } = useQuery({
+  const { data: user } = useQuery<any>({
     queryKey: ["/api/auth/me"],
   });
 
@@ -266,7 +266,7 @@ export default function RateTables() {
   const handleSaveRates = () => {
     if (!selectedTable) return;
     
-    const updatedData = { ...selectedTable.data };
+    const updatedData = selectedTable.data as any;
     if (Array.isArray(updatedData)) {
       updateRatesMutation.mutate({ id: selectedTable.id, data: editedRates });
     } else if (updatedData && typeof updatedData === 'object' && 'entries' in updatedData) {
@@ -326,7 +326,7 @@ export default function RateTables() {
         <div className="flex items-center justify-center h-64">
           <PlayfulLoadingAnimation 
             stage="matching" 
-            message="CO Buddy is loading your rate tables..."
+            message="ProjectBuddy is loading your rate tables..."
             size="lg"
           />
         </div>
@@ -500,7 +500,7 @@ export default function RateTables() {
                             'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
                             'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
                           }>
-                            {getStatusIcon(table.isApproved)}
+                            {getStatusIcon(!!table.isApproved)}
                             <span className="ml-1">
                               {table.isApproved ? 'Approved' : 'Pending'}
                             </span>

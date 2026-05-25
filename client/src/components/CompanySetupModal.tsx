@@ -30,10 +30,8 @@ export default function CompanySetupModal({
 
   const setupCompanyMutation = useMutation({
     mutationFn: async (data: { files: any[], skipRates?: boolean }) => {
-      return apiRequest("/api/companies/setup", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest("POST", "/api/companies/setup", data);
+      return response;
     },
     onSuccess: () => {
       toast({

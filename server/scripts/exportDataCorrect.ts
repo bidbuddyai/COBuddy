@@ -8,13 +8,17 @@ async function exportDataForDeployment() {
   
   try {
     // Get all tables data using raw SQL since schema might be different
-    const companiesData = await db.execute(`SELECT * FROM companies`);
-    const usersData = await db.execute(`SELECT * FROM users`);
-    const rateTablesData = await db.execute(`SELECT * FROM rate_tables WHERE is_approved = true`);
+    const companiesRows = (await db.execute(`SELECT * FROM companies`)) as any;
+    const usersRows = (await db.execute(`SELECT * FROM users`)) as any;
+    const rateTablesRows = (await db.execute(`SELECT * FROM rate_tables WHERE is_approved = true`)) as any;
     
-    console.log(`Found ${companiesData.rows.length} companies`);
-    console.log(`Found ${usersData.rows.length} users`);
-    console.log(`Found ${rateTablesData.rows.length} approved rate tables`);
+    const companies = Array.isArray(companiesRows) ? companiesRows : (companiesRows.rows || []);
+    const users = Array.isArray(usersRows) ? usersRows : (usersRows.rows || []);
+    const rateTables = Array.isArray(rateTablesRows) ? rateTablesRows : (rateTablesRows.rows || []);
+    
+    console.log(`Found ${companies.length} companies`);
+    console.log(`Found ${users.length} users`);
+    console.log(`Found ${rateTables.length} approved rate tables`);
     
     // Create SQL import file
     let sqlStatements = [];
@@ -26,7 +30,7 @@ async function exportDataForDeployment() {
 -- Companies data`);
     
     // Companies
-    for (const company of companiesData.rows) {
+    for (const company of companies) {
       sqlStatements.push(
         `INSERT INTO companies (id, name, domain, logo_url, created_at, updated_at) 
          VALUES (${company.id}, '${company.name}', '${company.domain}', ${company.logo_url ? `'${company.logo_url}'` : 'NULL'}, NOW(), NOW()) 
@@ -36,7 +40,7 @@ async function exportDataForDeployment() {
     
     // Users
     sqlStatements.push(`\n-- Users data`);
-    for (const user of usersData.rows) {
+    for (const user of users) {
       sqlStatements.push(
         `INSERT INTO users (id, email, first_name, last_name, role, company_id, created_at, updated_at) 
          VALUES ('${user.id}', '${user.email}', ${user.first_name ? `'${user.first_name}'` : 'NULL'}, ${user.last_name ? `'${user.last_name}'` : 'NULL'}, '${user.role}', ${user.company_id}, NOW(), NOW()) 
@@ -46,7 +50,7 @@ async function exportDataForDeployment() {
     
     // Rate Tables
     sqlStatements.push(`\n-- Rate Tables data (approved only)`);
-    for (const table of rateTablesData.rows) {
+    for (const table of rateTables) {
       const dataJson = table.data ? JSON.stringify(table.data).replace(/'/g, "''") : '[]';
       sqlStatements.push(
         `INSERT INTO rate_tables (id, name, type, effective_date, region, data, source_file, extracted_at, reviewed_by, reviewed_at, is_approved, company_id) 
@@ -61,10 +65,11 @@ async function exportDataForDeployment() {
     
     // Projects (if they exist)
     try {
-      const projectsData = await db.execute(`SELECT * FROM projects`);
-      if (projectsData.rows.length > 0) {
+      const projectsRows = (await db.execute(`SELECT * FROM projects`)) as any;
+      const projects = Array.isArray(projectsRows) ? projectsRows : (projectsRows.rows || []);
+      if (projects.length > 0) {
         sqlStatements.push(`\n-- Projects data`);
-        for (const project of projectsData.rows) {
+        for (const project of projects) {
           sqlStatements.push(
             `INSERT INTO projects (id, number, name, client_name, budget, status, company_id, created_at, updated_at, labor_markup, materials_markup, equipment_owned_markup, equipment_rented_markup, disposal_markup, import_markup, subcontractors_markup) 
              VALUES (${project.id}, '${project.number}', '${project.name}', ${project.client_name ? `'${project.client_name}'` : 'NULL'}, ${project.budget || 0}, '${project.status || 'active'}', ${project.company_id}, NOW(), NOW(), ${project.labor_markup || 20}, ${project.materials_markup || 20}, ${project.equipment_owned_markup || 20}, ${project.equipment_rented_markup || 20}, ${project.disposal_markup || 15}, ${project.import_markup || 15}, ${project.subcontractors_markup || 5}) 

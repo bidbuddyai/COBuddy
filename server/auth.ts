@@ -38,8 +38,14 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: new pgStore({
       conString: process.env.DATABASE_URL,
-      createTableIfMissing: true,
+      createTableIfMissing: false,
+      tableName: "sessions",
     }),
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    }
   };
 
   app.set("trust proxy", 1);
@@ -48,15 +54,22 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({ passReqToCallback: true }, async (req, username, password, done) => {
       try {
         const user = await storage.getUserByEmail(username);
         if (!user) {
           return done(null, false);
         }
         
-        // For initial setup, accept any password if user has no password set
+        // For initial setup, accept any password if user has no password set, ONLY if SETUP_TOKEN is provided and matches
         if (!user.password) {
+          const reqSetupToken = (req.body && req.body.setupToken) || req.query.setupToken;
+          const serverSetupToken = process.env.SETUP_TOKEN;
+          
+          if (!serverSetupToken || reqSetupToken !== serverSetupToken) {
+            return done(null, false, { message: "Claiming an uninitialized account requires a valid server-side SETUP_TOKEN." });
+          }
+          
           // Set the password for first login
           const hashedPassword = await hashPassword(password);
           await storage.updateUser(user.id, { password: hashedPassword });
@@ -159,7 +172,19 @@ export function setupAuth(app: Express) {
     });
   });
 
+  app.get("/api/logout", (req, res, next) => {
+    req.logout((err) => {
+      if (err) return next(err);
+      res.redirect("/auth");
+    });
+  });
+
   app.get("/api/user", (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    res.json(req.user);
+  });
+
+  app.get("/api/auth/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     res.json(req.user);
   });

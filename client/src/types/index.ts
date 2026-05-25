@@ -8,6 +8,35 @@ export interface FileUploadResponse {
   status: string;
   uploadedAt: string;
   projectId?: number;
+  confidence?: number | string | null;
+}
+
+export interface ChatMessage {
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+}
+
+export interface ChatResponse {
+  response: string;
+  conversationId: number;
+  timestamp: string;
+}
+
+export interface DashboardStats {
+  totalChangeOrders: number;
+  totalValue: number;
+  pendingApproval: number;
+  aiProcessedRate: number;
+}
+
+export interface ExtractedData {
+  projectInfo?: { name?: string; location?: string };
+  date?: string;
+  laborEntries?: Array<{ name: string; role: string; confidence: number; hours: number; rate?: number }>;
+  equipmentEntries?: Array<{ type: string; description: string; confidence: number; hours: number; rate?: number }>;
+  materialEntries?: Array<{ type: string; description: string; confidence: number; quantity: number; unit: string; rate?: number }>;
+  totalConfidence: number;
 }
 
 export interface ExtractedTMData {

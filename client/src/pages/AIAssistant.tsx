@@ -27,6 +27,9 @@ interface DraftCO {
   equipment?: any[];
   subcontractors?: any[];
   totalEstimate?: number;
+  coType?: string;
+  uploadedFiles?: number[];
+  parsedData?: any[];
 }
 
 export default function AIAssistant() {
@@ -34,7 +37,7 @@ export default function AIAssistant() {
     {
       id: 1,
       role: 'assistant',
-      content: 'Hello! I\'m CO Buddy AI, your guided change order assistant. I can help you:\n\n• Create change orders with step-by-step guidance\n• Get estimates based on past similar work\n• Answer questions about rates and pricing\n• Navigate the application\n\nWant to create a change order? Just say "Create a change order" and I\'ll guide you through it!',
+      content: 'Hello! I\'m ProjectBuddy AI, your construction project management assistant. I can help you:\n\n• Manage budgets, schedules, RFIs, and submittals\n• Coordinate punch tasks and assign owners\n• Extract change orders automatically from T&M or quote PDFs\n• Navigate the workspace and answer rate sheet questions\n\nHow can I help you today?',
       timestamp: new Date()
     }
   ]);
@@ -51,6 +54,13 @@ export default function AIAssistant() {
   const { toast} = useToast();
   const [, navigate] = useLocation();
   const { selectedProjectId } = useProject();
+
+  const formatCurrency = (val: string | number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(Number(val) || 0);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -291,7 +301,7 @@ export default function AIAssistant() {
           <CardHeader className="border-b">
             <CardTitle className="flex items-center space-x-2">
               <Bot className="h-6 w-6 text-primary" />
-              <span>CO Buddy AI Assistant</span>
+              <span>ProjectBuddy AI Assistant</span>
               {conversationId && (
                 <span className="text-sm text-muted-foreground ml-auto">
                   Session #{conversationId}
@@ -459,7 +469,7 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Uploaded Documents</p>
                       <div className="space-y-1">
-                        {draftCO.uploadedFiles.map((fileId, idx) => (
+                        {draftCO.uploadedFiles.map((fileId: number, idx: number) => (
                           <div key={idx} className="text-xs bg-blue-50 p-2 rounded flex items-center">
                             <FileText className="h-3 w-3 mr-2 text-blue-600" />
                             <span>Document #{fileId}</span>
@@ -473,7 +483,7 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Parsing Status</p>
                       <div className="space-y-1">
-                        {draftCO.parsedData.map((doc: any, idx) => (
+                        {draftCO.parsedData.map((doc: any, idx: number) => (
                           <div key={idx} className={`text-xs p-2 rounded ${doc.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
                             <p className="font-medium">{doc.filename}</p>
                             <p>{doc.error || doc.status || 'Processed'}</p>
@@ -496,7 +506,7 @@ export default function AIAssistant() {
                               )}
                             </div>
                             <p className="text-muted-foreground">
-                              {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
+                              {item.hours} hrs @ {formatCurrency(item.rate)}/hr = {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -517,7 +527,7 @@ export default function AIAssistant() {
                               )}
                             </div>
                             <p className="text-muted-foreground">
-                              {item.quantity} {item.unit} @ ${item.rate} = ${item.amount.toFixed(2)}
+                              {item.quantity} {item.unit} @ {formatCurrency(item.rate)} = {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -538,7 +548,7 @@ export default function AIAssistant() {
                               )}
                             </div>
                             <p className="text-muted-foreground">
-                              {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
+                              {item.hours} hrs @ {formatCurrency(item.rate)}/hr = {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -550,11 +560,11 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Subcontractors</p>
                       <div className="space-y-1">
-                        {draftCO.subcontractors.map((item, idx) => (
+                        {draftCO.subcontractors.map((item: any, idx: number) => (
                           <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
                             <p className="font-medium">{item.name}</p>
                             <p className="text-muted-foreground">
-                              {item.scope} - ${item.amount.toFixed(2)}
+                              {item.scope} - {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -569,7 +579,7 @@ export default function AIAssistant() {
                         <span className="font-semibold">Total Estimate</span>
                       </div>
                       <span className="text-lg font-bold text-primary">
-                        ${calculateDraftTotal().toFixed(2)}
+                        {formatCurrency(calculateDraftTotal())}
                       </span>
                     </div>
                   </div>
@@ -595,7 +605,7 @@ export default function AIAssistant() {
                   <span className="font-medium">Draft CO Preview</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm font-bold">${calculateDraftTotal().toFixed(2)}</span>
+                  <span className="text-sm font-bold">{formatCurrency(calculateDraftTotal())}</span>
                   <ChevronUp className="h-4 w-4" />
                 </div>
               </Button>
@@ -636,7 +646,7 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Uploaded Documents</p>
                       <div className="space-y-1">
-                        {draftCO.uploadedFiles.map((fileId, idx) => (
+                        {draftCO.uploadedFiles.map((fileId: number, idx: number) => (
                           <div key={idx} className="text-xs bg-blue-50 p-2 rounded flex items-center">
                             <FileText className="h-3 w-3 mr-2 text-blue-600" />
                             <span>Document #{fileId}</span>
@@ -650,7 +660,7 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Parsing Status</p>
                       <div className="space-y-1">
-                        {draftCO.parsedData.map((doc: any, idx) => (
+                        {draftCO.parsedData.map((doc: any, idx: number) => (
                           <div key={idx} className={`text-xs p-2 rounded ${doc.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
                             <p className="font-medium">{doc.filename}</p>
                             <p>{doc.error || doc.status || 'Processed'}</p>
@@ -673,7 +683,7 @@ export default function AIAssistant() {
                               )}
                             </div>
                             <p className="text-muted-foreground">
-                              {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
+                              {item.hours} hrs @ {formatCurrency(item.rate)}/hr = {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -694,7 +704,7 @@ export default function AIAssistant() {
                               )}
                             </div>
                             <p className="text-muted-foreground">
-                              {item.quantity} {item.unit} @ ${item.rate} = ${item.amount.toFixed(2)}
+                              {item.quantity} {item.unit} @ {formatCurrency(item.rate)} = {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -715,7 +725,7 @@ export default function AIAssistant() {
                               )}
                             </div>
                             <p className="text-muted-foreground">
-                              {item.hours} hrs @ ${item.rate}/hr = ${item.amount.toFixed(2)}
+                              {item.hours} hrs @ {formatCurrency(item.rate)}/hr = {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -727,11 +737,11 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-semibold mb-2">Subcontractors</p>
                       <div className="space-y-1">
-                        {draftCO.subcontractors.map((item, idx) => (
+                        {draftCO.subcontractors.map((item: any, idx: number) => (
                           <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
                             <p className="font-medium">{item.name}</p>
                             <p className="text-muted-foreground">
-                              {item.scope} - ${item.amount.toFixed(2)}
+                              {item.scope} - {formatCurrency(item.amount)}
                             </p>
                           </div>
                         ))}
@@ -746,7 +756,7 @@ export default function AIAssistant() {
                         <span className="font-semibold">Total Estimate</span>
                       </div>
                       <span className="text-lg font-bold text-primary">
-                        ${calculateDraftTotal().toFixed(2)}
+                        {formatCurrency(calculateDraftTotal())}
                       </span>
                     </div>
                   </div>

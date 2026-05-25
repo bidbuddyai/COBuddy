@@ -45,13 +45,13 @@ function RecentLogs({ projectId, changeOrderId, limit = 5 }: { projectId: number
           </div>
           <div className="flex-1">
             <p className="font-medium text-gray-900 dark:text-gray-100">{log.subject}</p>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">{log.description.substring(0, 100)}...</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">{log.description?.substring(0, 100)}...</p>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
               <span className="flex items-center">
                 <Calendar className="h-3 w-3 mr-1" />
-                {format(new Date(log.createdAt), 'MMM dd, yyyy')}
+                {format(log.createdAt ? new Date(log.createdAt) : new Date(), 'MMM dd, yyyy')}
               </span>
-              <span>{log.createdByName}</span>
+              <span>{log.createdBy}</span>
             </div>
           </div>
         </div>
@@ -336,9 +336,9 @@ export default function ChangeOrders() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Cost</label>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Amount</label>
                     <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {formatCurrency(specificChangeOrder.totalCost || 0)}
+                      {formatCurrency(specificChangeOrder.totalAmount || 0)}
                     </p>
                   </div>
                 </div>
@@ -352,25 +352,25 @@ export default function ChangeOrders() {
                   <div>
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Labor Cost</label>
                     <p className="mt-1 text-gray-900 dark:text-gray-100">
-                      {formatCurrency(specificChangeOrder.laborCost || 0)}
+                      {formatCurrency(specificChangeOrder.laborAmount || 0)}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Material Cost</label>
                     <p className="mt-1 text-gray-900 dark:text-gray-100">
-                      {formatCurrency(specificChangeOrder.materialCost || 0)}
+                      {formatCurrency(specificChangeOrder.materialAmount || 0)}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Equipment Cost</label>
                     <p className="mt-1 text-gray-900 dark:text-gray-100">
-                      {formatCurrency(specificChangeOrder.equipmentCost || 0)}
+                      {formatCurrency(specificChangeOrder.equipmentAmount || 0)}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Disposal Cost</label>
                     <p className="mt-1 text-gray-900 dark:text-gray-100">
-                      {formatCurrency(specificChangeOrder.disposalCost || 0)}
+                      {formatCurrency(specificChangeOrder.disposalAmount || 0)}
                     </p>
                   </div>
                 </div>
@@ -457,7 +457,7 @@ export default function ChangeOrders() {
           </CardHeader>
           <CardContent>
             <RecentLogs 
-              projectId={specificChangeOrder.projectId} 
+              projectId={specificChangeOrder.projectId || 0} 
               changeOrderId={specificChangeOrder.id} 
               limit={5} 
             />
@@ -749,7 +749,6 @@ export default function ChangeOrders() {
       />
       
       {/* Change Order Form Modal */}
-      {console.log('Modal state - isCreateModalOpen:', isCreateModalOpen)}
       <ChangeOrderForm
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

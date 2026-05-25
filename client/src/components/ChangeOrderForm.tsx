@@ -37,6 +37,14 @@ export default function ChangeOrderForm({
   selectedDocuments,
   isSubmitting 
 }: ChangeOrderFormProps) {
+  const formatCurrency = (value: number | string) => {
+    const num = typeof value === 'number' ? value : Number(value) || 0;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(num);
+  };
+
   // Fetch project details
   const { data: projects } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
@@ -254,13 +262,13 @@ export default function ChangeOrderForm({
     const importSubtotal = calculateSubtotal('import');
     const subcontractorSubtotal = calculateSubtotal('subcontractor');
     
-    const laborWithMarkup = laborSubtotal * (1 + (formData.markups.labor || 0) / 100);
-    const materialWithMarkup = materialSubtotal * (1 + (formData.markups.materials || 0) / 100);
-    const equipmentOwnedWithMarkup = equipmentOwnedSubtotal * (1 + (formData.markups.equipmentOwned || 0) / 100);
-    const equipmentRentedWithMarkup = equipmentRentedSubtotal * (1 + (formData.markups.equipmentRented || 0) / 100);
-    const disposalWithMarkup = disposalSubtotal * (1 + (formData.markups.disposal || 0) / 100);
-    const importWithMarkup = importSubtotal * (1 + (formData.markups.import || 0) / 100);
-    const subcontractorWithMarkup = subcontractorSubtotal * (1 + (formData.markups.subcontractors || 0) / 100);
+    const laborWithMarkup = laborSubtotal * (1 + Number(formData.markups.labor || 0) / 100);
+    const materialWithMarkup = materialSubtotal * (1 + Number(formData.markups.materials || 0) / 100);
+    const equipmentOwnedWithMarkup = equipmentOwnedSubtotal * (1 + Number(formData.markups.equipmentOwned || 0) / 100);
+    const equipmentRentedWithMarkup = equipmentRentedSubtotal * (1 + Number(formData.markups.equipmentRented || 0) / 100);
+    const disposalWithMarkup = disposalSubtotal * (1 + Number(formData.markups.disposal || 0) / 100);
+    const importWithMarkup = importSubtotal * (1 + Number(formData.markups.import || 0) / 100);
+    const subcontractorWithMarkup = subcontractorSubtotal * (1 + Number(formData.markups.subcontractors || 0) / 100);
     
     return laborWithMarkup + materialWithMarkup + equipmentOwnedWithMarkup + 
            equipmentRentedWithMarkup + disposalWithMarkup + importWithMarkup + subcontractorWithMarkup;
@@ -384,7 +392,7 @@ export default function ChangeOrderForm({
               <tfoot className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <td colSpan={4} className="px-3 py-2 text-right font-medium">Subtotal:</td>
-                  <td className="px-3 py-2 font-medium">${calculateSubtotal(category).toFixed(2)}</td>
+                  <td className="px-3 py-2 font-medium">{formatCurrency(calculateSubtotal(category))}</td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -580,7 +588,7 @@ export default function ChangeOrderForm({
             <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
               <div className="flex items-center justify-between text-lg font-medium">
                 <span>Grand Total for this Change Order:</span>
-                <span className="text-2xl">${calculateTotalWithMarkup().toFixed(2)}</span>
+                <span className="text-2xl">{formatCurrency(calculateTotalWithMarkup())}</span>
               </div>
             </div>
           </TabsContent>
@@ -616,7 +624,7 @@ export default function ChangeOrderForm({
                         >
                           <FileText className="h-4 w-4 text-gray-400" />
                           <span className="font-medium">{doc.originalName}</span>
-                          <span className="text-sm text-gray-500">• {new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                          <span className="text-sm text-gray-500">• {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : ''}</span>
                           {doc.type && (
                             <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                               {doc.type.replace('_', ' ')}

@@ -24,47 +24,47 @@ interface QuickStartWizardProps {
 const steps = [
   {
     id: 1,
-    title: 'Welcome to CO Buddy AI',
+    title: 'Welcome to ProjectBuddy',
     description: 'Let\'s get you set up in just a few minutes',
     icon: Rocket,
-    content: `CO Buddy AI helps you create professional change orders from your Time & Materials documents. 
-              Our AI extracts data from PDFs and generates Excel and PDF change orders automatically.`,
+    content: `ProjectBuddy is a comprehensive construction project management platform. 
+              It helps you manage budgets, schedules, RFIs, submittals, bid packages, and punch tasks in a single cohesive workspace.`,
   },
   {
     id: 2,
-    title: 'Upload Your Rate Tables',
-    description: 'Add your company\'s labor, equipment, and material rates',
-    icon: DollarSign,
-    content: `Rate tables are the foundation of accurate change orders. Upload your rate PDFs or CSVs, 
-              and our AI will extract and organize them for you.`,
-    action: '/rate-tables',
-  },
-  {
-    id: 3,
     title: 'Create Your First Project',
     description: 'Organize your work by project',
     icon: Settings,
-    content: `Projects help you keep change orders organized by client and job. 
-              Each project can have its own budget, timeline, and team members.`,
+    content: `Projects are the foundation of ProjectBuddy. Creating a project opens up a dedicated 
+              Project Workspace where you can manage specific budgets, RFIs, submittals, and timelines.`,
+    action: '/projects',
+  },
+  {
+    id: 3,
+    title: 'Manage Budgets & Timelines',
+    description: 'Track project costs and milestones',
+    icon: DollarSign,
+    content: `Set up cost codes and track original budgets, approved/pending changes, committed costs, and forecasts. 
+              Import CSV schedule lines, monitor critical path activities, and assign task owners.`,
     action: '/projects',
   },
   {
     id: 4,
-    title: 'Upload T&M Documents',
-    description: 'Let AI process your Time & Materials sheets',
-    icon: Upload,
-    content: `Upload T&M sheets, quotes, or invoices. Our AI will extract labor hours, 
-              equipment usage, and materials, then match them to your rates automatically.`,
-    action: '/documents',
+    title: 'RFIs & Submittals',
+    description: 'Draft and coordinate clarifications and reviews',
+    icon: FileText,
+    content: `Create RFIs with drawing links and discipline selectors. 
+              Track submittal packages from subcontractors and log reviewer stamp approvals with document attachments.`,
+    action: '/projects',
   },
   {
     id: 5,
-    title: 'Generate Change Orders',
-    description: 'Create professional Excel and PDF change orders',
-    icon: FileText,
-    content: `Once your documents are processed, generate change orders with one click. 
-              Export to Excel for editing or PDF for client submission.`,
-    action: '/change-orders',
+    title: 'AI Change Orders',
+    description: 'Automate change orders with built-in CO Buddy AI',
+    icon: Upload,
+    content: `Upload daily T&M sheets or subcontractor receipts. Let ProjectBuddy AI automatically 
+              extract labor hours or materials, match your project rate sheets, and draft potential change orders (PCOs).`,
+    action: '/rate-tables',
   },
 ];
 
@@ -94,7 +94,7 @@ export default function QuickStartWizard({ isOpen, onClose }: QuickStartWizardPr
   const handleComplete = () => {
     localStorage.setItem('quickStartCompleted', 'true');
     onClose();
-    setLocation('/documents');
+    setLocation('/projects');
   };
 
   const handleActionClick = (action: string) => {

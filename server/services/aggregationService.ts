@@ -162,11 +162,11 @@ export const aggregationService = {
     const approvalRate = submittedCount > 0 ? (approvedCount / submittedCount) * 100 : 0;
     
     // Calculate average days to approval
-    const approvedCOs = cos.filter(co => co.status === 'approved' && co.submittedDate && co.approvedDate);
+    const approvedCOs = cos.filter(co => co.status === 'approved' && co.dateSubmitted && co.dateApproved);
     const totalDays = approvedCOs.reduce((sum, co) => {
-      if (co.submittedDate && co.approvedDate) {
-        const submitted = new Date(co.submittedDate);
-        const approved = new Date(co.approvedDate);
+      if (co.dateSubmitted && co.dateApproved) {
+        const submitted = new Date(co.dateSubmitted);
+        const approved = new Date(co.dateApproved);
         const days = Math.floor((approved.getTime() - submitted.getTime()) / (1000 * 60 * 60 * 24));
         return sum + days;
       }
@@ -278,8 +278,8 @@ export const aggregationService = {
     
     // Process GC COs
     cos.forEach(co => {
-      if (co.submittedDate) {
-        const date = new Date(co.submittedDate);
+      if (co.dateSubmitted) {
+        const date = new Date(co.dateSubmitted);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         
         if (!monthMap.has(monthKey)) {
@@ -301,8 +301,8 @@ export const aggregationService = {
     
     // Process SCOs
     scos.forEach(sco => {
-      if (sco.submittedDate) {
-        const date = new Date(sco.submittedDate);
+      if (sco.dateSubmitted) {
+        const date = new Date(sco.dateSubmitted);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         
         if (!monthMap.has(monthKey)) {

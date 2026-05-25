@@ -37,6 +37,13 @@ export default function ChangeOrderLogs() {
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
+  const formatCurrency = (val: string | number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(Number(val) || 0);
+  };
+
   // Fetch project details
   const { data: project, isLoading: projectLoading } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
@@ -54,15 +61,15 @@ export default function ChangeOrderLogs() {
   // Filter change orders based on search
   const filteredOrders = changeOrders.filter(order => 
     order.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.description || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Calculate totals
   const totals = filteredOrders.reduce((acc, order) => {
-    const orderTotal = (order.laborAmount || 0) + (order.materialsAmount || 0) + 
-                      (order.equipmentOwnedAmount || 0) + (order.equipmentRentedAmount || 0) +
-                      (order.disposalAmount || 0) + (order.importAmount || 0) + 
-                      (order.subcontractorsAmount || 0);
+    const orderTotal = Number(order.laborAmount || 0) + Number(order.materialAmount || 0) + 
+                      Number(order.equipmentAmount || 0) +
+                      Number(order.disposalAmount || 0) + Number(order.importAmount || 0) + 
+                      Number(order.subcontractorAmount || 0);
     
     acc.total += orderTotal;
     acc.approved += order.status === 'approved' ? orderTotal : 0;
@@ -163,7 +170,7 @@ export default function ChangeOrderLogs() {
 
 
   if (isLoading) {
-    return <PlayfulLoadingAnimation />;
+    return <PlayfulLoadingAnimation stage="analyzing" />;
   }
 
   if (!project) {
@@ -238,26 +245,27 @@ export default function ChangeOrderLogs() {
       </div>
 
       {/* AI-Powered Features Banner */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-4 md:p-6 text-white mb-4">
+      <div className="bg-[var(--mint-highlight)] dark:bg-[var(--deep-green)] border border-emerald-200 dark:border-emerald-800/40 rounded-lg p-4 md:p-6 text-[var(--deep-green)] dark:text-[var(--foreground)] mb-4">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex-1">
-            <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 mb-2">
-              <Sparkles className="h-5 w-5" />
+            <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 mb-2 text-emerald-850 dark:text-emerald-300">
+              <Sparkles className="h-5 w-5 text-[var(--primary)] dark:text-[var(--accent)] animate-pulse" />
               AI-Powered Change Order Creation
             </h2>
-            <p className="text-sm md:text-base opacity-90">
+            <p className="text-sm md:text-base text-emerald-900/80 dark:text-emerald-100/80">
               Upload T&M sheets or invoices and let AI instantly create change orders with your pre-loaded rates
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             <Link href={`/documents?project=${projectId}`}>
-              <Button className="bg-white text-green-700 hover:bg-gray-100 w-full sm:w-auto">
+              <Button className="bg-emerald-600 dark:bg-emerald-500 text-white hover:bg-emerald-700 dark:hover:bg-emerald-400 w-full sm:w-auto border-none">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload T&M
               </Button>
             </Link>
             <Button 
-              className="bg-green-800 hover:bg-green-900 text-white w-full sm:w-auto"
+              variant="outline"
+              className="bg-white dark:bg-card text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-850 hover:bg-emerald-50 dark:hover:bg-emerald-950 w-full sm:w-auto"
               onClick={() => {
                 const event = new CustomEvent('open-ai-assistant', { 
                   detail: { message: `Help me create a change order for project ${project?.name}` } 
@@ -272,18 +280,18 @@ export default function ChangeOrderLogs() {
         </div>
         
         {/* Feature highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-green-500">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-800/60 text-emerald-850 dark:text-emerald-250">
           <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            <span className="text-sm">Instant CO creation from uploads</span>
+            <Zap className="h-4 w-4 text-[var(--primary)] dark:text-[var(--accent)]" />
+            <span className="text-sm font-medium">Instant CO creation from uploads</span>
           </div>
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            <span className="text-sm">Pre-loaded company rates</span>
+            <BarChart3 className="h-4 w-4 text-[var(--primary)] dark:text-[var(--accent)]" />
+            <span className="text-sm font-medium">Pre-loaded company rates</span>
           </div>
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-sm">AI validates & matches rates</span>
+            <Sparkles className="h-4 w-4 text-[var(--primary)] dark:text-[var(--accent)]" />
+            <span className="text-sm font-medium">AI validates & matches rates</span>
           </div>
         </div>
       </div>
@@ -307,7 +315,7 @@ export default function ChangeOrderLogs() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Total Value</p>
-                <p className="text-lg md:text-xl font-bold">${totals.total.toFixed(2)}</p>
+                <p className="text-lg md:text-xl font-bold">{formatCurrency(totals.total)}</p>
               </div>
               <DollarSign className="h-8 w-8 text-gray-300" />
             </div>
@@ -319,7 +327,7 @@ export default function ChangeOrderLogs() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Approved</p>
-                <p className="text-lg md:text-xl font-bold text-green-600">${totals.approved.toFixed(2)}</p>
+                <p className="text-lg md:text-xl font-bold text-green-600">{formatCurrency(totals.approved)}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-300" />
             </div>
@@ -331,7 +339,7 @@ export default function ChangeOrderLogs() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Pending</p>
-                <p className="text-lg md:text-xl font-bold text-yellow-600">${totals.pending.toFixed(2)}</p>
+                <p className="text-lg md:text-xl font-bold text-yellow-600">{formatCurrency(totals.pending)}</p>
               </div>
               <Clock className="h-8 w-8 text-yellow-300" />
             </div>
@@ -361,10 +369,10 @@ export default function ChangeOrderLogs() {
       {/* Change Orders Table - Mobile */}
       <div className="block md:hidden space-y-3">
         {filteredOrders.map((order) => {
-          const total = (order.laborAmount || 0) + (order.materialsAmount || 0) + 
-                       (order.equipmentOwnedAmount || 0) + (order.equipmentRentedAmount || 0) +
-                       (order.disposalAmount || 0) + (order.importAmount || 0) + 
-                       (order.subcontractorsAmount || 0);
+          const total = Number(order.laborAmount || 0) + Number(order.materialAmount || 0) + 
+                       Number(order.equipmentAmount || 0) +
+                       Number(order.disposalAmount || 0) + Number(order.importAmount || 0) + 
+                       Number(order.subcontractorAmount || 0);
           
           return (
             <Card key={order.id}>
@@ -386,10 +394,10 @@ export default function ChangeOrderLogs() {
                 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    {format(new Date(order.createdAt), 'MMM dd, yyyy')}
+                    {order.createdAt ? format(new Date(order.createdAt), 'MMM dd, yyyy') : 'N/A'}
                   </span>
                   <span className="font-bold text-gray-900 dark:text-gray-100">
-                    ${total.toFixed(2)}
+                    {formatCurrency(total)}
                   </span>
                 </div>
                 
@@ -452,12 +460,12 @@ export default function ChangeOrderLogs() {
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredOrders.map((order) => {
-                  const total = (order.laborAmount || 0) + (order.materialsAmount || 0) + 
-                               (order.equipmentOwnedAmount || 0) + (order.equipmentRentedAmount || 0) +
-                               (order.disposalAmount || 0) + (order.importAmount || 0) + 
-                               (order.subcontractorsAmount || 0);
+                  const total = Number(order.laborAmount || 0) + Number(order.materialAmount || 0) + 
+                               Number(order.equipmentAmount || 0) +
+                               Number(order.disposalAmount || 0) + Number(order.importAmount || 0) + 
+                               Number(order.subcontractorAmount || 0);
                   
-                  const daysOpen = Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                  const daysOpen = order.createdAt ? Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0;
                   
                   return (
                     <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -465,13 +473,13 @@ export default function ChangeOrderLogs() {
                         {order.number}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {format(new Date(order.createdAt), 'MMM dd, yyyy')}
+                        {order.createdAt ? format(new Date(order.createdAt), 'MMM dd, yyyy') : 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
                         {order.description}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        ${total.toFixed(2)}
+                        {formatCurrency(total)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                         {order.status === 'approved' ? (

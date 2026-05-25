@@ -110,8 +110,8 @@ export default function AIChat() {
                 <Avatar className="w-6 h-6 flex-shrink-0">
                   <AvatarFallback className={`text-xs ${
                     msg.role === 'user' 
-                      ? 'bg-blue-100 text-blue-600' 
-                      : 'fieldflo-primary text-white bg-opacity-10'
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted text-primary border border-border'
                   }`}>
                     {msg.role === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
                   </AvatarFallback>
@@ -119,12 +119,14 @@ export default function AIChat() {
                 <div
                   className={`max-w-[80%] rounded-lg p-3 ${
                     msg.role === 'user'
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100'
-                      : 'bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-foreground'
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className={`text-[10px] mt-1 ${
+                    msg.role === 'user' ? 'text-primary-foreground/75' : 'text-muted-foreground'
+                  }`}>
                     {msg.timestamp.toLocaleTimeString()}
                   </p>
                 </div>
@@ -135,14 +137,14 @@ export default function AIChat() {
             {chatMutation.isPending && (
               <div className="flex items-start space-x-3 chat-bubble">
                 <Avatar className="w-6 h-6 flex-shrink-0">
-                  <AvatarFallback className="fieldflo-primary text-white bg-opacity-10">
+                  <AvatarFallback className="bg-muted text-primary border border-border">
                     <Bot className="h-3 w-3" />
                   </AvatarFallback>
                 </Avatar>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                <div className="bg-muted text-foreground rounded-lg p-3">
                   <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">
                       AI is thinking...
                     </span>
                   </div>

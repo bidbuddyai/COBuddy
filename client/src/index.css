@@ -2,62 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force light theme by default */
-html {
-  color-scheme: light;
-}
-
 :root {
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(20, 14.3%, 4.1%);
-  --muted: hsl(60, 4.8%, 95.9%);
-  --muted-foreground: hsl(25, 5.3%, 44.7%);
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(20, 14.3%, 4.1%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(20, 14.3%, 4.1%);
-  --border: hsl(20, 5.9%, 90%);
-  --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(149, 97%, 13%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(60, 4.8%, 95.9%);
-  --secondary-foreground: hsl(24, 9.8%, 10%);
-  --accent: hsl(60, 4.8%, 95.9%);
-  --accent-foreground: hsl(24, 9.8%, 10%);
-  --destructive: hsl(0, 84.2%, 60.2%);
-  --destructive-foreground: hsl(60, 9.1%, 97.8%);
-  --ring: hsl(149, 97%, 13%);
+  --background: #F7FAF8;
+  --foreground: #17211D;
+  --muted: #F1F5F3;
+  --muted-foreground: #829089;
+  --popover: #FFFFFF;
+  --popover-foreground: #17211D;
+  --card: #FFFFFF;
+  --card-foreground: #17211D;
+  --border: #DDE7E2;
+  --input: #DDE7E2;
+  --primary: #047857;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F3;
+  --secondary-foreground: #5C6B63;
+  --accent: #059669;
+  --accent-foreground: #FFFFFF;
+  --destructive: #B42318;
+  --destructive-foreground: #FFFFFF;
+  --ring: #047857;
   --radius: 0.5rem;
   
-  /* Custom CO Buddy AI colors */
-  --fieldflo-primary: hsl(149, 97%, 13%);
-  --fieldflo-primary-light: hsl(149, 78%, 26%);
-  --fieldflo-primary-bright: hsl(149, 78%, 37%);
-  --fieldflo-primary-dark: hsl(149, 97%, 8%);
-  --fieldflo-gray-950: hsl(0, 0%, 6%);
+  /* Custom colors */
+  --deep-green: #064E3B;
+  --mint-highlight: #DDF7EC;
+  --warning: #B7791F;
+  --danger: #B42318;
+  --info: #2563EB;
 }
 
 .dark {
-  --background: hsl(240, 10%, 3.9%);
-  --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(240, 10%, 3.9%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 3.9%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(149, 97%, 13%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(240, 3.7%, 15.9%);
-  --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(240, 3.7%, 15.9%);
-  --accent-foreground: hsl(0, 0%, 98%);
-  --destructive: hsl(0, 62.8%, 30.6%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(240, 4.9%, 83.9%);
-  --radius: 0.5rem;
+  --background: #07130F;
+  --foreground: #EEF8F3;
+  --muted: #132821;
+  --muted-foreground: #81958C;
+  --popover: #0E1C17;
+  --popover-foreground: #EEF8F3;
+  --card: #0E1C17;
+  --card-foreground: #EEF8F3;
+  --border: #244339;
+  --input: #244339;
+  --primary: #10B981;
+  --primary-foreground: #07130F;
+  --secondary: #132821;
+  --secondary-foreground: #B8CAC1;
+  --accent: #34D399;
+  --accent-foreground: #07130F;
+  --destructive: #B42318;
+  --destructive-foreground: #FFFFFF;
+  --ring: #10B981;
+  
+  /* Custom colors */
+  --deep-green: #022C22;
+  --mint-highlight: #12382D;
+  --warning: #B7791F;
+  --danger: #B42318;
+  --info: #2563EB;
 }
 
 @layer base {
@@ -72,19 +73,19 @@ html {
 
 @layer components {
   .fieldflo-primary {
-    @apply bg-[hsl(149,97%,13%)] text-white;
+    @apply bg-[var(--primary)] text-[var(--primary-foreground)];
   }
   
   .fieldflo-primary-hover {
-    @apply hover:bg-[hsl(149,97%,8%)];
+    @apply hover:bg-[var(--deep-green)] dark:hover:bg-[var(--accent)];
   }
   
   .fieldflo-primary-light {
-    @apply bg-[hsl(149,78%,26%)];
+    @apply bg-[var(--mint-highlight)] text-[var(--deep-green)];
   }
   
   .fieldflo-primary-bright {
-    @apply bg-[hsl(149,78%,37%)];
+    @apply bg-[var(--accent)] text-[var(--primary-foreground)];
   }
 }
 
@@ -94,16 +95,16 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+  background: var(--muted);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground));
+  background: var(--muted-foreground);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
+  background: var(--primary);
 }
 
 /* Upload area animations */

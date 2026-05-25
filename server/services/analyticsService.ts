@@ -120,8 +120,9 @@ export class AnalyticsService {
     const monthlyTotals = new Map<string, any>();
     
     changeOrdersData.forEach(order => {
-      const month = new Date(order.createdAt).toISOString().substring(0, 7); // YYYY-MM
-      const monthName = new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short' });
+      const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+      const month = orderDate.toISOString().substring(0, 7); // YYYY-MM
+      const monthName = orderDate.toLocaleDateString('en-US', { month: 'short' });
       
       if (!monthlyTotals.has(month)) {
         monthlyTotals.set(month, {
@@ -135,13 +136,13 @@ export class AnalyticsService {
       }
       
       const monthData = monthlyTotals.get(month);
-      const orderData = order.data || {};
+      const orderData = (order.data || {}) as any;
       
       monthData.labor += orderData.laborTotal || 0;
       monthData.materials += orderData.materialsTotal || 0;
       monthData.equipment += orderData.equipmentTotal || 0;
       monthData.disposal += orderData.disposalTotal || 0;
-      monthData.total += order.totalAmount || 0;
+      monthData.total += parseFloat(order.totalAmount || '0');
     });
 
     return Array.from(monthlyTotals.values()).sort((a, b) => 
@@ -153,7 +154,7 @@ export class AnalyticsService {
     const quarterlyTotals = new Map<string, any>();
     
     changeOrdersData.forEach(order => {
-      const date = new Date(order.createdAt);
+      const date = order.createdAt ? new Date(order.createdAt) : new Date();
       const quarter = `Q${Math.floor((date.getMonth() + 3) / 3)} ${date.getFullYear()}`;
       
       if (!quarterlyTotals.has(quarter)) {
@@ -168,13 +169,13 @@ export class AnalyticsService {
       }
       
       const quarterData = quarterlyTotals.get(quarter);
-      const orderData = order.data || {};
+      const orderData = (order.data || {}) as any;
       
       quarterData.labor += orderData.laborTotal || 0;
       quarterData.materials += orderData.materialsTotal || 0;
       quarterData.equipment += orderData.equipmentTotal || 0;
       quarterData.disposal += orderData.disposalTotal || 0;
-      quarterData.total += order.totalAmount || 0;
+      quarterData.total += parseFloat(order.totalAmount || '0');
     });
 
     return Array.from(quarterlyTotals.values());
@@ -198,19 +199,19 @@ export class AnalyticsService {
     const anomalies: any[] = [];
 
     // Calculate statistical thresholds
-    const totalAmounts = changeOrdersData.map(order => order.totalAmount || 0);
-    const mean = totalAmounts.reduce((sum, val) => sum + val, 0) / totalAmounts.length;
+    const totalAmounts = changeOrdersData.map(order => parseFloat(order.totalAmount || '0'));
+    const mean = totalAmounts.reduce((sum, val) => sum + val, 0) / (totalAmounts.length || 1);
     const stdDev = Math.sqrt(
-      totalAmounts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / totalAmounts.length
+      totalAmounts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (totalAmounts.length || 1)
     );
 
     // Detect cost spikes (values > 2 standard deviations above mean)
     changeOrdersData.forEach(order => {
-      const amount = order.totalAmount || 0;
+      const amount = parseFloat(order.totalAmount || '0');
       const threshold = mean + (2 * stdDev);
       
       if (amount > threshold) {
-        const variance = ((amount - mean) / mean) * 100;
+        const variance = ((amount - mean) / (mean || 1)) * 100;
         anomalies.push({
           id: `spike-${order.id}`,
           type: 'cost_spike',
@@ -219,7 +220,7 @@ export class AnalyticsService {
           value: amount,
           expectedValue: Math.round(mean),
           variance: variance,
-          date: order.createdAt.toISOString().split('T')[0],
+          date: (order.createdAt ? new Date(order.createdAt).toISOString() : new Date().toISOString()).split('T')[0],
           category: 'Total Cost'
         });
       }
@@ -230,7 +231,7 @@ export class AnalyticsService {
     anomalies.push(...rateUsageAnomalies);
 
     return anomalies.sort((a, b) => {
-      const severityOrder = { high: 3, medium: 2, low: 1 };
+      const severityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
       return severityOrder[b.severity] - severityOrder[a.severity];
     });
   }
@@ -311,7 +312,7 @@ export class AnalyticsService {
     };
 
     changeOrdersData.forEach(order => {
-      const orderData = order.data || {};
+      const orderData = (order.data || {}) as any;
       totals.labor += orderData.laborTotal || 0;
       totals.materials += orderData.materialsTotal || 0;
       totals.equipment += orderData.equipmentTotal || 0;
@@ -350,8 +351,8 @@ export class AnalyticsService {
       .from(documents)
       .where(
         and(
-          gte(documents.createdAt, startDate),
-          lte(documents.createdAt, endDate)
+          gte(documents.uploadedAt, startDate),
+          lte(documents.uploadedAt, endDate)
         )
       );
 
@@ -368,8 +369,8 @@ export class AnalyticsService {
     const processedDocs = documentsData.filter(doc => doc.processedAt);
     const avgProcessingTime = processedDocs.length > 0 ?
       processedDocs.reduce((sum, doc) => {
-        const processingTime = doc.processedAt && doc.createdAt ? 
-          new Date(doc.processedAt).getTime() - new Date(doc.createdAt).getTime() : 0;
+        const processingTime = doc.processedAt && doc.uploadedAt ? 
+          new Date(doc.processedAt).getTime() - new Date(doc.uploadedAt).getTime() : 0;
         return sum + processingTime;
       }, 0) / processedDocs.length / 1000 / 60 : 0; // Convert to minutes
 
@@ -379,7 +380,7 @@ export class AnalyticsService {
       (successfulDocs.length / documentsData.length) * 100 : 0;
 
     // Calculate cost per change order
-    const totalCost = changeOrdersData.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+    const totalCost = changeOrdersData.reduce((sum, order) => sum + parseFloat(order.totalAmount || '0'), 0);
     const costPerChangeOrder = changeOrdersData.length > 0 ? 
       totalCost / changeOrdersData.length : 0;
 

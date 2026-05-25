@@ -14,42 +14,42 @@ export function DocumentProcessingIndicator({ stage, progress = 0, fileName }: P
       text: "Uploading document...",
       color: "text-blue-600",
       bgColor: "bg-blue-100",
-      playful: "CO Buddy is catching your file!"
+      playful: "ProjectBuddy AI is catching your file!"
     },
     analyzing: {
       icon: Sparkles,
       text: "AI analyzing content...",
       color: "text-purple-600",
       bgColor: "bg-purple-100",
-      playful: "CO Buddy is reading your document like a detective!"
+      playful: "ProjectBuddy AI is reading your document like a detective!"
     },
     extracting: {
       icon: Zap,
       text: "Extracting data...",
       color: "text-indigo-600",
       bgColor: "bg-indigo-100",
-      playful: "CO Buddy is finding all the important details!"
+      playful: "ProjectBuddy AI is finding all the important details!"
     },
     matching: {
       icon: Target,
       text: "Matching rates...",
       color: "text-orange-600",
       bgColor: "bg-orange-100",
-      playful: "CO Buddy is matching your rates like a pro!"
+      playful: "ProjectBuddy AI is matching your rates like a pro!"
     },
     complete: {
       icon: CheckCircle,
       text: "Processing complete!",
       color: "text-green-600",
       bgColor: "bg-green-100",
-      playful: "CO Buddy has finished! Your document is ready!"
+      playful: "ProjectBuddy AI has finished! Your document is ready!"
     },
     error: {
       icon: AlertCircle,
       text: "Processing failed",
       color: "text-red-600",
       bgColor: "bg-red-100",
-      playful: "CO Buddy encountered an issue, but we'll try again!"
+      playful: "ProjectBuddy AI encountered an issue, but we'll try again!"
     }
   };
 

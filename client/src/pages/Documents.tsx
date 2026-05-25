@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import FileUpload from '@/components/FileUpload';
 import ProjectSelector from '@/components/ProjectSelector';
 import DocumentEditor from '@/components/DocumentEditor';
+import DocumentViewer from '@/components/DocumentViewer';
 import ChangeOrderForm from '@/components/ChangeOrderForm';
 import { useDocumentProgress } from '@/hooks/useWebSocket';
 import { COBuddyThinkingAnimation, PulsingCOBuddy } from '@/components/PlayfulLoadingAnimations';
@@ -459,7 +460,7 @@ export default function Documents() {
                                         {document.originalName}
                                       </h4>
                                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {new Date(document.uploadedAt).toLocaleDateString()}
+                                        {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : 'N/A'}
                                       </p>
                                     </div>
                                   </div>
@@ -508,26 +509,29 @@ export default function Documents() {
                                     </motion.div>
                                   )}
                                   
-                                  {document.confidence && (
-                                    <div className="flex items-center space-x-2">
-                                      <span className="text-xs text-gray-500">Confidence:</span>
-                                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                        <motion.div 
-                                          className={`h-2 rounded-full ${
-                                            document.confidence > 0.8 ? 'bg-green-500' :
-                                            document.confidence > 0.6 ? 'bg-yellow-500' :
-                                            'bg-red-500'
-                                          }`}
-                                          initial={{ width: 0 }}
-                                          animate={{ width: `${document.confidence * 100}%` }}
-                                          transition={{ duration: 0.5, delay: index * 0.05 + 0.2 }}
-                                        />
+                                  {document.confidence && (() => {
+                                    const confidenceNum = Number(document.confidence);
+                                    return (
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-xs text-gray-500">Confidence:</span>
+                                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                          <motion.div 
+                                            className={`h-2 rounded-full ${
+                                              confidenceNum > 0.8 ? 'bg-green-500' :
+                                              confidenceNum > 0.6 ? 'bg-yellow-500' :
+                                              'bg-red-500'
+                                            }`}
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${confidenceNum * 100}%` }}
+                                            transition={{ duration: 0.5, delay: index * 0.05 + 0.2 }}
+                                          />
+                                        </div>
+                                        <span className="text-xs font-medium">
+                                          {Math.round(confidenceNum * 100)}%
+                                        </span>
                                       </div>
-                                      <span className="text-xs font-medium">
-                                        {Math.round(document.confidence * 100)}%
-                                      </span>
-                                    </div>
-                                  )}
+                                    );
+                                  })()}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
@@ -542,15 +546,17 @@ export default function Documents() {
                                     </Button>
                                   )}
                                   <div className="flex gap-1">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="flex-1"
-                                      disabled={document.status === 'processing'}
-                                    >
-                                      <Eye className="h-3 w-3" />
-                                      <span className="ml-1 hidden sm:inline">View</span>
-                                    </Button>
+                                    <DocumentViewer document={document}>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        disabled={document.status === 'processing'}
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                        <span className="ml-1 hidden sm:inline">View</span>
+                                      </Button>
+                                    </DocumentViewer>
                                     {document.status === 'processed' && (
                                       <Button
                                         variant="outline"

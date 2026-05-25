@@ -198,6 +198,9 @@ export const subcontractors = pgTable("subcontractors", {
   address: text("address"),
   licenseNumber: varchar("license_number"),
   tradeType: varchar("trade_type"), // electrical, plumbing, concrete, etc.
+  contactName: varchar("contact_name"),
+  insuranceInfo: varchar("insurance_info"),
+  notes: text("notes"),
   companyId: integer("company_id").references(() => companies.id).notNull(), // Which GC company manages this sub
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -329,6 +332,190 @@ export const chatConversations = pgTable("chat_conversations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// RFIs
+export const rfis = pgTable("rfis", {
+  id: serial("id").primaryKey(),
+  number: varchar("number").notNull(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  subject: varchar("subject").notNull(),
+  question: text("question").notNull(),
+  suggestedAnswer: text("suggested_answer"),
+  costImpact: varchar("cost_impact").default("undetermined"), // yes, no, undetermined
+  scheduleImpact: integer("schedule_impact").default(0), // days
+  priority: varchar("priority").default("medium"), // low, medium, high
+  status: varchar("status").default("open"), // draft, open, answered, closed, rejected
+  ballInCourt: varchar("ball_in_court"),
+  dueDate: timestamp("due_date"),
+  discipline: varchar("discipline"),
+  location: varchar("location"),
+  linkedDrawings: jsonb("linked_drawings"),
+  linkedSpecs: jsonb("linked_specs"),
+  attachments: jsonb("attachments"), // array of doc references
+  documentId: integer("document_id").references(() => documents.id),
+  officialResponse: text("official_response"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// RFI Comments
+export const rfiComments = pgTable("rfi_comments", {
+  id: serial("id").primaryKey(),
+  rfiId: integer("rfi_id").references(() => rfis.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  comment: text("comment").notNull(),
+  attachments: jsonb("attachments"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Submittals
+export const submittals = pgTable("submittals", {
+  id: serial("id").primaryKey(),
+  number: varchar("number").notNull(),
+  title: varchar("title").notNull(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  specSection: varchar("spec_section"), // e.g. "02 82 13 Asbestos Abatement"
+  package: varchar("package"),
+  type: varchar("type").default("product_data"), // shop_drawing, product_data, sample, other
+  responsibleContractorId: integer("responsible_contractor_id").references(() => subcontractors.id),
+  reviewerId: varchar("reviewer_id").references(() => users.id),
+  dueDate: timestamp("due_date"),
+  requiredDate: timestamp("required_date"),
+  receivedDate: timestamp("received_date"),
+  returnedDate: timestamp("returned_date"),
+  status: varchar("status").default("open"), // draft, open, pending_review, approved, approved_as_noted, revise_resubmit, rejected
+  ballInCourt: varchar("ball_in_court"),
+  attachments: jsonb("attachments"),
+  documentId: integer("document_id").references(() => documents.id),
+  revision: integer("revision").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Submittal Reviews
+export const submittalReviews = pgTable("submittal_reviews", {
+  id: serial("id").primaryKey(),
+  submittalId: integer("submittal_id").references(() => submittals.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  status: varchar("status").notNull(), // approved, approved_as_noted, revise_resubmit, rejected
+  comments: text("comments"),
+  attachments: jsonb("attachments"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tasks / Punch List
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  status: varchar("status").default("open"), // open, in_progress, completed, verified, closed
+  priority: varchar("priority").default("medium"), // low, medium, high
+  dueDate: timestamp("due_date"),
+  assigneeId: varchar("assignee_id").references(() => users.id),
+  assigneeName: varchar("assignee_name"),
+  location: varchar("location"),
+  attachments: jsonb("attachments"),
+  comments: jsonb("comments"), // JSON list of comments [{text, userId, createdAt}]
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Cost Codes
+export const costCodes = pgTable("cost_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code").notNull(), // e.g. "02-100"
+  name: varchar("name").notNull(), // e.g. "Structure Demolition"
+  companyId: integer("company_id").references(() => companies.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Budget Line Items
+export const budgetLineItems = pgTable("budget_line_items", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  costCodeId: integer("cost_code_id").references(() => costCodes.id).notNull(),
+  originalBudget: decimal("original_budget", { precision: 12, scale: 2 }).default("0.00"),
+  approvedChanges: decimal("approved_changes", { precision: 12, scale: 2 }).default("0.00"),
+  pendingChanges: decimal("pending_changes", { precision: 12, scale: 2 }).default("0.00"),
+  committedCosts: decimal("committed_costs", { precision: 12, scale: 2 }).default("0.00"),
+  forecastCost: decimal("forecast_cost", { precision: 12, scale: 2 }).default("0.00"),
+  estimatedAtCompletion: decimal("estimated_at_completion", { precision: 12, scale: 2 }).default("0.00"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Schedule Activities
+export const scheduleActivities = pgTable("schedule_activities", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  name: varchar("name").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  finishDate: timestamp("finish_date").notNull(),
+  duration: integer("duration").notNull(), // days
+  predecessors: jsonb("predecessors"), // array of activity IDs
+  successors: jsonb("successors"),
+  percentComplete: integer("percent_complete").default(0),
+  responsibleParty: varchar("responsible_party"),
+  phase: varchar("phase"),
+  location: varchar("location"),
+  criticalPath: boolean("critical_path").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Bid Packages
+export const bidPackages = pgTable("bid_packages", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  tradeCategory: varchar("trade_category"),
+  dueDate: timestamp("due_date"),
+  status: varchar("status").default("draft"), // draft, active, closed, awarded
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Bid Invitations (Maps subcontractors to bid packages with access tokens)
+export const bidInvitations = pgTable("bid_invitations", {
+  id: serial("id").primaryKey(),
+  bidPackageId: integer("bid_package_id").references(() => bidPackages.id).notNull(),
+  subcontractorId: integer("subcontractor_id").references(() => subcontractors.id).notNull(),
+  token: varchar("token").notNull(), // Secure invitation UUID/string
+  inviteeEmail: varchar("invitee_email").notNull(),
+  status: varchar("status").default("invited"), // invited, viewed, intending_to_bid, declined, submitted, awarded, not_awarded
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Bid Submissions
+export const bidSubmissions = pgTable("bid_submissions", {
+  id: serial("id").primaryKey(),
+  bidInvitationId: integer("bid_invitation_id").references(() => bidInvitations.id).notNull(),
+  baseBid: decimal("base_bid", { precision: 12, scale: 2 }).notNull(),
+  alternates: jsonb("alternates"), // [{name, amount}]
+  unitPrices: jsonb("unit_prices"), // [{item, price, unit}]
+  clarifications: text("clarifications"),
+  exclusions: text("exclusions"),
+  attachments: jsonb("attachments"),
+  isAwarded: boolean("is_awarded").default(false),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  submittedBy: varchar("submitted_by"),
+});
+
+// Notifications
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  projectId: integer("project_id").references(() => projects.id),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  link: varchar("link"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Create insert schemas
 export const insertCompanySchema = createInsertSchema(companies).omit({
   id: true,
@@ -412,6 +599,73 @@ export const insertNumberingSequenceSchema = createInsertSchema(numberingSequenc
   updatedAt: true,
 });
 
+export const insertRfiSchema = createInsertSchema(rfis).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRfiCommentSchema = createInsertSchema(rfiComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSubmittalSchema = createInsertSchema(submittals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSubmittalReviewSchema = createInsertSchema(submittalReviews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCostCodeSchema = createInsertSchema(costCodes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBudgetLineItemSchema = createInsertSchema(budgetLineItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertScheduleActivitySchema = createInsertSchema(scheduleActivities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBidPackageSchema = createInsertSchema(bidPackages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBidInvitationSchema = createInsertSchema(bidInvitations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBidSubmissionSchema = createInsertSchema(bidSubmissions).omit({
+  id: true,
+  submittedAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type Company = typeof companies.$inferSelect;
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
@@ -440,3 +694,29 @@ export type SubcontractorChangeOrder = typeof subcontractorChangeOrders.$inferSe
 export type InsertSubcontractorChangeOrder = z.infer<typeof insertSubcontractorChangeOrderSchema>;
 export type NumberingSequence = typeof numberingSequences.$inferSelect;
 export type InsertNumberingSequence = z.infer<typeof insertNumberingSequenceSchema>;
+
+export type Rfi = typeof rfis.$inferSelect;
+export type InsertRfi = z.infer<typeof insertRfiSchema>;
+export type RfiComment = typeof rfiComments.$inferSelect;
+export type InsertRfiComment = z.infer<typeof insertRfiCommentSchema>;
+export type Submittal = typeof submittals.$inferSelect;
+export type InsertSubmittal = z.infer<typeof insertSubmittalSchema>;
+export type SubmittalReview = typeof submittalReviews.$inferSelect;
+export type InsertSubmittalReview = z.infer<typeof insertSubmittalReviewSchema>;
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type CostCode = typeof costCodes.$inferSelect;
+export type InsertCostCode = z.infer<typeof insertCostCodeSchema>;
+export type BudgetLineItem = typeof budgetLineItems.$inferSelect;
+export type InsertBudgetLineItem = z.infer<typeof insertBudgetLineItemSchema>;
+export type ScheduleActivity = typeof scheduleActivities.$inferSelect;
+export type InsertScheduleActivity = z.infer<typeof insertScheduleActivitySchema>;
+export type BidPackage = typeof bidPackages.$inferSelect;
+export type InsertBidPackage = z.infer<typeof insertBidPackageSchema>;
+export type BidInvitation = typeof bidInvitations.$inferSelect;
+export type InsertBidInvitation = z.infer<typeof insertBidInvitationSchema>;
+export type BidSubmission = typeof bidSubmissions.$inferSelect;
+export type InsertBidSubmission = z.infer<typeof insertBidSubmissionSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+

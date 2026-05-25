@@ -13,7 +13,7 @@ export default function Home() {
   const { user, isLoading, signOut } = useSupabaseAuth();
   const [showSetupModal, setShowSetupModal] = useState(false);
 
-  const { data: company } = useQuery({
+  const { data: company } = useQuery<any>({
     queryKey: ["/api/companies/current"],
     enabled: !!user,
   });
@@ -27,7 +27,7 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-card flex items-center justify-center">
         <PlayfulLoadingAnimation 
           stage="analyzing" 
           message="CO Buddy is preparing your dashboard..."
@@ -38,7 +38,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-card">
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
         <div className="container mx-auto px-4 py-4">
@@ -46,12 +46,12 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <img 
                 src={COBuddyIcon} 
-                alt="CO Buddy AI" 
+                alt="ProjectCommand" 
                 className="w-12 h-12 rounded-xl"
               />
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                  CO Buddy AI
+                  ProjectCommand
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400">
                   Welcome back, {user?.firstName || user?.email}

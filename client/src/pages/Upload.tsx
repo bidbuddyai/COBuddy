@@ -31,8 +31,9 @@ export default function Upload() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: Date | string | null | undefined) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -130,15 +131,15 @@ export default function Upload() {
                             {document.filename}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {document.fileType} • {Math.round((document.fileSize || 0) / 1024)} KB
+                            {document.mimeType} • {Math.round((document.size || 0) / 1024)} KB
                           </p>
                           <div className="flex items-center space-x-4 mt-1">
                             <span className="text-xs text-gray-500">
-                              {document.uploadedAt ? formatDate(document.uploadedAt) : 'N/A'}
+                              {formatDate(document.uploadedAt)}
                             </span>
-                            {document.extractedData && (
+                            {!!document.extractedData && (
                               <span className="text-xs text-green-600">
-                                {Object.keys(document.extractedData).length} items extracted
+                                {Object.keys(document.extractedData as any).length} items extracted
                               </span>
                             )}
                           </div>

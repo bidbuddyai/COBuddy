@@ -18,22 +18,69 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
-  window.location.href = "/api/logout";
+  const response = await fetch("/api/logout", {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Logout failed");
+  }
 }
 
 export function useAuth() {
   const queryClient = useQueryClient();
-  const { data: user, isLoading } = useQuery<User | null>({
+  const { data: user, isLoading, refetch } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: any) => {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Invalid credentials");
+      }
+
+      return response.json();
+    },
+    onSuccess: (user: User) => {
+      queryClient.setQueryData(["/api/auth/user"], user);
+    },
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: async (userData: any) => {
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Registration failed");
+      }
+
+      return response.json();
+    },
+    onSuccess: (user: User) => {
+      queryClient.setQueryData(["/api/auth/user"], user);
+    },
+  });
+
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/user"], null);
+      window.location.href = "/auth";
     },
   });
 
@@ -41,7 +88,12 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated: !!user,
-    logout: logoutMutation.mutate,
+    login: loginMutation.mutateAsync,
+    isLoggingIn: loginMutation.isPending,
+    register: registerMutation.mutateAsync,
+    isRegistering: registerMutation.isPending,
+    logout: logoutMutation.mutateAsync,
     isLoggingOut: logoutMutation.isPending,
+    refetchUser: refetch,
   };
 }

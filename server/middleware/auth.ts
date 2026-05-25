@@ -3,9 +3,9 @@ import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
-export interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Omit<Request, 'user'> {
   user?: {
-    id: number;
+    id: string;
     email: string;
     role: string;
     firstName?: string;
@@ -23,7 +23,7 @@ export async function authenticateUser(req: AuthenticatedRequest, res: Response,
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const [user] = await db.select().from(users).where(eq(users.id, parseInt(userId)));
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
     
     if (!user) {
       return res.status(401).json({ message: 'Invalid user' });
@@ -31,7 +31,7 @@ export async function authenticateUser(req: AuthenticatedRequest, res: Response,
 
     req.user = {
       id: user.id,
-      email: user.email,
+      email: user.email || '',
       role: user.role,
       firstName: user.firstName || undefined,
       lastName: user.lastName || undefined,

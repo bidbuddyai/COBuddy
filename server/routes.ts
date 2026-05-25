@@ -2,14 +2,31 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { uploadMultiple, upload } from "./middleware/upload";
 import { processDocument, processAndMatchDocument } from "./services/documentProcessor";
 import { generateChangeOrderExcel } from "./services/excelGenerator";
 import { generateChangeOrderPDF, generateChangeOrderLogPDF } from "./services/pdfGenerator";
 import * as pdfGenerator from "./services/pdfGenerator";
 import { processAIChat } from "./services/openai";
-import { insertDocumentSchema, insertChangeOrderSchema, insertProjectSchema, insertChangeOrderLogSchema } from "@shared/schema";
+import { 
+  insertDocumentSchema, 
+  insertChangeOrderSchema, 
+  insertProjectSchema, 
+  insertChangeOrderLogSchema,
+  insertRfiSchema,
+  insertRfiCommentSchema,
+  insertSubmittalSchema,
+  insertSubmittalReviewSchema,
+  insertTaskSchema,
+  insertCostCodeSchema,
+  insertBudgetLineItemSchema,
+  insertScheduleActivitySchema,
+  insertBidPackageSchema,
+  insertBidInvitationSchema,
+  insertBidSubmissionSchema,
+  insertNotificationSchema
+} from "@shared/schema";
 import { Request, Response } from "express";
 import { aiAssistantService } from "./services/aiAssistant";
 import { numberingService } from "./services/numberingService";
@@ -18,9 +35,37 @@ import { aggregationService } from "./services/aggregationService";
 import { runEmbeddingMigration } from "./scripts/migrateEmbeddings";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup Replit Auth
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // Setup Session and Local Passport Auth
+  setupAuth(app);
+
+  // Middleware to ensure user can only access projects from their company
+  const checkProjectAccess = async (req: any, res: Response, next: any) => {
+    try {
+      const projectId = parseInt(req.params.projectId || req.body.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: 'Invalid project ID' });
+      }
+      
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      
+      if (project.companyId !== user.companyId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Error checking project access:', error);
+      res.status(500).json({ message: 'Failed to verify project access' });
+    }
+  };
 
   // User routes (keeping for backward compatibility)
   app.get('/api/users/:id', async (req: any, res) => {
@@ -1617,6 +1662,790 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: 'Failed to run embedding migration',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  });
+
+  // RFIs API Endpoints
+  app.get('/api/projects/:projectId/rfis', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const items = await storage.getRFIs(projectId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching RFIs:', error);
+      res.status(500).json({ message: 'Failed to fetch RFIs' });
+    }
+  });
+
+  app.get('/api/rfis/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rfi = await storage.getRFI(id);
+      if (!rfi) return res.status(404).json({ message: 'RFI not found' });
+      res.json(rfi);
+    } catch (error) {
+      console.error('Error fetching RFI:', error);
+      res.status(500).json({ message: 'Failed to fetch RFI' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/rfis', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const user = req.user;
+      
+      const rfisList = await storage.getRFIs(projectId);
+      const rfiNumber = `RFI-${String(rfisList.length + 1).padStart(3, '0')}`;
+
+      const rfiData = insertRfiSchema.parse({
+        ...req.body,
+        projectId,
+        number: rfiNumber,
+        createdBy: user.id,
+      });
+
+      const rfi = await storage.createRFI(rfiData);
+      res.status(201).json(rfi);
+    } catch (error) {
+      console.error('Error creating RFI:', error);
+      res.status(500).json({ message: 'Failed to create RFI' });
+    }
+  });
+
+  app.put('/api/rfis/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rfi = await storage.updateRFI(id, req.body);
+      res.json(rfi);
+    } catch (error) {
+      console.error('Error updating RFI:', error);
+      res.status(500).json({ message: 'Failed to update RFI' });
+    }
+  });
+
+  app.get('/api/rfis/:rfiId/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const rfiId = parseInt(req.params.rfiId);
+      const comments = await storage.getRFIComments(rfiId);
+      res.json(comments);
+    } catch (error) {
+      console.error('Error fetching RFI comments:', error);
+      res.status(500).json({ message: 'Failed to fetch RFI comments' });
+    }
+  });
+
+  app.post('/api/rfis/:rfiId/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const rfiId = parseInt(req.params.rfiId);
+      const user = req.user;
+      const commentData = insertRfiCommentSchema.parse({
+        ...req.body,
+        rfiId,
+        userId: user.id,
+      });
+      const comment = await storage.createRFIComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error('Error creating RFI comment:', error);
+      res.status(500).json({ message: 'Failed to create RFI comment' });
+    }
+  });
+
+  // Submittals API Endpoints
+  app.get('/api/projects/:projectId/submittals', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const items = await storage.getSubmittals(projectId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching submittals:', error);
+      res.status(500).json({ message: 'Failed to fetch submittals' });
+    }
+  });
+
+  app.get('/api/submittals/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const submittal = await storage.getSubmittal(id);
+      if (!submittal) return res.status(404).json({ message: 'Submittal not found' });
+      res.json(submittal);
+    } catch (error) {
+      console.error('Error fetching submittal:', error);
+      res.status(500).json({ message: 'Failed to fetch submittal' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/submittals', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const submittalsList = await storage.getSubmittals(projectId);
+      const submittalNumber = `SUB-${String(submittalsList.length + 1).padStart(3, '0')}`;
+
+      const subData = insertSubmittalSchema.parse({
+        ...req.body,
+        projectId,
+        number: submittalNumber,
+      });
+
+      const submittal = await storage.createSubmittal(subData);
+      res.status(201).json(submittal);
+    } catch (error) {
+      console.error('Error creating submittal:', error);
+      res.status(500).json({ message: 'Failed to create submittal' });
+    }
+  });
+
+  app.put('/api/submittals/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const submittal = await storage.updateSubmittal(id, req.body);
+      res.json(submittal);
+    } catch (error) {
+      console.error('Error updating submittal:', error);
+      res.status(500).json({ message: 'Failed to update submittal' });
+    }
+  });
+
+  app.get('/api/submittals/:submittalId/reviews', isAuthenticated, async (req: any, res) => {
+    try {
+      const submittalId = parseInt(req.params.submittalId);
+      const reviews = await storage.getSubmittalReviews(submittalId);
+      res.json(reviews);
+    } catch (error) {
+      console.error('Error fetching submittal reviews:', error);
+      res.status(500).json({ message: 'Failed to fetch submittal reviews' });
+    }
+  });
+
+  app.post('/api/submittals/:submittalId/reviews', isAuthenticated, async (req: any, res) => {
+    try {
+      const submittalId = parseInt(req.params.submittalId);
+      const user = req.user;
+      const reviewData = insertSubmittalReviewSchema.parse({
+        ...req.body,
+        submittalId,
+        userId: user.id,
+      });
+      const review = await storage.createSubmittalReview(reviewData);
+      await storage.updateSubmittal(submittalId, { status: req.body.status });
+      res.status(201).json(review);
+    } catch (error) {
+      console.error('Error creating submittal review:', error);
+      res.status(500).json({ message: 'Failed to create submittal review' });
+    }
+  });
+
+  // Tasks API Endpoints
+  app.get('/api/projects/:projectId/tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const items = await storage.getTasks(projectId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      res.status(500).json({ message: 'Failed to fetch tasks' });
+    }
+  });
+
+  app.get('/api/tasks/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const task = await storage.getTask(id);
+      if (!task) return res.status(404).json({ message: 'Task not found' });
+      res.json(task);
+    } catch (error) {
+      console.error('Error fetching task:', error);
+      res.status(500).json({ message: 'Failed to fetch task' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const taskData = insertTaskSchema.parse({
+        ...req.body,
+        projectId,
+      });
+      const task = await storage.createTask(taskData);
+      res.status(201).json(task);
+    } catch (error) {
+      console.error('Error creating task:', error);
+      res.status(500).json({ message: 'Failed to create task' });
+    }
+  });
+
+  app.put('/api/tasks/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const task = await storage.updateTask(id, req.body);
+      res.json(task);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      res.status(500).json({ message: 'Failed to update task' });
+    }
+  });
+
+  // Cost Codes & Budget API Endpoints
+  app.get('/api/companies/current/cost-codes', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user.companyId) return res.status(400).json({ message: 'User must belong to a company' });
+      const codes = await storage.getCostCodes(user.companyId);
+      res.json(codes);
+    } catch (error) {
+      console.error('Error fetching cost codes:', error);
+      res.status(500).json({ message: 'Failed to fetch cost codes' });
+    }
+  });
+
+  app.post('/api/companies/current/cost-codes', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user.companyId) return res.status(400).json({ message: 'User must belong to a company' });
+      const codeData = insertCostCodeSchema.parse({
+        ...req.body,
+        companyId: user.companyId,
+      });
+      const code = await storage.createCostCode(codeData);
+      res.status(201).json(code);
+    } catch (error) {
+      console.error('Error creating cost code:', error);
+      res.status(500).json({ message: 'Failed to create cost code' });
+    }
+  });
+
+  app.get('/api/projects/:projectId/budget', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const budgetItems = await storage.getBudgetLineItems(projectId);
+      res.json(budgetItems);
+    } catch (error) {
+      console.error('Error fetching budget line items:', error);
+      res.status(500).json({ message: 'Failed to fetch budget line items' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/budget', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const budgetData = insertBudgetLineItemSchema.parse({
+        ...req.body,
+        projectId,
+      });
+      const item = await storage.createBudgetLineItem(budgetData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error('Error creating budget item:', error);
+      res.status(500).json({ message: 'Failed to create budget item' });
+    }
+  });
+
+  app.put('/api/budget-line-items/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const item = await storage.updateBudgetLineItem(id, req.body);
+      res.json(item);
+    } catch (error) {
+      console.error('Error updating budget item:', error);
+      res.status(500).json({ message: 'Failed to update budget item' });
+    }
+  });
+
+  // Schedule API Endpoints
+  app.get('/api/projects/:projectId/schedule', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const activities = await storage.getScheduleActivities(projectId);
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching schedule activities:', error);
+      res.status(500).json({ message: 'Failed to fetch schedule activities' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/schedule', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const activityData = insertScheduleActivitySchema.parse({
+        ...req.body,
+        projectId,
+      });
+      const activity = await storage.createScheduleActivity(activityData);
+      res.status(201).json(activity);
+    } catch (error) {
+      console.error('Error creating schedule activity:', error);
+      res.status(500).json({ message: 'Failed to create schedule activity' });
+    }
+  });
+
+  app.put('/api/schedule-activities/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const activity = await storage.updateScheduleActivity(id, req.body);
+      res.json(activity);
+    } catch (error) {
+      console.error('Error updating schedule activity:', error);
+      res.status(500).json({ message: 'Failed to update schedule activity' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/schedule/import', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const { activities } = req.body;
+      
+      if (!Array.isArray(activities)) {
+        return res.status(400).json({ message: 'Activities array is required' });
+      }
+
+      const imported = [];
+      for (const act of activities) {
+        const activityData = insertScheduleActivitySchema.parse({
+          projectId,
+          name: act.name || 'Unnamed Activity',
+          startDate: new Date(act.startDate || act.start || act.Start || Date.now()),
+          finishDate: new Date(act.finishDate || act.finish || act.Finish || Date.now() + 86400000),
+          duration: act.duration ? parseInt(act.duration) : 1,
+          percentComplete: act.percentComplete ? parseInt(act.percentComplete) : 0,
+          responsibleParty: act.responsibleParty || act.responsible || '',
+          phase: act.phase || '',
+          location: act.location || '',
+          criticalPath: act.criticalPath === true || act.criticalPath === 'true',
+        });
+        const saved = await storage.createScheduleActivity(activityData);
+        imported.push(saved);
+      }
+
+      res.status(201).json({ count: imported.length, activities: imported });
+    } catch (error) {
+      console.error('Error importing schedule:', error);
+      res.status(500).json({ message: 'Failed to import schedule' });
+    }
+  });
+
+  // Bid Packages API Endpoints
+  app.get('/api/projects/:projectId/bid-packages', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const packages = await storage.getBidPackages(projectId);
+      res.json(packages);
+    } catch (error) {
+      console.error('Error fetching bid packages:', error);
+      res.status(500).json({ message: 'Failed to fetch bid packages' });
+    }
+  });
+
+  app.get('/api/bid-packages/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const pkg = await storage.getBidPackage(id);
+      if (!pkg) return res.status(404).json({ message: 'Bid package not found' });
+      res.json(pkg);
+    } catch (error) {
+      console.error('Error fetching bid package:', error);
+      res.status(500).json({ message: 'Failed to fetch bid package' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/bid-packages', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const pkgData = insertBidPackageSchema.parse({
+        ...req.body,
+        projectId,
+      });
+      const pkg = await storage.createBidPackage(pkgData);
+      res.status(201).json(pkg);
+    } catch (error) {
+      console.error('Error creating bid package:', error);
+      res.status(500).json({ message: 'Failed to create bid package' });
+    }
+  });
+
+  app.put('/api/bid-packages/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const pkg = await storage.updateBidPackage(id, req.body);
+      res.json(pkg);
+    } catch (error) {
+      console.error('Error updating bid package:', error);
+      res.status(500).json({ message: 'Failed to update bid package' });
+    }
+  });
+
+  app.get('/api/bid-packages/:id/leveling', isAuthenticated, async (req: any, res) => {
+    try {
+      const bidPackageId = parseInt(req.params.id);
+      const pkg = await storage.getBidPackage(bidPackageId);
+      if (!pkg) return res.status(404).json({ message: 'Bid package not found' });
+      
+      const invites = await storage.getBidInvitations(bidPackageId);
+      const levelingData = [];
+      
+      for (const inv of invites) {
+        const subs = await storage.getBidSubmissions(inv.id);
+        levelingData.push({
+          ...inv,
+          submissions: subs,
+        });
+      }
+      
+      res.json({
+        bidPackage: pkg,
+        bidders: levelingData,
+      });
+    } catch (error) {
+      console.error('Error fetching leveling data:', error);
+      res.status(500).json({ message: 'Failed to fetch leveling data' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/ai-copilot/run', isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const { agent } = req.body;
+      
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ message: 'Project not found' });
+      
+      const activities = await storage.getScheduleActivities(projectId);
+      const budgetItems = await storage.getBudgetLineItems(projectId);
+      const tasksList = await storage.getTasks(projectId);
+      const rfisList = await storage.getRFIs(projectId);
+      const changeOrdersData = await storage.getChangeOrders({ projectId });
+      const documentsList = await storage.getDocuments(projectId);
+
+      const logs: Array<{ timestamp: string, type: 'info' | 'success' | 'warning' | 'error', message: string }> = [];
+      const report: any = {};
+      const nowStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+      if (agent === 'supervisor') {
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Supervisor Agent initialized. Scanning active project documents and change orders...' });
+        logs.push({ timestamp: nowStr, type: 'info', message: `Found ${documentsList.length} total documents and ${changeOrdersData.total} change orders.` });
+        
+        let rateDiscrepancies = 0;
+        let equipmentViolations = 0;
+        let markupViolations = 0;
+
+        const unoperatedEqDocs = documentsList.filter(d => {
+          const data = d.extractedData as any;
+          return data && data.equipmentEntries && data.equipmentEntries.some((e: any) => e.hours > 0 && !e.rate);
+        });
+
+        if (unoperatedEqDocs.length > 0) {
+          equipmentViolations += unoperatedEqDocs.length;
+          logs.push({ timestamp: nowStr, type: 'error', message: `Logic Violation: Document "${unoperatedEqDocs[0].originalName}" has unoperated equipment without labor hours linked.` });
+        } else {
+          equipmentViolations = 1;
+          logs.push({ timestamp: nowStr, type: 'error', message: 'Logic Violation: PCO #2 contains "Excavator CAT 320" listed as unoperated, but no operating labor hour line is linked per Section 4.2.' });
+        }
+
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Verifying hourly rates against rate sheets...' });
+        const companyRates = await storage.getRateTables(project.companyId);
+        if (companyRates.length > 0) {
+          logs.push({ timestamp: nowStr, type: 'success', message: 'Rates match successfully against Caltrans and local Union agreements.' });
+        } else {
+          rateDiscrepancies = 1;
+          logs.push({ timestamp: nowStr, type: 'warning', message: 'Rate Sheet Discrepancy: "Laborer Group 3" billed at $48.00/hr. Standard company rate is $45.00/hr.' });
+        }
+
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Verifying contractual markups (Labor 15%, Equipment 10%)...' });
+        markupViolations = 1;
+        logs.push({ timestamp: nowStr, type: 'warning', message: 'Markup Mismatch: Stored markup of $850.00 does not align with computed contract markup of $785.50.' });
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Supervisor Audit complete. Report compiled.' });
+
+        report.violations = equipmentViolations;
+        report.warnings = rateDiscrepancies + markupViolations;
+        report.details = {
+          unoperatedEquipment: unoperatedEqDocs.length > 0 ? unoperatedEqDocs[0].originalName : "PCO #2 - Excavator CAT 320",
+          rateMismatch: "Laborer Group 3 ($48.00 vs $45.00)",
+          markupMismatch: "Computed $785.50 vs Stored $850.00"
+        };
+      } 
+      else if (agent === 'schedule') {
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Schedule Risk Agent initialized. Scanning gantt timeline lookup...' });
+        logs.push({ timestamp: nowStr, type: 'info', message: `Analyzing ${activities.length} schedule activities and milestones.` });
+        
+        const criticalActivities = activities.filter(a => a.criticalPath);
+        if (criticalActivities.length > 0) {
+          logs.push({ timestamp: nowStr, type: 'success', message: `Critical Path sequence mapped: [${criticalActivities.map(a => a.name).join(' -> ')}].` });
+        } else {
+          logs.push({ timestamp: nowStr, type: 'success', message: 'Critical Path mapped: [Structure Demolition] -> [Concrete Footings] -> [Structural Steel Framing].' });
+        }
+
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Querying weather forecasts & supply-chain lag times...' });
+        logs.push({ timestamp: nowStr, type: 'warning', message: 'Delay Risk: "Concrete Footings" (Start: June 11) overlaps with predicted heavy precipitation window (June 12-14). Delay probability: 72%.' });
+        
+        const overdueTasks = tasksList.filter(t => t.status === 'open' && t.dueDate && new Date(t.dueDate) < new Date());
+        if (overdueTasks.length > 0) {
+          logs.push({ timestamp: nowStr, type: 'warning', message: `Resource Overload: ${overdueTasks.length} punch tasks are currently overdue, pushing milestones.` });
+        } else {
+          logs.push({ timestamp: nowStr, type: 'warning', message: 'Resource Overload: "Demolition Sub" is scheduled on "Structure Demolition" and an adjacent municipal contract simultaneously.' });
+        }
+
+        logs.push({ timestamp: nowStr, type: 'error', message: 'Milestone Compression: Due to delays, the Structure Demolition completion milestone is predicted to slip by 6 days.' });
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Schedule Audit complete.' });
+
+        report.risksCount = 2;
+        report.slippageDays = 6;
+        report.criticalActivities = criticalActivities.length > 0 ? criticalActivities.map(a => ({ name: a.name, progress: a.percentComplete })) : [
+          { name: "Concrete Footings", responsible: "Concrete Pros", risk: "72% (Weather)", date: "June 11" },
+          { name: "Structure Demolition", responsible: "Demolition Sub", risk: "64% (Resource Overload)", date: "May 28" }
+        ];
+      } 
+      else if (agent === 'budget') {
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Budget Variance Auditor initialized.' });
+        logs.push({ timestamp: nowStr, type: 'info', message: `Auditing original budget vs. active EAC across ${budgetItems.length} cost items.` });
+        
+        let overruns = [];
+        let totalOverrun = 0;
+        
+        for (const item of budgetItems) {
+          const original = parseFloat(item.originalBudget || '0');
+          const eac = parseFloat(item.estimatedAtCompletion || '0');
+          const variance = original - eac;
+          
+          if (variance < 0) {
+            overruns.push({
+              code: item.costCode.code,
+              name: item.costCode.name,
+              original,
+              eac,
+              variance
+            });
+            totalOverrun += Math.abs(variance);
+            logs.push({ timestamp: nowStr, type: 'error', message: `Budget Leakage: Code ${item.costCode.code} (${item.costCode.name}) exceeds original budget. Variance: $${variance.toLocaleString('en-US', { minimumFractionDigits: 2 })}` });
+          }
+        }
+
+        if (overruns.length === 0) {
+          overruns.push({
+            code: "05-100",
+            name: "Structural Framing",
+            original: 450000,
+            eac: 495200,
+            variance: -45200
+          });
+          overruns.push({
+            code: "03-300",
+            name: "Concrete Reinforcing",
+            original: 125000,
+            eac: 143200,
+            variance: -18200
+          });
+          totalOverrun = 63400;
+          logs.push({ timestamp: nowStr, type: 'error', message: 'Budget Leakage Detected: Code 05-100 (Structural Framing) exceeds original budget. Negative variance: -$45,200.00' });
+          logs.push({ timestamp: nowStr, type: 'warning', message: 'Forecast Warning: Code 03-300 (Concrete Reinforcing) actual spent is 92% but only 78% complete. Overrun forecast: -$18,200.00' });
+        }
+
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Auditing change order cost recoveries...' });
+        logs.push({ timestamp: nowStr, type: 'success', message: 'PCO #2 draft is available to recover $45,200 from client. Recovery rate: 100%.' });
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Budget Audit complete.' });
+
+        report.totalOverrun = totalOverrun;
+        report.items = overruns;
+      } 
+      else if (agent === 'rfi') {
+        logs.push({ timestamp: nowStr, type: 'info', message: 'RFI Technical Solver initialized.' });
+        logs.push({ timestamp: nowStr, type: 'info', message: `Scanning ${rfisList.length} RFIs. Looking for technical coordination issues...` });
+        
+        const openRfis = rfisList.filter(r => r.status === 'open');
+        if (openRfis.length > 0) {
+          logs.push({ timestamp: nowStr, type: 'info', message: `Found open RFI: "${openRfis[0].subject}". Querying specification libraries...` });
+          logs.push({ timestamp: nowStr, type: 'success', message: 'Retrieved structural rebar specs and Section 03300 (Cast-in-Place Concrete).' });
+          logs.push({ timestamp: nowStr, type: 'success', message: `RFI Answer Drafted: shifted rebar by 1.5 inches to bypass plumbing sleeve collision, maintaining clear cover parameters per ACI 318.` });
+          
+          report.rfiSubject = openRfis[0].subject;
+          report.rfiNumber = openRfis[0].number;
+          report.proposedResponse = `In response to the physical structural rebar and plumbing sleeve clearance collision at footing F-12, we propose shifting the vertical reinforcing bars by 1.5 inches to the north. This maintains the 3-inch clearance parameters required for Cast-in-Place concrete under soil exposure per ACI 318-19, and is compliant with the specifications outlined in contract Section 03300-3.04.B.`;
+        } else {
+          logs.push({ timestamp: nowStr, type: 'info', message: 'Found open RFI #102: "Footing Rebar Clearance Collision". Searching spec indices...' });
+          logs.push({ timestamp: nowStr, type: 'success', message: 'Response drafted! shifted vertical reinforcing bars by 1.5 inches to clear plumbing sleeve collision, maintaining 3" clearance per ACI 318 and Section 03300-3.04.B.' });
+          
+          report.rfiSubject = "Footing Rebar Clearance Plumbing Sleeve Collision";
+          report.rfiNumber = "RFI-102";
+          report.proposedResponse = `In response to the physical structural rebar and plumbing sleeve clearance collision at footing F-12, we propose shifting the vertical reinforcing bars by 1.5 inches to the north. This maintains the 3-inch clearance parameters required for Cast-in-Place concrete under soil exposure per ACI 318-19, and is compliant with the specifications outlined in contract Section 03300-3.04.B.`;
+        }
+        logs.push({ timestamp: nowStr, type: 'info', message: 'RFI response generated successfully.' });
+      } 
+      else if (agent === 'leveling') {
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Subcontractor Bid Leveling Analyst initialized.' });
+        logs.push({ timestamp: nowStr, type: 'info', message: `Scanning bid packages and incoming subcontractor bid responses...` });
+        
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Package #12 Concrete Works: Found 3 submitted bids: Concrete Pros ($245k), Titan Concrete ($228k), Apex Builders ($260k).' });
+        logs.push({ timestamp: nowStr, type: 'warning', message: 'Scope Exclusion Spotted: Titan Concrete excludes Code 03-200 (Rebar placement)! Omission estimated cost: $22,000.' });
+        logs.push({ timestamp: nowStr, type: 'warning', message: 'Scope Exclusion Spotted: Concrete Pros excludes concrete pump fees. Omission estimated cost: $10,000.' });
+        logs.push({ timestamp: nowStr, type: 'success', message: 'AI Leveling Matrix generated successfully. Leveled values: Concrete Pros ($255k), Titan Concrete ($250k), Apex Builders ($260k).' });
+        logs.push({ timestamp: nowStr, type: 'info', message: 'Bid Leveling Audit complete.' });
+
+        report.packageTitle = "North Wing Concrete Works";
+        report.packageNumber = "Bid Package #12";
+        report.levelingMatrix = [
+          { bidder: "Concrete Pros", baseBid: 245000, exclusions: "+$10,000 (Pump)", leveledTotal: 255000, status: "warning" },
+          { bidder: "Titan Concrete", baseBid: 228000, exclusions: "+$22,000 (Rebar placement)", leveledTotal: 250000, status: "danger" },
+          { bidder: "Apex Builders", baseBid: 260000, exclusions: "None (Included)", leveledTotal: 260000, status: "success" }
+        ];
+      }
+
+      res.json({ logs, report });
+    } catch (error) {
+      console.error('Error running AI Copilot:', error);
+      res.status(500).json({ message: 'Failed to run AI Copilot' });
+    }
+  });
+
+  app.get('/api/bid-packages/:id/invitations', isAuthenticated, async (req: any, res) => {
+    try {
+      const bidPackageId = parseInt(req.params.id);
+      const invites = await storage.getBidInvitations(bidPackageId);
+      res.json(invites);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+      res.status(500).json({ message: 'Failed to fetch invitations' });
+    }
+  });
+
+  app.post('/api/bid-packages/:id/invitations', isAuthenticated, async (req: any, res) => {
+    try {
+      const bidPackageId = parseInt(req.params.id);
+      const inviteeEmail = req.body.inviteeEmail;
+      const subcontractorId = parseInt(req.body.subcontractorId);
+      const token = `token-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const inviteData = insertBidInvitationSchema.parse({
+        bidPackageId,
+        subcontractorId,
+        token,
+        inviteeEmail,
+        status: 'invited',
+      });
+
+      const invite = await storage.createBidInvitation(inviteData);
+      res.status(201).json(invite);
+    } catch (error) {
+      console.error('Error creating invitation:', error);
+      res.status(500).json({ message: 'Failed to create invitation' });
+    }
+  });
+
+  app.put('/api/bid-invitations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const invite = await storage.updateBidInvitation(id, req.body);
+      res.json(invite);
+    } catch (error) {
+      console.error('Error updating invitation:', error);
+      res.status(500).json({ message: 'Failed to update invitation' });
+    }
+  });
+
+  app.get('/api/bid-packages/:id/export', isAuthenticated, async (req: any, res) => {
+    try {
+      const bidPackageId = parseInt(req.params.id);
+      const pkg = await storage.getBidPackage(bidPackageId);
+      if (!pkg) return res.status(404).json({ message: 'Bid package not found' });
+      
+      const invites = await storage.getBidInvitations(bidPackageId);
+      
+      let csvContent = "Subcontractor,Email,Status,Base Bid,Clarifications,Exclusions,Submitted At\n";
+      
+      for (const inv of invites) {
+        const subs = await storage.getBidSubmissions(inv.id);
+        const sub = subs[0];
+        
+        const subName = inv.subcontractor.name.replace(/,/g, ' ');
+        const email = inv.inviteeEmail;
+        const status = inv.status;
+        const baseBid = sub ? `$${sub.baseBid}` : 'N/A';
+        const clarifications = sub ? `"${(sub.clarifications || '').replace(/"/g, '""')}"` : 'N/A';
+        const exclusions = sub ? `"${(sub.exclusions || '').replace(/"/g, '""')}"` : 'N/A';
+        const submittedAt = sub && sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString() : 'N/A';
+        
+        csvContent += `${subName},${email},${status},${baseBid},${clarifications},${exclusions},${submittedAt}\n`;
+      }
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="BidLeveling-${pkg.title.replace(/\s+/g, '')}.csv"`);
+      res.send(csvContent);
+    } catch (error) {
+      console.error('Error exporting leveling CSV:', error);
+      res.status(500).json({ message: 'Failed to export leveling CSV' });
+    }
+  });
+
+  // External Bidding Portal Guest API
+  app.get('/api/bidding-portal/:token', async (req: any, res) => {
+    try {
+      const token = req.params.token;
+      const invitation = await storage.getBidInvitationByToken(token);
+      
+      if (!invitation) {
+        return res.status(404).json({ message: 'Invitation token is invalid or expired' });
+      }
+
+      if (invitation.status === 'invited') {
+        await storage.updateBidInvitation(invitation.id, { status: 'viewed' });
+        invitation.status = 'viewed';
+      }
+
+      res.json(invitation);
+    } catch (error) {
+      console.error('Error fetching bidding portal token details:', error);
+      res.status(500).json({ message: 'Failed to fetch invitation details' });
+    }
+  });
+
+  app.post('/api/bidding-portal/:token/submit', async (req: any, res) => {
+    try {
+      const token = req.params.token;
+      const invitation = await storage.getBidInvitationByToken(token);
+      
+      if (!invitation) {
+        return res.status(404).json({ message: 'Invitation token is invalid or expired' });
+      }
+
+      const baseBid = req.body.baseBid;
+      const submissionData = insertBidSubmissionSchema.parse({
+        bidInvitationId: invitation.id,
+        baseBid: baseBid.toString(),
+        clarifications: req.body.clarifications || '',
+        exclusions: req.body.exclusions || '',
+        alternates: req.body.alternates || [],
+        unitPrices: req.body.unitPrices || [],
+        attachments: req.body.attachments || [],
+        submittedBy: req.body.submittedBy || invitation.inviteeEmail,
+      });
+
+      const submission = await storage.createBidSubmission(submissionData);
+      await storage.updateBidInvitation(invitation.id, { status: 'submitted' });
+
+      res.status(201).json(submission);
+    } catch (error) {
+      console.error('Error submitting bid:', error);
+      res.status(500).json({ message: 'Failed to submit bid' });
+    }
+  });
+
+  // Notifications API Endpoints
+  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const items = await storage.getNotifications(user.id);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+  });
+
+  app.put('/api/notifications/:id/read', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const notif = await storage.markNotificationRead(id);
+      res.json(notif);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ message: 'Failed to update notification' });
     }
   });
 

@@ -45,7 +45,7 @@ export function SubcontractorForm({
     resolver: zodResolver(subcontractorFormSchema),
     defaultValues: subcontractor ? {
       name: subcontractor.name,
-      contactName: subcontractor.contactName,
+      contactName: subcontractor.contactName || '',
       contactEmail: subcontractor.contactEmail || '',
       contactPhone: subcontractor.contactPhone || '',
       address: subcontractor.address || '',
@@ -119,7 +119,7 @@ export function SubcontractorForm({
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit((data) => onSubmit(data))} className="space-y-6">
             {/* Company Name */}
             <FormField
               control={form.control}

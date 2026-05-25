@@ -202,10 +202,14 @@ function findRateMatch(searchTerm: string, rateMap: Map<string, number>): number
   }
   
   // Partial match
-  for (const [key, rate] of rateMap.entries()) {
-    if (key.includes(term) || term.includes(key)) {
-      return rate;
+  let matchedRate: number | null = null;
+  rateMap.forEach((rate, key) => {
+    if (matchedRate === null && (key.includes(term) || term.includes(key))) {
+      matchedRate = rate;
     }
+  });
+  if (matchedRate !== null) {
+    return matchedRate;
   }
   
   return null;

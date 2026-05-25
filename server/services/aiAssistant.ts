@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import { processDocumentWithVision, processAIChat } from './openai';
+import { processAIChat } from './openai';
 import { generateChangeOrderExcel } from './excelGenerator';
 import { generateChangeOrderPDF } from './pdfGenerator';
 import { InsertChangeOrder, InsertDocument, ChangeOrder } from '../../shared/schema';
@@ -203,17 +203,18 @@ export class AIAssistantService {
       }
 
       // Create the change order
-      const changeOrderData: InsertChangeOrder = {
+      const changeOrderNumber = `CO-${projectId}-${Date.now()}`;
+      const changeOrderData: any = {
         projectId: parseInt(projectId),
+        number: changeOrderNumber,
         title: 'New Change Order',
         description: 'Created by AI Assistant',
         status: 'draft',
-        laborCost: 0,
-        materialCost: 0,
-        equipmentCost: 0,
-        disposalCost: 0,
-        markup: 15,
-        totalCost: 0,
+        laborAmount: '0.00',
+        materialAmount: '0.00',
+        equipmentAmount: '0.00',
+        disposalAmount: '0.00',
+        totalAmount: '0.00',
         createdBy: context.user?.id || '',
         extractedData: {}
       };
@@ -243,7 +244,7 @@ export class AIAssistantService {
         const pendingDocs = documents.filter(d => d.status === 'pending' || d.status === 'processing');
         
         return {
-          message: `I found ${documents.length} documents (${pendingDocs.length} pending processing). Which document would you like to edit?\n\n${documents.slice(0, 10).map(d => `• ${d.fileName} (ID: ${d.id}, Status: ${d.status})`).join('\n')}\n\nYou can say "Edit document [ID]"`,
+          message: `I found ${documents.length} documents (${pendingDocs.length} pending processing). Which document would you like to edit?\n\n${documents.slice(0, 10).map(d => `• ${d.filename} (ID: ${d.id}, Status: ${d.status})`).join('\n')}\n\nYou can say "Edit document [ID]"`,
           actions: [{
             type: 'navigate',
             url: '/documents'
@@ -257,10 +258,10 @@ export class AIAssistantService {
       }
 
       // Show current extracted data
-      const extractedData = document.extractedData || {};
+      const extractedData = (document.extractedData || {}) as any;
       
       return {
-        message: `Document "${document.fileName}" has the following extracted data:\n\n**Labor:**\n${JSON.stringify(extractedData.labor || [], null, 2)}\n\n**Equipment:**\n${JSON.stringify(extractedData.equipment || [], null, 2)}\n\n**Materials:**\n${JSON.stringify(extractedData.materials || [], null, 2)}\n\n**Disposal:**\n${JSON.stringify(extractedData.disposal || [], null, 2)}\n\nTell me what you'd like to edit (e.g., "Change the labor rate for John Doe to $85/hr" or "Add 10 hours of excavator time").`
+        message: `Document "${document.filename}" has the following extracted data:\n\n**Labor:**\n${JSON.stringify(extractedData.labor || [], null, 2)}\n\n**Equipment:**\n${JSON.stringify(extractedData.equipment || [], null, 2)}\n\n**Materials:**\n${JSON.stringify(extractedData.materials || [], null, 2)}\n\n**Disposal:**\n${JSON.stringify(extractedData.disposal || [], null, 2)}\n\nTell me what you'd like to edit (e.g., "Change the labor rate for John Doe to $85/hr" or "Add 10 hours of excavator time").`
       };
     } catch (error) {
       return {
@@ -288,11 +289,11 @@ export class AIAssistantService {
       const doc = unprocessedDocs[0];
       
       return {
-        message: `I'll process "${doc.fileName}" now. This document will be analyzed using AI vision to extract:\n\n• Labor hours and rates\n• Equipment usage\n• Materials used\n• Disposal costs\n\nProcessing will take a few moments...`,
+        message: `I'll process "${doc.filename}" now. This document will be analyzed using AI vision to extract:\n\n• Labor hours and rates\n• Equipment usage\n• Materials used\n• Disposal costs\n\nProcessing will take a few moments...`,
         actions: [{
           type: 'process',
           endpoint: `/api/documents/${doc.id}/process`,
-          successMessage: `Document ${doc.fileName} has been processed successfully!`
+          successMessage: `Document ${doc.filename} has been processed successfully!`
         }]
       };
     } catch (error) {
@@ -310,7 +311,7 @@ export class AIAssistantService {
         const changeOrders = await storage.getChangeOrders({ limit: 10 });
         
         return {
-          message: `Which change order would you like to generate files for?\n\n${changeOrders.data.slice(0, 5).map(co => `• ${co.title} (ID: ${co.id}, Project: ${co.projectId}, Total: $${co.totalCost})`).join('\n')}\n\nYou can say "Generate files for change order [ID]"`,
+          message: `Which change order would you like to generate files for?\n\n${changeOrders.data.slice(0, 5).map(co => `• ${co.title} (ID: ${co.id}, Project: ${co.projectId}, Total: $${co.totalAmount})`).join('\n')}\n\nYou can say "Generate files for change order [ID]"`,
           actions: [{
             type: 'navigate',
             url: '/change-orders'
@@ -324,7 +325,7 @@ export class AIAssistantService {
       }
 
       return {
-        message: `I'll generate both Excel and PDF files for change order "${changeOrder.title}" (ID: ${changeOrder.id}).\n\nThe files will include:\n• Detailed cost breakdown\n• Labor backup with rates\n• Equipment usage\n• Materials list\n• Disposal costs\n• ${changeOrder.markup}% markup\n• Total: $${changeOrder.totalCost}\n\nGenerating files now...`,
+        message: `I'll generate both Excel and PDF files for change order "${changeOrder.title}" (ID: ${changeOrder.id}).\n\nThe files will include:\n• Detailed cost breakdown\n• Labor backup with rates\n• Equipment usage\n• Materials list\n• Disposal costs\n• ${(changeOrder as any).markup || 15}% markup\n• Total: $${changeOrder.totalAmount}\n\nGenerating files now...`,
         actions: [
           {
             type: 'generate',
@@ -360,7 +361,7 @@ export class AIAssistantService {
       if (searchTerm) {
         // Search for specific rates
         relevantRates = allRates.filter(rt => {
-          const entries = rt.data?.entries || rt.data || [];
+          const entries = (rt.data as any)?.entries || rt.data || [];
           return entries.some((entry: any) => 
             entry.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             entry.item?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -381,7 +382,7 @@ export class AIAssistantService {
       // Show sample rates
       const sampleRates = [];
       for (const table of relevantRates.slice(0, 3)) {
-        const entries = table.data?.entries || table.data || [];
+        const entries = (table.data as any)?.entries || table.data || [];
         const relevantEntries = searchTerm 
           ? entries.filter((e: any) => 
               e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -436,7 +437,7 @@ export class AIAssistantService {
       let entryIndex = -1;
       
       for (const table of rateTables) {
-        const entries = table.data?.entries || table.data || [];
+        const entries = (table.data as any)?.entries || table.data || [];
         const index = entries.findIndex((e: any) => 
           e.description?.toLowerCase().includes(itemName.toLowerCase()) ||
           e.item?.toLowerCase().includes(itemName.toLowerCase())
@@ -461,7 +462,7 @@ export class AIAssistantService {
       }
 
       // Update the rate
-      const entries = foundTable.data?.entries || foundTable.data || [];
+      const entries = (foundTable.data as any)?.entries || foundTable.data || [];
       entries[entryIndex] = {
         ...foundEntry,
         rate: parseFloat(newRate)
@@ -521,7 +522,7 @@ export class AIAssistantService {
             // Find matching rate
             let matchFound = false;
             for (const table of allRates.filter(rt => rt.type === 'labor')) {
-              const entries = table.data?.entries || table.data || [];
+              const entries = (table.data as any)?.entries || table.data || [];
               const match = entries.find((e: any) => 
                 e.description?.toLowerCase().includes(labor.name?.toLowerCase()) ||
                 e.classification?.toLowerCase() === labor.classification?.toLowerCase()
@@ -543,7 +544,7 @@ export class AIAssistantService {
         }
 
         validationResults.push({
-          fileName: doc.fileName,
+          fileName: doc.filename,
           issues: issues.length > 0 ? issues : ['All rates validated successfully']
         });
       }

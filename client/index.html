@@ -3,8 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>CO Buddy AI - Change Order Creator</title>
+    <title>ProjectCommand - Unified Construction PM Platform</title>
     <link rel="icon" type="image/png" href="/src/assets/icon_1752387185212.png" />
+    <script>
+      (function() {
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(theme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

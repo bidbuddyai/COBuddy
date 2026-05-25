@@ -47,7 +47,7 @@ export default function Company() {
     enabled: !!user?.companyId,
   });
 
-  const { data: invitations } = useQuery({
+  const { data: invitations } = useQuery<any[]>({
     queryKey: ['/api/companies/invitations'],
     enabled: !!user?.companyId && user?.role === 'admin',
   });
@@ -203,7 +203,7 @@ export default function Company() {
         <div className="flex items-center justify-center h-64">
           <PlayfulLoadingAnimation 
             stage="analyzing" 
-            message="CO Buddy is loading your company data..."
+            message="ProjectBuddy is loading your company data..."
             size="lg"
           />
         </div>
@@ -411,7 +411,7 @@ export default function Company() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {new Date(member.createdAt).toLocaleDateString()}
+                        {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : "N/A"}
                       </TableCell>
                       {user?.role === 'admin' && (
                         <TableCell>

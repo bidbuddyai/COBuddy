@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Sparkles, Zap, FileText, Brain, Database, CheckCircle, AlertCircle } from "lucide-react";
-import COBuddyIcon from "@assets/icon_1752387185212.png";
+import ProjectBuddyIcon from "@assets/projectbuddy_icon.png";
 
 interface FloatingParticle {
   id: number;
@@ -104,20 +104,20 @@ export function PlayfulLoadingAnimation({
         </div>
       )}
 
-      {/* Main CO Buddy Icon */}
+      {/* Main ProjectBuddy Icon */}
       <motion.div
         className={`relative ${sizeClasses[size]} rounded-2xl overflow-hidden mb-6`}
         animate={stageAnimations[stage]}
       >
         <img
-          src={COBuddyIcon}
-          alt="CO Buddy AI"
+          src={ProjectBuddyIcon}
+          alt="ProjectBuddy AI"
           className="w-full h-full object-cover"
         />
         
         {/* Pulsing Ring */}
         <motion.div
-          className="absolute inset-0 rounded-2xl border-4 border-[#03512A]"
+          className="absolute inset-0 rounded-2xl border-4 border-[#047857]"
           animate={{
             scale: [1, 1.1, 1],
             opacity: [0.5, 0.8, 0.5],
@@ -174,7 +174,7 @@ export function PlayfulLoadingAnimation({
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="w-2 h-2 bg-[#03512A] rounded-full"
+              className="w-2 h-2 bg-[#047857] rounded-full"
               animate={{
                 y: [0, -8, 0],
                 scale: [1, 1.2, 1],
@@ -197,8 +197,8 @@ export function COBuddyThinkingAnimation() {
   return (
     <div className="flex items-center space-x-2">
       <motion.img
-        src={COBuddyIcon}
-        alt="CO Buddy AI"
+        src={ProjectBuddyIcon}
+        alt="ProjectBuddy AI"
         className="w-8 h-8 rounded-lg"
         animate={{
           rotate: [0, 5, -5, 0],
@@ -214,7 +214,7 @@ export function COBuddyThinkingAnimation() {
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
-            className="w-2 h-2 bg-[#03512A] rounded-full"
+            className="w-2 h-2 bg-[#047857] rounded-full"
             animate={{
               scale: [1, 1.5, 1],
               opacity: [0.5, 1, 0.5],
@@ -229,7 +229,7 @@ export function COBuddyThinkingAnimation() {
         ))}
       </div>
       <span className="text-sm text-gray-600 dark:text-gray-400">
-        CO Buddy is thinking...
+        ProjectBuddy AI is thinking...
       </span>
     </div>
   );
@@ -274,15 +274,15 @@ export function PulsingCOBuddy({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
         }}
       >
         <img
-          src={COBuddyIcon}
-          alt="CO Buddy AI"
+          src={ProjectBuddyIcon}
+          alt="ProjectBuddy AI"
           className="w-full h-full object-cover"
         />
       </motion.div>
       
       {/* Pulsing Ring */}
       <motion.div
-        className={`absolute ${sizeClasses[size]} rounded-xl border-2 border-[#03512A]`}
+        className={`absolute ${sizeClasses[size]} rounded-xl border-2 border-[#047857]`}
         animate={{
           scale: [1, 1.3, 1],
           opacity: [0.7, 0.3, 0.7],

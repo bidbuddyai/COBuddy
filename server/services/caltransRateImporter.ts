@@ -36,10 +36,10 @@ export async function importCaltransRates(csvData: string, effectiveDate: Date) 
     });
 
     // Create rate tables for each equipment class
-    const rateTables: InsertRateTable[] = [];
+    const rateTables: any[] = [];
     
-    for (const [className, classRates] of ratesByClass) {
-      const rateData = classRates.map(rate => ({
+    ratesByClass.forEach((classRates, className) => {
+      const rateData = classRates.map((rate: CaltransRate) => ({
         code: `${rate.Class}-${rate.Model}`,
         description: `${rate.Make_Desc} ${rate.Model_Desc}`.trim(),
         rate: parseFloat(rate.Rental_Rate),
@@ -62,7 +62,7 @@ export async function importCaltransRates(csvData: string, effectiveDate: Date) 
         reviewedBy: null,
         reviewedAt: new Date()
       });
-    }
+    });
 
     // Insert all rate tables
     const insertedTables = [];
@@ -79,7 +79,7 @@ export async function importCaltransRates(csvData: string, effectiveDate: Date) 
     };
   } catch (error) {
     console.error('Error importing Caltrans rates:', error);
-    throw new Error(`Failed to import Caltrans rates: ${error.message}`);
+    throw new Error(`Failed to import Caltrans rates: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

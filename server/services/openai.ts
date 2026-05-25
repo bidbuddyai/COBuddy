@@ -375,7 +375,7 @@ export async function extractInvoiceData(documentText: string): Promise<Extracte
 
 export async function processAIChat(message: string, context?: any): Promise<{ message: string; actions?: any[] }> {
   try {
-    const systemPrompt = `You are an AI assistant for CO Buddy AI, a powerful construction change order management system.
+    const systemPrompt = `You are an AI assistant for ProjectCommand, a powerful construction project management and operations platform. You have integrated access to CO Buddy AI, our specialized change order and T&M processing assistant.
 
 CONTEXT AWARENESS:
 - Current page: ${context?.pageContext?.currentPage || 'unknown'}

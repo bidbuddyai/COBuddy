@@ -59,7 +59,7 @@ export async function extractTextFromDocument(filePath: string, mimeType: string
       fileStream,
       {
         contentType: mimeType || 'application/pdf'
-      }
+      } as any
     );
     
     // Wait for the analysis to complete
@@ -84,7 +84,7 @@ export async function extractTextFromDocument(filePath: string, mimeType: string
       if (page.lines) {
         for (const line of page.lines) {
           const lineText = line.content || '';
-          const lineConfidence = line.confidence || 0.9;
+          const lineConfidence = (line as any).confidence || 0.9;
           
           pageLines.push({
             text: lineText,
@@ -108,7 +108,7 @@ export async function extractTextFromDocument(filePath: string, mimeType: string
             tables.push({
               rowCount: table.rowCount,
               columnCount: table.columnCount,
-              cells: table.cells.map(cell => ({
+              cells: table.cells.map((cell: any) => ({
                 rowIndex: cell.rowIndex,
                 columnIndex: cell.columnIndex,
                 content: cell.content,
@@ -178,7 +178,7 @@ export async function extractInvoiceData(filePath: string): Promise<any> {
       throw new Error('No invoice data found in document');
     }
     
-    const invoice = result.documents[0];
+    const invoice = result.documents[0] as any;
     return {
       invoiceNumber: invoice.fields?.InvoiceId?.value,
       date: invoice.fields?.InvoiceDate?.value,
@@ -190,7 +190,7 @@ export async function extractInvoiceData(filePath: string): Promise<any> {
       subtotal: invoice.fields?.SubTotal?.value,
       tax: invoice.fields?.TotalTax?.value,
       total: invoice.fields?.InvoiceTotal?.value,
-      items: invoice.fields?.Items?.values?.map((item: any) => ({
+      items: (invoice.fields?.Items?.value || invoice.fields?.Items?.values)?.map((item: any) => ({
         description: item.fields?.Description?.value,
         quantity: item.fields?.Quantity?.value,
         unitPrice: item.fields?.UnitPrice?.value,
@@ -224,12 +224,12 @@ export async function extractReceiptData(filePath: string): Promise<any> {
       throw new Error('No receipt data found in document');
     }
     
-    const receipt = result.documents[0];
+    const receipt = result.documents[0] as any;
     return {
       merchantName: receipt.fields?.MerchantName?.value,
       merchantAddress: receipt.fields?.MerchantAddress?.value,
       transactionDate: receipt.fields?.TransactionDate?.value,
-      items: receipt.fields?.Items?.values?.map((item: any) => ({
+      items: (receipt.fields?.Items?.value || receipt.fields?.Items?.values)?.map((item: any) => ({
         name: item.fields?.Name?.value,
         quantity: item.fields?.Quantity?.value,
         price: item.fields?.Price?.value,

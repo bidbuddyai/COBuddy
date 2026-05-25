@@ -259,7 +259,7 @@ export default function FileUpload({
                   </div>
                   <PlayfulLoadingAnimation
                     stage={stage}
-                    message={`CO Buddy is processing ${fileName}...`}
+                    message={`ProjectBuddy AI is processing ${fileName}...`}
                     size="sm"
                   />
                   {stage === 'uploading' && (
@@ -291,7 +291,7 @@ export default function FileUpload({
                       {file.status === 'processed' ? 'Processing complete' : 
                        file.status === 'processing' ? 'Processing...' : 
                        file.status === 'failed' ? 'Processing failed' : 'Uploaded'}
-                      {file.confidence && ` • ${Math.round(file.confidence * 100)}% confidence`}
+                      {file.confidence && ` • ${Math.round(Number(file.confidence) * 100)}% confidence`}
                     </p>
                   </div>
                 </div>

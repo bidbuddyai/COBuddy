@@ -21,17 +21,17 @@ export default function TermsPage() {
         <CardContent className="prose prose-gray max-w-none">
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By accessing and using CO Buddy AI ("Service"), you accept and agree to be bound by the terms and provision of this agreement.
+            By accessing and using the ProjectCommand Platform ("Service"), you accept and agree to be bound by the terms and provision of this agreement.
           </p>
 
           <h2>2. Use License</h2>
           <p>
-            Permission is granted to use CO Buddy AI for personal and commercial purposes related to construction change order management. This license shall automatically terminate if you violate any of these restrictions.
+            Permission is granted to use the ProjectCommand Platform for personal and commercial purposes related to construction management. This license shall automatically terminate if you violate any of these restrictions.
           </p>
 
           <h2>3. Service Description</h2>
           <p>
-            CO Buddy AI provides AI-powered document processing services for construction industry professionals, including:
+            ProjectCommand provides construction project management and operations services, including:
           </p>
           <ul>
             <li>Document upload and storage</li>
@@ -57,12 +57,12 @@ export default function TermsPage() {
 
           <h2>6. Intellectual Property</h2>
           <p>
-            You retain all rights to your uploaded documents and generated change orders. CO Buddy AI claims no ownership over your content.
+            You retain all rights to your uploaded documents and generated change orders. The ProjectCommand Platform claims no ownership over your content.
           </p>
 
           <h2>7. Limitations</h2>
           <p>
-            CO Buddy AI is provided "as is" without warranties. We are not liable for any damages arising from the use of our service. AI-extracted data should be reviewed for accuracy before use in official documents.
+            The ProjectCommand Platform is provided "as is" without warranties. We are not liable for any damages arising from the use of our service. AI-extracted data should be reviewed for accuracy before use in official documents.
           </p>
 
           <h2>8. Termination</h2>

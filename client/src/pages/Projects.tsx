@@ -118,7 +118,7 @@ export default function Projects() {
         <div className="flex items-center justify-center h-64">
           <PlayfulLoadingAnimation 
             stage="extracting" 
-            message="CO Buddy is organizing your projects..."
+            message="ProjectBuddy is organizing your projects..."
             size="lg"
           />
         </div>
@@ -367,7 +367,7 @@ export default function Projects() {
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span className="font-medium">Created:</span>
                   <span className="text-gray-600">
-                    {new Date(project.createdAt).toLocaleDateString()}
+                    {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
               </div>

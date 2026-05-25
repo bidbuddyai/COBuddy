@@ -46,8 +46,8 @@ export async function extractTextFromDocument(filePath: string, mimeType: string
     const operationId = operation.operationLocation.split('/').pop()!;
     
     // Wait for the operation to complete
-    let result;
-    let status = 'running';
+    let result: any;
+    let status: any = 'running';
     
     while (status === 'running' || status === 'notStarted') {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second

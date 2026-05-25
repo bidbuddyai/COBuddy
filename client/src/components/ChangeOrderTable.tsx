@@ -54,8 +54,9 @@ export default function ChangeOrderTable({ maxRows, projectId }: ChangeOrderTabl
     }).format(typeof amount === 'string' ? parseFloat(amount) : amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: string | Date | null) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -122,7 +123,7 @@ export default function ChangeOrderTable({ maxRows, projectId }: ChangeOrderTabl
                         {formatCurrency(changeOrder.totalAmount)}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {changeOrder.createdAt ? formatDate(changeOrder.createdAt) : 'N/A'}
+                        {formatDate(changeOrder.createdAt)}
                       </span>
                     </div>
                   </div>

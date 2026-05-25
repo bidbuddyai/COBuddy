@@ -438,7 +438,7 @@ export class GuidedCOAssistant {
         return undefined;
       }
 
-      const draft = co.draftState as DraftState;
+      const draft = co.draftState as any;
 
       let project: any = null;
       if (co.projectId) {
@@ -450,21 +450,20 @@ export class GuidedCOAssistant {
         project = p;
       }
 
-      const markups = project?.markupPercentages as any || {};
       const markupPercentages = {
-        labor: parseFloat(markups.labor || '0'),
-        materials: parseFloat(markups.materials || '0'),
-        equipment: parseFloat(markups.equipment || '0'),
-        subcontractors: parseFloat(markups.subcontractors || '0'),
-        disposal: parseFloat(markups.disposal || '0'),
-        import: parseFloat(markups.import || '0'),
+        labor: parseFloat(project?.markupLabor || '0'),
+        materials: parseFloat(project?.markupMaterials || '0'),
+        equipment: parseFloat(project?.markupEquipmentOwned || project?.markupEquipmentRented || '0'),
+        subcontractors: parseFloat(project?.markupSubcontractors || '0'),
+        disposal: parseFloat(project?.markupDisposal || '0'),
+        import: parseFloat(project?.markupImport || '0'),
       };
 
       const header = {
         coNumber: co.number || `DRAFT-${co.id}`,
-        projectNumber: project?.projectNumber || '',
+        projectNumber: project?.number || '',
         projectName: project?.name || '',
-        clientName: project?.gcName || null,
+        clientName: project?.clientName || null,
         preparedBy: this.context.userName,
         preparedDate: new Date().toISOString().split('T')[0],
         submittedDate: null,
@@ -505,21 +504,20 @@ export class GuidedCOAssistant {
           .where(eq(projects.id, co.projectId))
           .limit(1);
 
-        if (project?.markupPercentages) {
-          const markups = project.markupPercentages as any;
+        if (project) {
           projectMarkups = {
-            labor: parseFloat(markups.labor || '0'),
-            materials: parseFloat(markups.materials || '0'),
-            equipmentOwned: parseFloat(markups.equipmentOwned || markups.equipment || '0'),
-            equipmentRented: parseFloat(markups.equipmentRented || markups.equipment || '0'),
-            disposal: parseFloat(markups.disposal || '0'),
-            import: parseFloat(markups.import || '0'),
-            subcontractors: parseFloat(markups.subcontractors || '0'),
+            labor: parseFloat(project.markupLabor || '0'),
+            materials: parseFloat(project.markupMaterials || '0'),
+            equipmentOwned: parseFloat(project.markupEquipmentOwned || '0'),
+            equipmentRented: parseFloat(project.markupEquipmentRented || '0'),
+            disposal: parseFloat(project.markupDisposal || '0'),
+            import: parseFloat(project.markupImport || '0'),
+            subcontractors: parseFloat(project.markupSubcontractors || '0'),
           };
         }
       }
 
-      const validation = validateConstructionLogic(co.draftState, projectMarkups);
+      const validation = validateConstructionLogic(co.draftState as any, projectMarkups);
 
       console.log(`[Supervisor] Validation result: isValid=${validation.isValid}, errors=${validation.errors.length}, warnings=${validation.warnings.length}`);
 

@@ -1,29 +1,28 @@
 import { useState, useEffect } from "react";
 
 export function useTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    // Force light theme - clear any existing theme
-    localStorage.removeItem("theme");
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.className = document.documentElement.className.replace(/\b(light|dark)\b/g, '');
-    document.body.classList.remove("light", "dark");
-    document.documentElement.style.colorScheme = "light";
-    setTheme("light");
-  }, []);
-
-  useEffect(() => {
-    // Apply theme to document
-    document.documentElement.classList.remove("light", "dark");
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("theme");
+      if (stored === "dark" || stored === "light") {
+        return stored;
+      }
     }
+    return "light";
+  });
+
+  useEffect(() => {
+    // Apply theme to document element
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+    root.style.colorScheme = theme;
+    
     localStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
+    setTheme(prev => prev === "light" ? "dark" : "light");
   };
 
   return { theme, toggleTheme };

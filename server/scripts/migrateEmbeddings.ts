@@ -232,7 +232,7 @@ export async function runEmbeddingMigration(): Promise<{
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && (process.argv[1].endsWith("migrateEmbeddings.ts") || process.argv[1].endsWith("migrateEmbeddings.js") || process.argv[1].endsWith("migrateEmbeddings"))) {
   runEmbeddingMigration()
     .then((result) => {
       console.log("Migration result:", result);
