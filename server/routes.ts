@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import path from "path";
+import { getMcpRouter } from "./mcp";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { uploadMultiple, upload } from "./middleware/upload";
@@ -2448,6 +2450,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Failed to update notification' });
     }
   });
+
+  // Expose the OpenAPI Spec for ChatGPT Actions
+  app.get('/openapi.json', (req, res) => {
+    res.sendFile(path.resolve('openapi.json'));
+  });
+
+  // Mount the MCP Router (SSE transport routes)
+  app.use("/api/mcp", getMcpRouter());
 
   const httpServer = createServer(app);
   

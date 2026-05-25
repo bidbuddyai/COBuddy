@@ -1,0 +1,353 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ProjectBuddy PM Platform API",
+    "description": "API for managing construction projects, cost budgets, schedules, RFIs, submittals, punch lists, and change orders.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://projectcommand.192-3-61-148.sslip.io",
+      "description": "Active ProjectBuddy Staging Server"
+    }
+  ],
+  "paths": {
+    "/api/projects": {
+      "get": {
+        "summary": "List all active projects",
+        "description": "Retrieves the company's active construction projects.",
+        "responses": {
+          "200": {
+            "description": "List of projects retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new construction project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "number": { "type": "string" },
+                  "clientName": { "type": "string" },
+                  "status": { "type": "string", "default": "active" }
+                },
+                "required": ["name", "number", "clientName"]
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Project created successfully"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectId}/budget": {
+      "get": {
+        "summary": "Get project cost budget sheet",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Budget lines retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a cost budget line item",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "costCodeId": { "type": "integer" },
+                  "originalBudget": { "type": "string" },
+                  "estimatedAtCompletion": { "type": "string" }
+                },
+                "required": ["costCodeId", "originalBudget"]
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Budget item added successfully"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectId}/schedule": {
+      "get": {
+        "summary": "Get Gantt schedule activities",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule activities list retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a lookahead schedule activity",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "startDate": { "type": "string" },
+                  "finishDate": { "type": "string" },
+                  "duration": { "type": "integer" },
+                  "percentComplete": { "type": "integer" },
+                  "criticalPath": { "type": "boolean" },
+                  "responsibleParty": { "type": "string" }
+                },
+                "required": ["name"]
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Schedule activity added successfully"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectId}/rfis": {
+      "get": {
+        "summary": "Get RFIs",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RFIs list retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new RFI",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "number": { "type": "string" },
+                  "title": { "type": "string" },
+                  "question": { "type": "string" },
+                  "suggestedAnswer": { "type": "string" },
+                  "status": { "type": "string", "default": "open" },
+                  "priority": { "type": "string", "default": "medium" }
+                },
+                "required": ["number", "title", "question"]
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "RFI created successfully"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectId}/submittals": {
+      "get": {
+        "summary": "Get submittals registry list",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submittals retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a submittal registry item",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "specSection": { "type": "string" },
+                  "status": { "type": "string", "default": "pending_review" }
+                },
+                "required": ["title", "specSection"]
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Submittal added successfully"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectId}/tasks": {
+      "get": {
+        "summary": "Get punch tasks by location",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Punch list tasks retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a punch list task",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "location": { "type": "string" },
+                  "priority": { "type": "string", "default": "medium" }
+                },
+                "required": ["title", "location"]
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Punch list task created successfully"
+            }
+          }
+        }
+      }
+    },
+    "/api/change-orders": {
+      "get": {
+        "summary": "List change orders",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Change orders list retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a Potential Change Order",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": { "type": "integer" },
+                  "number": { "type": "string" },
+                  "description": { "type": "string" },
+                  "totalAmount": { "type": "string" },
+                  "status": { "type": "string", "default": "draft" }
+                },
+                "required": ["projectId", "number", "description", "totalAmount"]
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Change order created successfully"
+            }
+          }
+        }
+      }
+    }
+  }
+}
