@@ -51,10 +51,17 @@ export default function ChangeOrderLogs() {
   });
 
   // Fetch change orders for this project
-  const { data: changeOrders = [], isLoading: ordersLoading } = useQuery<ChangeOrder[]>({
-    queryKey: [`/api/change-orders?projectId=${projectId}`],
+  const { data: changeOrdersResponse, isLoading: ordersLoading } = useQuery<{ data: ChangeOrder[]; total: number }>({
+    queryKey: [`/api/change-orders`, { projectId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/change-orders?projectId=${projectId}`);
+      if (!res.ok) throw new Error("Failed to fetch change orders");
+      return res.json();
+    },
     enabled: !!projectId,
   });
+
+  const changeOrders = changeOrdersResponse?.data || [];
 
   const isLoading = projectLoading || ordersLoading;
 
