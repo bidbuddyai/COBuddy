@@ -283,7 +283,7 @@ async function runVerification() {
     console.log('👉 Clicking "Change Order Log" link in Sidebar...');
     await page.click('a[href*="/change-orders"]');
     
-    await page.waitForSelector('text=Change Order Logs', { timeout: 10000 });
+    await page.waitForSelector('text=Change Order Log', { timeout: 10000 });
     console.log('✅ Change Order registry lists matching rates sheet audits loaded!');
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '11_change_orders_log.png') });
     
