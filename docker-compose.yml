@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  projectcommand-db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: projectcommand
+      POSTGRES_PASSWORD: pc_secure_password_2026
+      POSTGRES_DB: projectcommand
+    volumes:
+      - projectcommand_db_data:/var/lib/postgresql/data
+    networks:
+      - rei-pm_public
+
+  projectcommand:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3050:3050"
+    environment:
+      PORT: 3050
+      NODE_ENV: production
+      DATABASE_URL: postgres://projectcommand:pc_secure_password_2026@projectcommand-db:5432/projectcommand
+      SESSION_SECRET: pc_session_secret_9988
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      - projectcommand-db
+    volumes:
+      - projectcommand_uploads:/app/uploads
+    networks:
+      - rei-pm_public
+
+networks:
+  rei-pm_public:
+    external: true
+
+volumes:
+  projectcommand_db_data:
+  projectcommand_uploads:
