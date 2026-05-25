@@ -1,5 +1,5 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdinStdoutServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { Router } from "express";
@@ -827,7 +827,7 @@ export function getMcpRouter(): Router {
 // Standalone execution runner logic for Stdio mode
 if (process.argv.includes("--stdio") || process.env.MCP_TRANSPORT === "stdio") {
   console.error("🚀 Starting ProjectBuddy MCP Server in STDIO mode...");
-  const transport = new StdinStdoutServerTransport();
+  const transport = new StdioServerTransport();
   mcpServer.connect(transport).catch((err) => {
     console.error("❌ Stdio transport failure:", err);
   });
