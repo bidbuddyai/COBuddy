@@ -138,7 +138,8 @@ export default function AICopilot() {
       let index = 0;
       const interval = setInterval(() => {
         if (index < data.logs.length) {
-          setAuditLogs(prev => [...prev, data.logs[index]]);
+          const logEntry = data.logs[index];
+          setAuditLogs(prev => [...prev, logEntry]);
           setAuditProgress(Math.round(((index + 1) / data.logs.length) * 100));
           index++;
         } else {
